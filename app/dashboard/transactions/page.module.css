@@ -1,0 +1,221 @@
+/* Transactions page styles */
+
+.transactionsPage {
+  display: grid;
+  gap: 1.5rem;
+  --surface-strong: rgba(255,255,255,0.14);
+  --border: rgba(96,165,250,0.18);
+  --text: #f8fafc;
+  --muted: rgba(226,232,240,0.72);
+  --accent: #60a5fa;
+  --success: #4ade80;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --radius: 24px;
+}
+
+.heroCard {
+  background: rgba(8,18,40,0.9);
+  border: 1px solid rgba(96,165,250,0.18);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.heroText {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.heroTitle,
+.tableHeader th,
+.filterButtonActive {
+  color: white;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.heroSubtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.exportButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(96,165,250,0.18);
+  color: white;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.exportButton:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.filterButton {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.filterButton:hover {
+  background: rgba(255,255,255,0.06);
+  color: white;
+}
+
+.filterButtonActive {
+  background: linear-gradient(135deg, var(--accent), #7dd3fc);
+  color: #0f172a;
+  border-color: transparent;
+}
+
+.searchWrapper {
+  position: relative;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.95rem 1rem 0.95rem 3rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(96,165,250,0.18);
+  background: rgba(255,255,255,0.04);
+  color: white;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: rgba(226,232,240,0.55);
+}
+
+.searchIcon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(226,232,240,0.55);
+}
+
+.tableCard {
+  background: rgba(8,18,40,0.9);
+  border: 1px solid rgba(96,165,250,0.18);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.transactionsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableHeader th {
+  padding: 1rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(226,232,240,0.75);
+  border-bottom: 1px solid rgba(96,165,250,0.14);
+}
+
+.tableRow {
+  transition: background 160ms ease;
+}
+
+.tableRow:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.tableCell {
+  padding: 1rem;
+  color: #eef2ff;
+  vertical-align: middle;
+}
+
+.typeBadge {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.textRight {
+  text-align: right;
+}
+
+.typeGreen {
+  color: var(--success);
+}
+
+.typeRed {
+  color: var(--danger);
+}
+
+.typeYellow {
+  color: var(--warning);
+}
+
+.typeBlue {
+  color: var(--accent);
+}
+
+.amountPositive {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.amountNegative {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.emptyState {
+  padding: 3rem;
+  text-align: center;
+  color: rgba(226,232,240,0.7);
+}
+
+.spinnerWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 5rem 0;
+}
+
+.spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 4px solid rgba(255,255,255,0.12);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

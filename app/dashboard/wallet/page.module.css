@@ -1,0 +1,470 @@
+/* Wallet page styles */
+
+.walletPage {
+  display: grid;
+  gap: 1.5rem;
+  --wallet-bg-start: #061129;
+  --wallet-bg-end: #081c39;
+  --wallet-surface: rgba(255,255,255,0.06);
+  --wallet-surface-strong: rgba(255,255,255,0.1);
+  --wallet-border: rgba(96,165,250,0.18);
+  --wallet-text: #e5f0ff;
+  --wallet-muted: rgba(226,232,240,0.7);
+  --wallet-accent: #60a5fa;
+  --wallet-accent-strong: #38bdf8;
+  --wallet-success: #4ade80;
+  --wallet-warning: #fbbf24;
+  --wallet-danger: #f87171;
+  --wallet-radius: 24px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.balanceCard,
+.card,
+.sectionCard,
+.historyCard {
+  background: rgba(6,18,41,0.9);
+  border: 1px solid var(--wallet-border);
+  border-radius: var(--wallet-radius);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+  padding: 1.5rem;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.balanceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.balanceCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.balanceCardTitle {
+  margin: 0;
+  color: var(--wallet-muted);
+  font-size: 0.95rem;
+}
+
+.balanceAmount {
+  margin: 0.45rem 0 0;
+  color: #a7f3d0;
+  font-size: clamp(1.9rem, 2.5vw, 2.4rem);
+  font-weight: 800;
+}
+
+.balanceSubtitle {
+  margin: 0;
+  color: rgba(226,232,240,0.55);
+  font-size: 0.92rem;
+}
+
+.balanceIcon {
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem;
+  border-radius: 1rem;
+  display: grid;
+  place-items: center;
+  background: rgba(96,165,250,0.15);
+  color: var(--wallet-success);
+}
+
+.warningIcon {
+  color: var(--wallet-warning);
+}
+
+.successIcon {
+  color: #4ade80;
+}
+
+.mutedIcon {
+  color: #94a3b8;
+}
+
+.iconInline {
+  display: inline-block;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+.pulseDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--wallet-warning);
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.55; }
+}
+
+.nestedSection {
+  padding: 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1.2rem;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid rgba(96,165,250,0.12);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--wallet-muted);
+}
+
+.infoBox {
+  padding: 1rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(251,191,36,0.15);
+  background: rgba(251,191,36,0.08);
+  margin-top: 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(96,165,250,0.16);
+}
+
+.tabButton {
+  padding: 0.9rem 1.25rem;
+  border-radius: 1rem 1rem 0 0;
+  background: transparent;
+  color: var(--wallet-muted);
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  transition: all 160ms ease;
+}
+
+.tabButton:hover {
+  color: var(--wallet-text);
+}
+
+.tabButtonActive {
+  color: var(--wallet-accent);
+  background: rgba(96,165,250,0.12);
+  border-color: rgba(96,165,250,0.25);
+  border-bottom-color: rgba(6,18,41,0.9);
+}
+
+.tabPanel {
+  padding-top: 1.25rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.methodGrid,
+.optionsGrid,
+.transactionList {
+  display: grid;
+  gap: 1rem;
+}
+
+.methodGrid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.methodCard {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.1rem;
+  border-radius: 1.3rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--wallet-text);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.methodCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(96,165,250,0.3);
+}
+
+.methodCardActive {
+  background: rgba(96,165,250,0.14);
+  border-color: rgba(96,165,250,0.33);
+}
+
+.methodIcon {
+  font-size: 1.3rem;
+}
+
+.iconInline {
+  display: inline-block;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+.pulseDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--wallet-warning);
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.55; }
+}
+
+.methodLabel {
+  margin: 0;
+  font-weight: 600;
+}
+
+.methodMeta {
+  margin: 0;
+  color: var(--wallet-muted);
+  font-size: 0.85rem;
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.fieldLabel {
+  margin: 0;
+  color: var(--wallet-muted);
+  font-size: 0.92rem;
+}
+
+.inputRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.inputField,
+.selectField,
+.textareaField {
+  width: 100%;
+  min-width: 0;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(148,163,184,0.18);
+  padding: 0.95rem 1rem;
+  background: rgba(255,255,255,0.04);
+  color: var(--wallet-text);
+  font-size: 1rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.inputField:focus,
+.selectField:focus,
+.textareaField:focus {
+  outline: none;
+  border-color: rgba(96,165,250,0.6);
+  box-shadow: 0 0 0 4px rgba(96,165,250,0.08);
+}
+
+.actionRow {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton,
+.copyButton {
+  border-radius: 1.2rem;
+  border: none;
+  padding: 0.95rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.primaryButton {
+  color: white;
+  background: linear-gradient(135deg, var(--wallet-accent), var(--wallet-accent-strong));
+  box-shadow: 0 18px 42px rgba(96,165,250,0.24);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.secondaryButton,
+.copyButton {
+  background: rgba(255,255,255,0.06);
+  color: var(--wallet-text);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.copyButton {
+  min-width: 3rem;
+  display: inline-grid;
+  place-items: center;
+}
+
+.primaryButtonDisabled,
+.disabledButton {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.helperText {
+  margin: 0.75rem 0 0;
+  color: var(--wallet-muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.warningBox,
+.infoBox {
+  padding: 1rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(251,191,36,0.15);
+  background: rgba(251,191,36,0.08);
+}
+
+.warningBox p,
+.infoBox p {
+  margin: 0;
+  color: #fbbf24;
+  font-size: 0.92rem;
+}
+
+.warningList {
+  margin: 0.8rem 0 0;
+  padding-left: 1.25rem;
+  color: rgba(226,232,240,0.78);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.pendingList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pendingItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.pendingMeta {
+  margin: 0;
+  color: var(--wallet-muted);
+  font-size: 0.85rem;
+}
+
+.pendingStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--wallet-warning);
+  font-size: 0.95rem;
+}
+
+.historyCard {
+  max-height: 32rem;
+  overflow: hidden;
+}
+
+.transactionList {
+  max-height: 26rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.txRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.txDetails {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.txTitle {
+  margin: 0;
+  color: var(--wallet-text);
+  text-transform: capitalize;
+}
+
+.txSubtitle,
+.txBalance {
+  margin: 0;
+  color: var(--wallet-muted);
+  font-size: 0.85rem;
+}
+
+.txAmount {
+  margin: 0;
+  font-weight: 700;
+}
+
+.txPositive {
+  color: var(--wallet-success);
+}
+
+.txNegative {
+  color: var(--wallet-danger);
+}
+
+@media (max-width: 840px) {
+  .statsGrid,
+  .methodGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .tabs {
+    flex-wrap: wrap;
+  }
+  .tabButton {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .inputRow,
+  .actionRow {
+    flex-direction: column;
+  }
+
+  .inputField,
+  .selectField,
+  .textareaField {
+    width: 100%;
+  }
+}

@@ -1,0 +1,213 @@
+/* NFT page styles */
+
+.nftPage {
+  display: grid;
+  gap: 1.5rem;
+  --bg: #061129;
+  --surface: rgba(255,255,255,0.08);
+  --surface-strong: rgba(255,255,255,0.16);
+  --border: rgba(96,165,250,0.18);
+  --text: #eef2ff;
+  --muted: rgba(226,232,240,0.72);
+  --accent: #60a5fa;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --radius: 24px;
+}
+
+.heroCard,
+.sectionCard,
+.nftCard,
+.infoCard {
+  background: rgba(8,18,40,0.9);
+  border: 1px solid rgba(96,165,250,0.18);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+  padding: 1.5rem;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.heroHeader,
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.heroTitle,
+.sectionTitle {
+  margin: 0;
+  color: white;
+}
+
+.heroDescription,
+.sectionDescription,
+.cardText,
+.cardMeta,
+.rewardLabel {
+  color: var(--muted);
+}
+
+.cardsGrid,
+.rewardsGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.cardsGrid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.nftCard {
+  display: grid;
+  gap: 1rem;
+  border-radius: 1.5rem;
+}
+
+.nftCardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.nftBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(34,197,94,0.12);
+  color: #86efac;
+  font-size: 0.82rem;
+}
+
+.nftCardText {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.nftCardRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.nftCardRow span {
+  color: var(--text);
+}
+
+.stakeButton,
+.purchaseButton,
+.ownedButton {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.stakeButton {
+  background: linear-gradient(135deg, var(--accent), #7dd3fc);
+  color: #0f172a;
+}
+
+.stakeButton:hover {
+  transform: translateY(-1px);
+}
+
+.purchaseButton {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  color: white;
+}
+
+.ownedButton {
+  background: rgba(34,197,94,0.14);
+  color: #bef264;
+  cursor: not-allowed;
+}
+
+.tierBadge {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: white;
+}
+
+.tierDiamond {
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+}
+
+.tierPlatinum {
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
+}
+
+.tierGold {
+  background: linear-gradient(135deg, #facc15, #f59e0b);
+}
+
+.tierSilver {
+  background: linear-gradient(135deg, #cbd5e1, #9ca3af);
+}
+
+.tierBronze {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.rewardCard {
+  padding: 1.3rem;
+  border-radius: 1.5rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.rewardLabel {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.rewardValue {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: white;
+}
+
+.rewardHint {
+  margin: 0.5rem 0 0;
+  color: rgba(226,232,240,0.65);
+  font-size: 0.9rem;
+}
+
+.spinnerWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 5rem 0;
+}
+
+.spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 4px solid rgba(255,255,255,0.12);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

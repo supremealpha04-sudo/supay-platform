@@ -1,0 +1,240 @@
+/* Referrals page styles */
+
+.referralsPage {
+  display: grid;
+  gap: 1.5rem;
+  --surface-strong: rgba(255,255,255,0.12);
+  --border: rgba(96,165,250,0.18);
+  --text: #eef2ff;
+  --muted: rgba(226,232,240,0.72);
+  --accent: #60a5fa;
+  --accent-strong: #38bdf8;
+  --success: #4ade80;
+  --radius: 24px;
+}
+
+.heroCard,
+.sectionCard,
+.leaderboardCard,
+.statsCard,
+.historyCard,
+.linkCard {
+  background: rgba(8,18,40,0.88);
+  border: 1px solid rgba(96,165,250,0.16);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+  padding: 1.5rem;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.heroCard h1,
+.sectionTitle,
+.leaderTitle {
+  color: white;
+  margin: 0;
+}
+
+.heroCard p,
+.sectionDescription,
+.statLabel,
+.historyMeta,
+.leaderSubtext {
+  color: var(--muted);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.statsCard {
+  display: grid;
+  gap: 1rem;
+  border-radius: 1.5rem;
+  background: rgba(255,255,255,0.03);
+}
+
+.statsCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.statIcon {
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem;
+  border-radius: 1rem;
+  display: grid;
+  place-items: center;
+  background: rgba(96,165,250,0.15);
+  color: var(--accent);
+}
+
+.statText {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.statLabel {
+  font-size: 0.95rem;
+}
+
+.statValue {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.linkFieldRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.textInput,
+.selectInput {
+  width: 100%;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(96,165,250,0.18);
+  background: rgba(255,255,255,0.04);
+  color: white;
+  outline: none;
+}
+
+.textInput::placeholder,
+.selectInput::placeholder {
+  color: rgba(226,232,240,0.55);
+}
+
+.copyButton,
+.actionButton {
+  min-width: 4rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+  cursor: pointer;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.copyButton:hover,
+.actionButton:hover {
+  transform: translateY(-1px);
+}
+
+.tipBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1.25rem;
+  background: rgba(96,165,250,0.08);
+  border: 1px solid rgba(96,165,250,0.14);
+}
+
+.tipTitle {
+  color: #93c5fd;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.tipList {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+  color: rgba(226,232,240,0.72);
+}
+
+.tipList li {
+  margin-bottom: 0.4rem;
+}
+
+.historyCard {
+  display: grid;
+  gap: 1rem;
+}
+
+.historyItem,
+.leaderboardRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.historyContent,
+.leaderText {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.historyMeta,
+.leaderSubtext,
+.leaderDate {
+  margin: 0;
+  color: rgba(226,232,240,0.7);
+  font-size: 0.85rem;
+}
+
+.historyEarnings,
+.leaderBadge {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.leaderboardCard {
+  display: grid;
+  gap: 1rem;
+}
+
+.leaderboardRow {
+  align-items: center;
+}
+
+.rankTag {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: white;
+  font-weight: 700;
+}
+
+.rankGold {
+  background: #facc15;
+}
+
+.rankSilver {
+  background: #cbd5e1;
+  color: #0f172a;
+}
+
+.rankBronze {
+  background: #fb923c;
+}
+
+.rankDefault {
+  background: rgba(96,165,250,0.18);
+}
+
+.leaderboardText {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.leaderboardRow span {
+  color: white;
+}
+
+.leaderboardInfo {
+  text-align: right;
+}
