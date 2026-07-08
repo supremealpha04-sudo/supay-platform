@@ -49,7 +49,6 @@ export default function DashboardPage() {
   })
   const [weeklyEarnings, setWeeklyEarnings] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
   const [recentActivities, setRecentActivities] = useState<Transaction[]>([])
-  const [error, setError] = useState<string | null>(null)
 
   const days = useMemo(() => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], [])
   const streakDays = useMemo(() => ['M', 'T', 'W', 'T', 'F', 'S', 'S'], [])
@@ -69,14 +68,12 @@ export default function DashboardPage() {
     }
 
     setLoading(true)
-    setError(null)
 
     try {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const todayStr = today.toISOString()
 
-      // Calculate week start (Monday)
       const weekStart = new Date(today)
       const dayOfWeek = today.getDay()
       const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
@@ -84,77 +81,66 @@ export default function DashboardPage() {
       weekStart.setHours(0, 0, 0, 0)
       const weekStartStr = weekStart.toISOString()
 
-      // Fetch all data in parallel with fallback handling
-      const [
-        todayAdsResult,
-        breakdownResult,
-        weeklyAdsResult,
-        transactionsResult
-      ] = await Promise.allSettled([
-        // Today's ad earnings
-        supabase
+      // Fetch all data - each wrapped in try/catch so failures don't block others
+      let todayEarnings = 0
+      let breakdown = { earned_spy: 0, referral_spy: 0, staking_rewards_spy: 0 }
+      let weeklyData = [0, 0, 0, 0, 0, 0, 0]
+      let transactions: Transaction[] = []
+
+      // 1. Today's ad earnings
+      try {
+        const { data } = await supabase
           .from('ad_watches')
           .select('reward_spy')
           .eq('user_id', profile.id)
-          .gte('created_at', todayStr),
+          .gte('created_at', todayStr)
+        if (data) {
+          todayEarnings = data.reduce((sum, ad) => sum + (Number(ad.reward_spy) || 0), 0)
+        }
+      } catch (e) { console.log('ad_watches table not ready yet') }
 
-        // User breakdown
-        supabase
+      // 2. User breakdown
+      try {
+        const { data } = await supabase
           .from('user_spy_breakdown')
           .select('earned_spy, referral_spy, staking_rewards_spy')
           .eq('user_id', profile.id)
-          .single(),
+          .single()
+        if (data) breakdown = data
+      } catch (e) { console.log('user_spy_breakdown table not ready yet') }
 
-        // Weekly earnings (fallback to client-side calc if RPC fails)
-        supabase
+      // 3. Weekly earnings
+      try {
+        const { data } = await supabase
           .from('ad_watches')
           .select('reward_spy, created_at')
           .eq('user_id', profile.id)
           .gte('created_at', weekStartStr)
-          .order('created_at', { ascending: true }),
+          .order('created_at', { ascending: true })
+        if (data) {
+          data.forEach((ad: any) => {
+            const adDate = new Date(ad.created_at)
+            const adDay = adDate.getDay()
+            const dayIndex = adDay === 0 ? 6 : adDay - 1
+            weeklyData[dayIndex] += Number(ad.reward_spy) || 0
+          })
+        }
+      } catch (e) { console.log('weekly fetch failed, using zeros') }
 
-        // Recent transactions
-        supabase
+      // 4. Recent transactions
+      try {
+        const { data } = await supabase
           .from('transactions')
           .select('*')
           .eq('user_id', profile.id)
           .order('created_at', { ascending: false })
           .limit(7)
-      ])
+        if (data) transactions = data
+      } catch (e) { console.log('transactions table not ready yet') }
 
-      // Process today's earnings
-      let todayEarnings = 0
-      if (todayAdsResult.status === 'fulfilled' && todayAdsResult.value.data) {
-        todayEarnings = todayAdsResult.value.data.reduce(
-          (sum, ad) => sum + (Number(ad.reward_spy) || 0), 0
-        )
-      }
-
-      // Process breakdown
-      let breakdown = { earned_spy: 0, referral_spy: 0, staking_rewards_spy: 0 }
-      if (breakdownResult.status === 'fulfilled' && breakdownResult.value.data) {
-        breakdown = breakdownResult.value.data
-      }
       const withdrawable = (Number(breakdown.earned_spy) || 0) + 
                           (Number(breakdown.referral_spy) || 0) + 
                           (Number(breakdown.staking_rewards_spy) || 0)
-
-      // Process weekly earnings (client-side calculation)
-      const weeklyData = [0, 0, 0, 0, 0, 0, 0]
-      if (weeklyAdsResult.status === 'fulfilled' && weeklyAdsResult.value.data) {
-        weeklyAdsResult.value.data.forEach((ad: any) => {
-          const adDate = new Date(ad.created_at)
-          const adDay = adDate.getDay()
-          const dayIndex = adDay === 0 ? 6 : adDay - 1 // Convert to Mon=0, Sun=6
-          weeklyData[dayIndex] += Number(ad.reward_spy) || 0
-        })
-      }
-
-      // Process transactions
-      let transactions: Transaction[] = []
-      if (transactionsResult.status === 'fulfilled' && transactionsResult.value.data) {
-        transactions = transactionsResult.value.data
-      }
 
       setStats({
         todayEarnings,
@@ -164,10 +150,7 @@ export default function DashboardPage() {
         spyBalance: Number(profile.spy_balance) || 0,
         spyPrice: 0.023,
         streak: Number(profile.daily_bonus_streak) || 0,
-        dailyGoal: { 
-          current: todayEarnings, 
-          target: 20
-        }
+        dailyGoal: { current: todayEarnings, target: 20 }
       })
 
       setWeeklyEarnings(weeklyData)
@@ -175,7 +158,6 @@ export default function DashboardPage() {
 
     } catch (err: any) {
       console.error('Dashboard fetch error:', err)
-      setError(err.message || 'Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
@@ -236,7 +218,6 @@ export default function DashboardPage() {
   const maxWeeklyEarning = Math.max(...weeklyEarnings, 1)
   const goalPercentage = Math.min((stats.dailyGoal.current / stats.dailyGoal.target) * 100, 100)
 
-  // Demo fallback data for empty states
   const demoActivities: Transaction[] = [
     { id: '1', created_at: new Date(Date.now() - 2 * 60000).toISOString(), amount_spy: 22, type: 'ad_watch' },
     { id: '2', created_at: new Date(Date.now() - 86400000).toISOString(), amount_spy: 18, type: 'task_complete' },
@@ -325,13 +306,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </header>
-
-        {error && (
-          <div className="error-banner">
-            <p>{error}</p>
-            <button onClick={fetchDashboardData}>Retry</button>
-          </div>
-        )}
 
         <div className="dashboard">
           {/* Welcome Section */}
