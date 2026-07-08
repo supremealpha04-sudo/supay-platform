@@ -1,52 +1,38 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { FaHome, FaCoins, FaTasks, FaWallet, FaSignOutAlt } from 'react-icons/fa'
+import { FaBars, FaBell, FaUserCircle } from 'react-icons/fa'
 import { useAuth } from '@/contexts/AuthContext'
 import './lay.css'
 
-export default function DashboardSidebar({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
-  const pathname = usePathname()
-  const { signOut } = useAuth()
-
-  const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: FaHome },
-    { href: '/dashboard/earn', label: 'Earn', icon: FaCoins },
-    { href: '/dashboard/tasks', label: 'Tasks', icon: FaTasks },
-    { href: '/dashboard/wallet', label: 'Wallet', icon: FaWallet },
-  ]
+export default function DashboardHeader({ setSidebarOpen }: { setSidebarOpen: (open: boolean) => void }) {
+  const { profile } = useAuth()
 
   return (
-    <aside className="sidebar-aside">
-      <div className="sidebar-inner">
-        <div className="sidebar-brand">
-          <span className="brand-text">Supay</span>
-        </div>
-        <nav className="sidebar-nav">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+    <header className="dash-header">
+      <div className="header-inner">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="mobile-menu-btn"
+        >
+          <FaBars className="menu-icon" />
+        </button>
 
-            return (
-              <Link 
-                key={item.href} 
-                href={item.href} 
-                className={`nav-link ${isActive ? 'active' : ''}`}
-                onClick={() => setOpen(false)}
-              >
-                <Icon className="nav-icon" />
-                <span className="nav-label">{item.label}</span>
-              </Link>
-            )
-          })}
-
-          <button onClick={signOut} className="nav-link logout">
-            <FaSignOutAlt className="nav-icon" />
-            <span className="nav-label">Logout</span>
+        <div className="header-right">
+          <button className="icon-btn">
+            <FaBell className="bell-icon" />
+            <span className="notification-dot" />
           </button>
-        </nav>
+
+          <div className="user-pill">
+            <div className="user-avatar">
+              <FaUserCircle className="avatar-icon" />
+            </div>
+            <div className="user-info">
+              <div className="user-name">{profile?.username || 'User'}</div>
+            </div>
+          </div>
+        </div>
       </div>
-    </aside>
+    </header>
   )
 }
