@@ -8,8 +8,7 @@ import {
   Activity, DollarSign, Users, Wallet, Play, 
   CheckCircle, Gift, TrendingUp, Calendar, 
   Flame, ArrowUpRight, MessageCircle, Zap,
-  Plus, ArrowUp, ArrowDown, Bell, ChevronDown, ArrowRight,
-  LayoutDashboard, DollarSign as EarnIcon, ClipboardList, CreditCard, LogOut
+  Plus, ArrowUp, ArrowDown, Bell, ChevronDown, ArrowRight
 } from 'lucide-react'
 import './dashboard.css'
 
@@ -35,7 +34,7 @@ interface Transaction {
 }
 
 export default function DashboardPage() {
-  const { profile, user } = useAuth()
+  const { profile } = useAuth()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>({
     todayEarnings: 0,
@@ -54,12 +53,14 @@ export default function DashboardPage() {
   const streakDays = useMemo(() => ['M', 'T', 'W', 'T', 'F', 'S', 'S'], [])
 
   useEffect(() => {
-    if (profile && user) {
+    if (profile) {
       fetchDashboardData()
-    } else if (!user) {
-      setLoading(false)
+    } else {
+      // If no profile after a timeout, stop loading
+      const timer = setTimeout(() => setLoading(false), 3000)
+      return () => clearTimeout(timer)
     }
-  }, [profile, user])
+  }, [profile])
 
   async function fetchDashboardData() {
     if (!profile?.id) {
@@ -81,7 +82,7 @@ export default function DashboardPage() {
       weekStart.setHours(0, 0, 0, 0)
       const weekStartStr = weekStart.toISOString()
 
-      // Fetch all data - each wrapped in try/catch so failures don't block others
+      // Fetch all data with individual error handling
       let todayEarnings = 0
       let breakdown = { earned_spy: 0, referral_spy: 0, staking_rewards_spy: 0 }
       let weeklyData = [0, 0, 0, 0, 0, 0, 0]
@@ -89,35 +90,35 @@ export default function DashboardPage() {
 
       // 1. Today's ad earnings
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('ad_watches')
           .select('reward_spy')
           .eq('user_id', profile.id)
           .gte('created_at', todayStr)
-        if (data) {
+        if (!error && data) {
           todayEarnings = data.reduce((sum, ad) => sum + (Number(ad.reward_spy) || 0), 0)
         }
-      } catch (e) { console.log('ad_watches table not ready yet') }
+      } catch (e) { /* table may not exist yet */ }
 
       // 2. User breakdown
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('user_spy_breakdown')
           .select('earned_spy, referral_spy, staking_rewards_spy')
           .eq('user_id', profile.id)
           .single()
-        if (data) breakdown = data
-      } catch (e) { console.log('user_spy_breakdown table not ready yet') }
+        if (!error && data) breakdown = data
+      } catch (e) { /* table may not exist yet */ }
 
       // 3. Weekly earnings
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('ad_watches')
           .select('reward_spy, created_at')
           .eq('user_id', profile.id)
           .gte('created_at', weekStartStr)
           .order('created_at', { ascending: true })
-        if (data) {
+        if (!error && data) {
           data.forEach((ad: any) => {
             const adDate = new Date(ad.created_at)
             const adDay = adDate.getDay()
@@ -125,18 +126,18 @@ export default function DashboardPage() {
             weeklyData[dayIndex] += Number(ad.reward_spy) || 0
           })
         }
-      } catch (e) { console.log('weekly fetch failed, using zeros') }
+      } catch (e) { /* table may not exist yet */ }
 
       // 4. Recent transactions
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('transactions')
           .select('*')
           .eq('user_id', profile.id)
           .order('created_at', { ascending: false })
           .limit(7)
-        if (data) transactions = data
-      } catch (e) { console.log('transactions table not ready yet') }
+        if (!error && data) transactions = data
+      } catch (e) { /* table may not exist yet */ }
 
       const withdrawable = (Number(breakdown.earned_spy) || 0) + 
                           (Number(breakdown.referral_spy) || 0) + 
@@ -170,13 +171,6 @@ export default function DashboardPage() {
     { title: 'Claim Bonus', desc: 'Daily rewards', extra: 'Available Now', icon: Gift, color: 'purple', link: '/dashboard/earn' },
   ]
 
-  const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', active: true },
-    { label: 'Earn', icon: EarnIcon, href: '/dashboard/earn' },
-    { label: 'Tasks', icon: ClipboardList, href: '/dashboard/tasks' },
-    { label: 'Wallet', icon: CreditCard, href: '/dashboard/wallet' },
-  ]
-
   const getActivityDescription = (type: string) => {
     const descriptions: Record<string, string> = {
       'ad_watch': 'Watched Ad',
@@ -192,13 +186,13 @@ export default function DashboardPage() {
 
   const getActivityIcon = (type: string) => {
     switch(type) {
-      case 'ad_watch': return <div className="activity-icon-bg blue"><Play size={14} fill="white" /></div>
-      case 'task_complete': return <div className="activity-icon-bg green"><CheckCircle size={14} /></div>
-      case 'daily_bonus': return <div className="activity-icon-bg purple"><Gift size={14} /></div>
-      case 'referral': return <div className="activity-icon-bg orange"><Users size={14} /></div>
-      case 'withdrawal': return <div className="activity-icon-bg red"><ArrowUp size={14} /></div>
-      case 'deposit': return <div className="activity-icon-bg blue"><ArrowDown size={14} /></div>
-      default: return <div className="activity-icon-bg blue"><Zap size={14} /></div>
+      case 'ad_watch': return <div className="act-icon-bg blue"><Play size={14} fill="white" /></div>
+      case 'task_complete': return <div className="act-icon-bg green"><CheckCircle size={14} /></div>
+      case 'daily_bonus': return <div className="act-icon-bg purple"><Gift size={14} /></div>
+      case 'referral': return <div className="act-icon-bg orange"><Users size={14} /></div>
+      case 'withdrawal': return <div className="act-icon-bg red"><ArrowUp size={14} /></div>
+      case 'deposit': return <div className="act-icon-bg blue"><ArrowDown size={14} /></div>
+      default: return <div className="act-icon-bg blue"><Zap size={14} /></div>
     }
   }
 
@@ -230,324 +224,253 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="loading-container">
-          <div className="loading-spinner" />
-          <p className="loading-text">Loading your dashboard...</p>
-        </div>
+      <div className="dash-loading">
+        <div className="loading-spinner" />
+        <p className="loading-text">Loading your dashboard...</p>
       </div>
     )
   }
 
   return (
-    <div className="dashboard-page">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="brand-logo">
-            <Zap size={24} className="brand-icon" />
+    <div className="dashboard">
+      {/* Welcome Section */}
+      <div className="welcome-section">
+        <h1 className="welcome-title">Welcome back, {profile?.username || 'User'}! 👋</h1>
+        <div className="welcome-text">
+          Great to see you again. Keep earning and grow your SPY balance.
+          <span className="welcome-badge">
+            <TrendingUp size={14} />
+            +{stats.todayEarnings} SPY earned today
+          </span>
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div className="stats-row">
+        <div className="stat-box">
+          <div className="stat-top">
+            <span className="stat-label">Today&apos;s Earnings</span>
+            <div className="stat-icon blue"><Activity size={16} /></div>
           </div>
-          <span className="brand-text">Supay</span>
+          <div className="stat-number">{stats.todayEarnings} <span className="stat-unit">SPY</span></div>
+          <div className="stat-trend up">+{stats.todayEarnings} SPY earned today</div>
         </div>
 
-        <nav className="sidebar-nav">
-          {navItems.map((item) => {
-            const Icon = item.icon
+        <div className="stat-box">
+          <div className="stat-top">
+            <span className="stat-label">Total Earned</span>
+            <div className="stat-icon purple"><DollarSign size={16} /></div>
+          </div>
+          <div className="stat-number">${stats.totalEarned.toFixed(1)}</div>
+          <div className="stat-trend up">+15.4% all time</div>
+        </div>
+
+        <div className="stat-box">
+          <div className="stat-top">
+            <span className="stat-label">Referrals</span>
+            <div className="stat-icon orange"><Users size={16} /></div>
+          </div>
+          <div className="stat-number">{stats.referralCount}</div>
+          <div className="stat-trend up">+15.4% all time</div>
+        </div>
+
+        <div className="stat-box">
+          <div className="stat-top">
+            <span className="stat-label">Withdrawable</span>
+            <div className="stat-icon green"><Wallet size={16} /></div>
+          </div>
+          <div className="stat-number">${stats.withdrawable.toFixed(1)} <span className="stat-unit">USD</span></div>
+          <div className="stat-trend neutral">Ready to cash out</div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="quick-actions-section">
+        <div className="section-head">
+          <h2>Quick Actions</h2>
+          <Link href="/dashboard/earn" className="view-all-link">
+            View All <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div className="actions-grid">
+          {quickActions.map((action, i) => {
+            const Icon = action.icon
             return (
-              <Link 
-                key={item.label} 
-                href={item.href}
-                className={`nav-item ${item.active ? 'active' : ''}`}
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
+              <Link key={i} href={action.link} className="action-link">
+                <div className="action-item">
+                  <div className={`action-icon-wrap ${action.color}`}>
+                    <Icon size={24} />
+                  </div>
+                  <div className="action-title">{action.title}</div>
+                  <div className="action-desc">{action.desc}</div>
+                  <div className={`action-badge ${action.color}`}>{action.extra}</div>
+                  <div className="action-arrow">
+                    <ArrowRight size={16} />
+                  </div>
+                </div>
               </Link>
             )
           })}
-        </nav>
-
-        <div className="sidebar-footer">
-          <button className="nav-item logout">
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
-
-          <div className="user-card">
-            <div className="user-avatar">
-              {profile?.username?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <div className="user-info">
-              <span className="user-name">{profile?.username || 'User'}</span>
-              <span className="user-email">{profile?.email || 'user@example.com'}</span>
-            </div>
-            <ChevronDown size={16} className="user-chevron" />
-          </div>
         </div>
-      </aside>
+      </div>
 
-      {/* Main Content */}
-      <main className="main-content">
-        {/* Top Bar */}
-        <header className="top-bar">
-          <div className="top-bar-left">
-            <h1 className="page-title">Dashboard</h1>
-          </div>
-          <div className="top-bar-right">
-            <button className="icon-btn">
-              <Bell size={20} />
-              <span className="notification-dot" />
-            </button>
-            <div className="user-pill">
-              <div className="user-pill-avatar">
-                {profile?.username?.charAt(0).toUpperCase() || 'U'}
+      {/* Main Layout */}
+      <div className="dashboard-layout">
+        <div className="left-panel">
+          {/* Earnings Overview Chart */}
+          <div className="chart-container">
+            <div className="chart-header">
+              <div className="chart-left">
+                <h3>Earnings Overview</h3>
+                <div className="chart-big-number">{weeklyTotal} <span>SPY</span></div>
+                <div className="chart-small-text">
+                  <span className="up">+18.6%</span> vs last week
+                </div>
               </div>
-              <span className="user-pill-name">{profile?.username || 'User'}</span>
-              <ChevronDown size={16} />
-            </div>
-          </div>
-        </header>
-
-        <div className="dashboard">
-          {/* Welcome Section */}
-          <div className="welcome-section">
-            <h1 className="welcome-title">Welcome back, {profile?.username || 'User'}! 👋</h1>
-            <div className="welcome-text">
-              Great to see you again. Keep earning and grow your SPY balance.
-              <span className="welcome-badge">
-                <TrendingUp size={14} />
-                +{stats.todayEarnings} SPY earned today
-              </span>
-            </div>
-          </div>
-
-          {/* Stats Row */}
-          <div className="stats-row">
-            <div className="stat-box">
-              <div className="stat-top">
-                <span className="stat-label">Today&apos;s Earnings</span>
-                <div className="stat-icon blue"><Activity size={16} /></div>
+              <div className="chart-right">
+                <button className="chart-filter">
+                  This Week <ChevronDown size={14} />
+                </button>
               </div>
-              <div className="stat-number">{stats.todayEarnings} <span className="stat-unit">SPY</span></div>
-              <div className="stat-trend up">+{stats.todayEarnings} SPY earned today</div>
             </div>
-
-            <div className="stat-box">
-              <div className="stat-top">
-                <span className="stat-label">Total Earned</span>
-                <div className="stat-icon purple"><DollarSign size={16} /></div>
-              </div>
-              <div className="stat-number">${stats.totalEarned.toFixed(1)}</div>
-              <div className="stat-trend up">+15.4% all time</div>
-            </div>
-
-            <div className="stat-box">
-              <div className="stat-top">
-                <span className="stat-label">Referrals</span>
-                <div className="stat-icon orange"><Users size={16} /></div>
-              </div>
-              <div className="stat-number">{stats.referralCount}</div>
-              <div className="stat-trend up">+15.4% all time</div>
-            </div>
-
-            <div className="stat-box">
-              <div className="stat-top">
-                <span className="stat-label">Withdrawable</span>
-                <div className="stat-icon green"><Wallet size={16} /></div>
-              </div>
-              <div className="stat-number">${stats.withdrawable.toFixed(1)} <span className="stat-unit">USD</span></div>
-              <div className="stat-trend neutral">Ready to cash out</div>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="quick-actions-section">
-            <div className="section-head">
-              <h2>Quick Actions</h2>
-              <Link href="/dashboard/earn" className="view-all-link">
-                View All <ArrowRight size={16} />
-              </Link>
-            </div>
-            <div className="actions-grid">
-              {quickActions.map((action, i) => {
-                const Icon = action.icon
+            <div className="chart-bars">
+              {weeklyEarnings.map((value, i) => {
+                const height = (value / maxWeeklyEarning) * 140
+                const isToday = i === 6
                 return (
-                  <Link key={i} href={action.link} className="action-link">
-                    <div className="action-item">
-                      <div className={`action-icon-wrap ${action.color}`}>
-                        <Icon size={24} />
-                      </div>
-                      <div className="action-title">{action.title}</div>
-                      <div className="action-desc">{action.desc}</div>
-                      <div className={`action-badge ${action.color}`}>{action.extra}</div>
-                      <div className="action-arrow">
-                        <ArrowRight size={16} />
-                      </div>
-                    </div>
-                  </Link>
+                  <div key={i} className="chart-bar-item">
+                    <div 
+                      className={`chart-bar ${isToday ? 'today' : ''}`}
+                      style={{ height: `${Math.max(height, 4)}px` }} 
+                    />
+                    <span className="chart-bar-label">{days[i]}</span>
+                  </div>
                 )
               })}
             </div>
           </div>
 
-          {/* Main Layout */}
-          <div className="dashboard-layout">
-            <div className="left-panel">
-              {/* Earnings Overview Chart */}
-              <div className="chart-container">
-                <div className="chart-header">
-                  <div className="chart-left">
-                    <h3>Earnings Overview</h3>
-                    <div className="chart-big-number">{weeklyTotal} <span>SPY</span></div>
-                    <div className="chart-small-text">
-                      <span className="up">+18.6%</span> vs last week
-                    </div>
-                  </div>
-                  <div className="chart-right">
-                    <button className="chart-filter">
-                      This Week <ChevronDown size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div className="chart-bars">
-                  {weeklyEarnings.map((value, i) => {
-                    const height = (value / maxWeeklyEarning) * 140
-                    const isToday = i === 6
-                    return (
-                      <div key={i} className="chart-bar-item">
-                        <div 
-                          className={`chart-bar ${isToday ? 'today' : ''}`}
-                          style={{ height: `${Math.max(height, 4)}px` }} 
-                        />
-                        <span className="chart-bar-label">{days[i]}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="activity-container">
-                <div className="section-head">
-                  <h2>Recent Activity</h2>
-                  <Link href="/dashboard/transactions" className="view-all-link">
-                    View All <ArrowRight size={16} />
-                  </Link>
-                </div>
-                <div className="activity-list">
-                  {displayActivities.map((activity) => (
-                    <div key={activity.id} className="activity-row">
-                      <div className="activity-icon">
-                        {getActivityIcon(activity.type)}
-                      </div>
-                      <div className="activity-info">
-                        <span className="activity-day">
-                          {getActivityDescription(activity.type)}
-                        </span>
-                        <span className="activity-type">
-                          {timeAgo(activity.created_at)}
-                        </span>
-                      </div>
-                      <span className="activity-amount">+{Math.abs(activity.amount_spy)} SPY</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* Recent Activity */}
+          <div className="activity-container">
+            <div className="section-head">
+              <h2>Recent Activity</h2>
+              <Link href="/dashboard/transactions" className="view-all-link">
+                View All <ArrowRight size={16} />
+              </Link>
             </div>
-
-            <div className="right-panel">
-              {/* SPY Balance Card */}
-              <div className="spy-card">
-                <div className="spy-card-header">
-                  <span className="spy-card-label">SPY Balance</span>
-                </div>
-                <div className="spy-balance">{stats.spyBalance.toLocaleString()} <span>SPY</span></div>
-                <div className="spy-sub">
-                  ≈ ${(stats.spyBalance * stats.spyPrice).toFixed(2)} USD
-                </div>
-
-                <div className="action-buttons">
-                  <button className="action-btn deposit">
-                    <ArrowDown size={18} />
-                    Deposit
-                  </button>
-                  <button className="action-btn withdraw">
-                    <ArrowUp size={18} />
-                    Withdraw
-                  </button>
-                </div>
-
-                <div className="goal-section">
-                  <div className="goal-header">
-                    <span>Daily Goal</span>
-                    <span>{stats.dailyGoal.current} / {stats.dailyGoal.target} SPY</span>
+            <div className="activity-list">
+              {displayActivities.map((activity) => (
+                <div key={activity.id} className="activity-row">
+                  <div className="activity-icon">
+                    {getActivityIcon(activity.type)}
                   </div>
-                  <div className="goal-bar">
-                    <div className="goal-fill" style={{ width: `${goalPercentage}%` }} />
+                  <div className="activity-info">
+                    <span className="activity-day">
+                      {getActivityDescription(activity.type)}
+                    </span>
+                    <span className="activity-type">
+                      {timeAgo(activity.created_at)}
+                    </span>
                   </div>
-                  <div className="goal-percentage">{Math.round(goalPercentage)}% completed</div>
+                  <span className="activity-amount">+{Math.abs(activity.amount_spy)} SPY</span>
                 </div>
-
-                <div className="price-row">
-                  <div className="price-left">
-                    <span className="price-label">SPY Price</span>
-                    <div className="price-value-row">
-                      <span className="price-value">${stats.spyPrice}</span>
-                      <span className="price-change">+4.32%</span>
-                    </div>
-                  </div>
-                  <div className="price-chart">
-                    <svg viewBox="0 0 100 30" className="sparkline">
-                      <polyline 
-                        fill="none" 
-                        stroke="#22c55e" 
-                        strokeWidth="2"
-                        points="0,25 15,22 30,18 45,20 60,12 75,15 90,8 100,5"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Daily Streak Card */}
-              <div className="streak-card">
-                <div className="streak-header">
-                  <Flame size={24} className="streak-flame" />
-                  <div>
-                    <div className="streak-number">{stats.streak} Days</div>
-                    <div className="streak-text">Keep it going!</div>
-                  </div>
-                </div>
-                <div className="streak-days-row">
-                  {streakDays.map((day, i) => (
-                    <div 
-                      key={i} 
-                      className={`streak-day-box ${i < stats.streak ? 'active' : ''}`}
-                    >
-                      {day}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Community Card */}
-              <div className="community-card">
-                <h3 className="community-title">Join the Supay Community</h3>
-                <p className="community-desc">Follow us and stay updated with the latest news & rewards.</p>
-                <div className="community-links">
-                  <a href="https://t.me/supay" target="_blank" rel="noopener noreferrer" className="community-btn telegram">
-                    <MessageCircle size={18} />
-                    Telegram
-                  </a>
-                  <a href="https://twitter.com/supay" target="_blank" rel="noopener noreferrer" className="community-btn twitter">
-                    <TrendingUp size={18} />
-                    Twitter
-                  </a>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      </main>
+
+        <div className="right-panel">
+          {/* SPY Balance Card */}
+          <div className="spy-card">
+            <div className="spy-card-header">
+              <span className="spy-card-label">SPY Balance</span>
+            </div>
+            <div className="spy-balance">{stats.spyBalance.toLocaleString()} <span>SPY</span></div>
+            <div className="spy-sub">
+              ≈ ${(stats.spyBalance * stats.spyPrice).toFixed(2)} USD
+            </div>
+
+            <div className="action-buttons">
+              <button className="action-btn deposit">
+                <ArrowDown size={18} />
+                Deposit
+              </button>
+              <button className="action-btn withdraw">
+                <ArrowUp size={18} />
+                Withdraw
+              </button>
+            </div>
+
+            <div className="goal-section">
+              <div className="goal-header">
+                <span>Daily Goal</span>
+                <span>{stats.dailyGoal.current} / {stats.dailyGoal.target} SPY</span>
+              </div>
+              <div className="goal-bar">
+                <div className="goal-fill" style={{ width: `${goalPercentage}%` }} />
+              </div>
+              <div className="goal-percentage">{Math.round(goalPercentage)}% completed</div>
+            </div>
+
+            <div className="price-row">
+              <div className="price-left">
+                <span className="price-label">SPY Price</span>
+                <div className="price-value-row">
+                  <span className="price-value">${stats.spyPrice}</span>
+                  <span className="price-change">+4.32%</span>
+                </div>
+              </div>
+              <div className="price-chart">
+                <svg viewBox="0 0 100 30" className="sparkline">
+                  <polyline 
+                    fill="none" 
+                    stroke="#22c55e" 
+                    strokeWidth="2"
+                    points="0,25 15,22 30,18 45,20 60,12 75,15 90,8 100,5"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Streak Card */}
+          <div className="streak-card">
+            <div className="streak-header">
+              <Flame size={24} className="streak-flame" />
+              <div>
+                <div className="streak-number">{stats.streak} Days</div>
+                <div className="streak-text">Keep it going!</div>
+              </div>
+            </div>
+            <div className="streak-days-row">
+              {streakDays.map((day, i) => (
+                <div 
+                  key={i} 
+                  className={`streak-day-box ${i < stats.streak ? 'active' : ''}`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Community Card */}
+          <div className="community-card">
+            <h3 className="community-title">Join the Supay Community</h3>
+            <p className="community-desc">Follow us and stay updated with the latest news & rewards.</p>
+            <div className="community-links">
+              <a href="https://t.me/supay" target="_blank" rel="noopener noreferrer" className="community-btn telegram">
+                <MessageCircle size={18} />
+                Telegram
+              </a>
+              <a href="https://twitter.com/supay" target="_blank" rel="noopener noreferrer" className="community-btn twitter">
+                <TrendingUp size={18} />
+                Twitter
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
