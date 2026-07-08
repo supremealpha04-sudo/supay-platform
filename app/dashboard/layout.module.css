@@ -1,7 +1,7 @@
 /* ===== DASHBOARD LAYOUT - REDESIGNED ===== */
 
 /* CSS Variables */
-:root {
+:global(:root) {
   --sidebar-width: 280px;
   --sidebar-collapsed: 72px;
   --header-height: 64px;
@@ -687,8 +687,19 @@
 
 /* ===== REDUCED MOTION ===== */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  .sidebar *,
+  .sidebar *::before,
+  .sidebar *::after,
+  .main *,
+  .main *::before,
+  .main *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    animation-delay: 0.01ms !important;
+  }
+  
+  .balanceCard::before {
+    animation: none !important;
   }
 }
