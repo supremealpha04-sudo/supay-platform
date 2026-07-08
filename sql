@@ -202,3 +202,128 @@ INSERT INTO badges (name, description, requirement_type, requirement_value, rewa
 ('Super Referrer', 'Get 10 referrals', 'referral_count', 10, 500),
 ('Task Master', 'Complete 20 tasks', 'task_completed', 20, 200),
 ('Earning Pro', 'Earn ₦10,000 total', 'total_earned', 10000, 1000);
+
+
+
+
+-- ============================================
+-- SUPAY DASHBOARD TABLES & FUNCTIONS
+-- Run this in your Supabase SQL Editor
+-- ============================================
+
+-- 1. USER SPY BREAKDOWN TABLE
+-- Stores aggregated earnings per user
+CREATE TABLE IF NOT EXISTS user_spy_breakdown (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  earned_spy numeric DEFAULT 0,
+  referral_spy numeric DEFAULT 0,
+  staking_rewards_spy numeric DEFAULT 0,
+  total_spy numeric DEFAULT 0,
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id)
+);
+
+-- Enable RLS
+ALTER TABLE user_spy_breakdown ENABLE ROW LEVEL SECURITY;
+
+-- RLS: Users can only see their own breakdown
+CREATE POLICY "Users can view own breakdown"
+  ON user_spy_breakdown FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- RLS: Users can update their own breakdown
+CREATE POLICY "Users can update own breakdown"
+  ON user_spy_breakdown FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- 2. AD WATCHES TABLE
+-- Tracks when users watch ads
+CREATE TABLE IF NOT EXISTS ad_watches (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  ad_id text,
+  reward_spy numeric DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE ad_watches ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own ad watches"
+  ON ad_watches FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own ad watches"
+  ON ad_watches FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- 3. TRANSACTIONS TABLE
+-- All earning/spending transactions
+CREATE TABLE IF NOT EXISTS transactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  amount_spy numeric NOT NULL,
+  type text NOT NULL CHECK (type IN ('ad_watch', 'task_complete', 'daily_bonus', 'referral', 'withdrawal', 'deposit', 'staking_reward')),
+  description text,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own transactions"
+  ON transactions FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own transactions"
+  ON transactions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- 4. GET WEEKLY EARNINGS RPC FUNCTION
+-- Returns array of 7 daily earnings for the current week
+CREATE OR REPLACE FUNCTION get_weekly_earnings(user_id uuid)
+RETURNS numeric[] AS $$
+DECLARE
+  result numeric[] := ARRAY[0, 0, 0, 0, 0, 0, 0];
+  day_idx integer;
+  day_start timestamptz;
+  day_end timestamptz;
+  day_earnings numeric;
+  week_start timestamptz;
+BEGIN
+  -- Get start of current week (Monday)
+  week_start := date_trunc('week', now());
+
+  FOR i IN 0..6 LOOP
+    day_start := week_start + (i || ' days')::interval;
+    day_end := day_start + '1 day'::interval;
+
+    -- Sum earnings from ad_watches for that day
+    SELECT COALESCE(SUM(reward_spy), 0)
+    INTO day_earnings
+    FROM ad_watches
+    WHERE ad_watches.user_id = get_weekly_earnings.user_id
+      AND created_at >= day_start
+      AND created_at < day_end;
+
+    result[i+1] := day_earnings;
+  END LOOP;
+
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. INSERT SAMPLE DATA (optional - for testing)
+-- Uncomment below to add test data for a user
+/*
+-- Replace with your actual user UUID
+-- INSERT INTO user_spy_breakdown (user_id, earned_spy, referral_spy, staking_rewards_spy, total_spy)
+-- VALUES ('your-user-uuid', 5000, 1200, 300, 6500);
+
+-- INSERT INTO transactions (user_id, amount_spy, type, description)
+-- VALUES 
+--   ('your-user-uuid', 22, 'ad_watch', 'Watched ad #123'),
+--   ('your-user-uuid', 18, 'task_complete', 'Completed survey task'),
+--   ('your-user-uuid', 25, 'daily_bonus', 'Day 7 daily bonus'),
+--   ('your-user-uuid', 10, 'referral', 'Referral: john_doe joined'),
+--   ('your-user-uuid', 8, 'task_complete', 'Completed social share');
+*/
