@@ -1,40 +1,52 @@
 'use client'
 
-import { FaBars, FaBell, FaUserCircle, FaMoon, FaSun } from 'react-icons/fa'
-import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { FaHome, FaCoins, FaTasks, FaWallet, FaSignOutAlt } from 'react-icons/fa'
 import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from 'next-themes'
+import './lay.css'
 
-export default function DashboardHeader({ setSidebarOpen }: { setSidebarOpen: (open: boolean) => void }) {
-  const { profile } = useAuth()
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+export default function DashboardSidebar({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
+  const pathname = usePathname()
+  const { signOut } = useAuth()
+
+  const navItems = [
+    { href: '/dashboard', label: 'Dashboard', icon: FaHome },
+    { href: '/dashboard/earn', label: 'Earn', icon: FaCoins },
+    { href: '/dashboard/tasks', label: 'Tasks', icon: FaTasks },
+    { href: '/dashboard/wallet', label: 'Wallet', icon: FaWallet },
+  ]
 
   return (
-    <header className="sticky top-0 z-30 glass border-b border-primary-500/20 px-4 py-3">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="p-2 rounded-lg hover:bg-white/10 transition md:hidden"
-        >
-          <FaBars className="w-5 h-5 text-white" />
-        </button>
-
-        <div className="flex items-center space-x-4 ml-auto">
-          <button className="p-2 rounded-lg hover:bg-white/10 transition">
-            <FaBell className="w-5 h-5 text-gray-400" />
-          </button>
-
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
-              <FaUserCircle className="w-6 h-6 text-white" />
-            </div>
-            <div className="hidden md:block">
-              <div className="text-sm font-medium text-white">{profile?.username || 'User'}</div>
-            </div>
-          </div>
+    <aside className="sidebar-aside">
+      <div className="sidebar-inner">
+        <div className="sidebar-brand">
+          <span className="brand-text">Supay</span>
         </div>
+        <nav className="sidebar-nav">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+            return (
+              <Link 
+                key={item.href} 
+                href={item.href} 
+                className={`nav-link ${isActive ? 'active' : ''}`}
+                onClick={() => setOpen(false)}
+              >
+                <Icon className="nav-icon" />
+                <span className="nav-label">{item.label}</span>
+              </Link>
+            )
+          })}
+
+          <button onClick={signOut} className="nav-link logout">
+            <FaSignOutAlt className="nav-icon" />
+            <span className="nav-label">Logout</span>
+          </button>
+        </nav>
       </div>
-    </header>
+    </aside>
   )
 }
