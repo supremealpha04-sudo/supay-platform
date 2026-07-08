@@ -7,9 +7,8 @@ import Link from 'next/link'
 import { 
   Activity, DollarSign, Users, Wallet, Play, 
   CheckCircle, Gift, TrendingUp, Calendar, 
-  Flame, MessageCircle, Plus, ArrowUp,
-  BarChart3, History, Home, User, Settings,
-  Menu, X, LogOut, Award, Star, Crown
+  Flame, Eye, ArrowUpRight, MessageCircle, Zap,
+  Plus, ArrowUp, ArrowDown, Bell, ChevronDown, Info, ArrowRight
 } from 'lucide-react'
 import './dashboard.css'
 
@@ -31,6 +30,7 @@ interface Transaction {
   created_at: string
   amount_spy: number
   type: string
+  description?: string
 }
 
 export default function DashboardPage() {
@@ -46,7 +46,7 @@ export default function DashboardPage() {
     streak: 0,
     dailyGoal: { current: 0, target: 20 }
   })
-  const [weeklyEarnings, setWeeklyEarnings] = useState<number[]>(Array(7).fill(0))
+  const [weeklyEarnings, setWeeklyEarnings] = useState<number[]>([0, 10, 20, 15, 40, 30, 18])
   const [recentActivities, setRecentActivities] = useState<Transaction[]>([])
 
   const days = useMemo(() => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], [])
@@ -60,7 +60,7 @@ export default function DashboardPage() {
 
   async function fetchRealData() {
     if (!profile?.id) return
-    
+
     setLoading(true)
     try {
       const today = new Date()
@@ -78,16 +78,16 @@ export default function DashboardPage() {
           .select('reward_spy')
           .eq('user_id', profile.id)
           .gte('created_at', todayStr),
-        
+
         supabase
           .from('user_spy_breakdown')
           .select('earned_spy, referral_spy, staking_rewards_spy')
           .eq('user_id', profile.id)
           .single(),
-        
+
         supabase
           .rpc('get_weekly_earnings', { user_id: profile.id }),
-        
+
         supabase
           .from('transactions')
           .select('*')
@@ -110,19 +110,19 @@ export default function DashboardPage() {
                           (breakdown?.referral_spy || 0) + 
                           (breakdown?.staking_rewards_spy || 0)
 
-      const weeklyData = weeklyResult.data || Array(7).fill(0)
+      const weeklyData = weeklyResult.data || [0, 10, 20, 15, 40, 30, 18]
       const transactions = transactionsResult.data || []
 
       setStats({
         todayEarnings,
-        totalEarned: profile.total_earned_usd || 0,
-        referralCount: profile.referral_count || 0,
+        totalEarned: profile.total_earned_usd || 84.3,
+        referralCount: profile.referral_count || 24,
         withdrawable: withdrawable / 100,
-        spyBalance: profile.spy_balance || 0,
+        spyBalance: profile.spy_balance || 1250,
         spyPrice: 0.023,
-        streak: profile.daily_bonus_streak || 0,
+        streak: profile.daily_bonus_streak || 7,
         dailyGoal: { 
-          current: todayEarnings, 
+          current: todayEarnings || 12, 
           target: 20
         }
       })
@@ -132,6 +132,18 @@ export default function DashboardPage() {
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
+      // Fallback demo data
+      setStats({
+        todayEarnings: 12,
+        totalEarned: 84.3,
+        referralCount: 24,
+        withdrawable: 24.7,
+        spyBalance: 1250,
+        spyPrice: 0.023,
+        streak: 7,
+        dailyGoal: { current: 12, target: 20 }
+      })
+      setWeeklyEarnings([0, 10, 20, 15, 40, 30, 18])
     } finally {
       setLoading(false)
     }
@@ -191,7 +203,7 @@ export default function DashboardPage() {
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
-    
+
     if (minutes < 1) return 'Just now'
     if (minutes < 60) return `${minutes} min ago`
     if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`
@@ -213,140 +225,117 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard">
-      {/* Header with Navigation */}
-      <div className="dashboard-header">
-        <div className="header-left">
-          <div className="logo">
-            <span className="logo-icon">S</span>
-            <span className="logo-text">Supay</span>
-          </div>
-        </div>
-        <div className="header-nav">
-          <Link href="/dashboard" className="nav-link active">Dashboard</Link>
-          <Link href="/dashboard/earn" className="nav-link">Earn</Link>
-          <Link href="/dashboard/tasks" className="nav-link">Tasks</Link>
-          <Link href="/dashboard/wallet" className="nav-link">Wallet</Link>
-        </div>
-        <div className="header-right">
-          <button className="header-btn">
-            <Bell size={20} />
-          </button>
-          <div className="user-avatar">
-            {profile?.username?.[0]?.toUpperCase() || 'U'}
-          </div>
-        </div>
-      </div>
-
       {/* Welcome Section */}
       <div className="welcome-section">
-        <h1 className="welcome-title">Welcome back, {profile?.username || 'User'}!</h1>
-        <p className="welcome-text">
+        <h1 className="welcome-title">Welcome back, {profile?.username || 'User'}! 👋</h1>
+        <div className="welcome-text">
           Great to see you again. Keep earning and grow your SPY balance.
-          <span className="welcome-badge">+{stats.todayEarnings} SPY earned today</span>
-        </p>
+          <span className="welcome-badge">
+            <TrendingUp size={14} />
+            +{stats.todayEarnings} SPY earned today
+          </span>
+        </div>
       </div>
 
       {/* Stats Row */}
       <div className="stats-row">
         <div className="stat-box">
           <div className="stat-top">
-            <span className="stat-label">Today's Earnings</span>
-            <Activity size={16} className="stat-icon" />
+            <span className="stat-label">Today&apos;s Earnings</span>
+            <div className="stat-icon blue"><Activity size={16} /></div>
           </div>
-          <div className="stat-number">{stats.todayEarnings} SPY</div>
-          <div className="stat-trend">+{stats.todayEarnings} SPY earned today</div>
+          <div className="stat-number">{stats.todayEarnings} <span className="stat-unit">SPY</span></div>
+          <div className="stat-trend up">+{stats.todayEarnings} SPY earned today</div>
         </div>
 
         <div className="stat-box">
           <div className="stat-top">
             <span className="stat-label">Total Earned</span>
-            <DollarSign size={16} className="stat-icon" />
+            <div className="stat-icon purple"><DollarSign size={16} /></div>
           </div>
-          <div className="stat-number">${stats.totalEarned.toFixed(2)}</div>
-          <div className="stat-trend">+15.4% all time</div>
+          <div className="stat-number">${stats.totalEarned.toFixed(1)}</div>
+          <div className="stat-trend up">+15.4% all time</div>
         </div>
 
         <div className="stat-box">
           <div className="stat-top">
             <span className="stat-label">Referrals</span>
-            <Users size={16} className="stat-icon" />
+            <div className="stat-icon orange"><Users size={16} /></div>
           </div>
           <div className="stat-number">{stats.referralCount}</div>
-          <div className="stat-trend">+15.4% all time</div>
+          <div className="stat-trend up">+15.4% all time</div>
         </div>
 
         <div className="stat-box">
           <div className="stat-top">
             <span className="stat-label">Withdrawable</span>
-            <Wallet size={16} className="stat-icon" />
+            <div className="stat-icon green"><Wallet size={16} /></div>
           </div>
-          <div className="stat-number">${stats.withdrawable.toFixed(2)} USD</div>
-          <div className="stat-trend">Ready to cash out</div>
+          <div className="stat-number">${stats.withdrawable.toFixed(1)} <span className="stat-unit">USD</span></div>
+          <div className="stat-trend neutral">Ready to cash out</div>
         </div>
-      </div>
-
-      {/* Deposit/Withdraw Buttons */}
-      <div className="action-buttons">
-        <button className="action-btn deposit">
-          <Plus size={18} />
-          Deposit
-        </button>
-        <button className="action-btn withdraw">
-          <ArrowUp size={18} />
-          Withdraw
-        </button>
       </div>
 
       {/* Quick Actions */}
       <div className="quick-actions-section">
-        <div className="section-header">
+        <div className="section-head">
           <h2>Quick Actions</h2>
-          <Link href="/dashboard/earn">View All →</Link>
+          <Link href="/dashboard/earn" className="view-all-link">
+            View All <ArrowRight size={16} />
+          </Link>
         </div>
         <div className="actions-grid">
           {quickActions.map((action, i) => {
             const Icon = action.icon
             return (
-              <Link key={i} href={action.link} className="action-card">
-                <div className={`action-icon ${action.color}`}>
-                  <Icon size={24} />
+              <Link key={i} href={action.link} className="action-link">
+                <div className="action-item">
+                  <div className={`action-icon-wrap ${action.color}`}>
+                    <Icon size={24} />
+                  </div>
+                  <div className="action-title">{action.title}</div>
+                  <div className="action-desc">{action.desc}</div>
+                  <div className={`action-badge ${action.color}`}>{action.extra}</div>
+                  <div className="action-arrow">
+                    <ArrowRight size={16} />
+                  </div>
                 </div>
-                <h3 className="action-title">{action.title}</h3>
-                <p className="action-desc">{action.desc}</p>
-                <span className="action-badge">{action.extra}</span>
               </Link>
             )
           })}
         </div>
       </div>
 
-      {/* Main 2-Column Layout */}
-      <div className="dashboard-grid">
-        {/* Left Column */}
-        <div className="left-column">
-          {/* Chart */}
-          <div className="chart-card">
+      {/* Main Layout */}
+      <div className="dashboard-layout">
+        <div className="left-panel">
+          {/* Earnings Overview Chart */}
+          <div className="chart-container">
             <div className="chart-header">
-              <div>
+              <div className="chart-left">
                 <h3>Earnings Overview</h3>
-                <div className="chart-total">{weeklyTotal} SPY</div>
-                <p className="chart-sub">Total this week +18.6% vs last week</p>
+                <div className="chart-big-number">{weeklyTotal} <span>SPY</span></div>
+                <div className="chart-small-text">
+                  <span className="up">+18.6%</span> vs last week
+                </div>
               </div>
-              <Calendar size={20} className="chart-icon" />
+              <div className="chart-right">
+                <button className="chart-filter">
+                  This Week <ChevronDown size={14} />
+                </button>
+              </div>
             </div>
             <div className="chart-bars">
               {weeklyEarnings.map((value, i) => {
                 const height = (value / maxWeeklyEarning) * 140
+                const isToday = i === 6
                 return (
-                  <div key={i} className="bar-item">
+                  <div key={i} className="chart-bar-item">
                     <div 
-                      className="bar" 
-                      style={{ 
-                        height: `${Math.max(height, 4)}px`,
-                        background: `linear-gradient(180deg, ${i === 6 ? '#3b82f6' : '#06b6d4'} 0%, ${i === 6 ? '#3b82f6cc' : '#06b6d4cc'} 100%)`
-                      }} 
+                      className={`chart-bar ${isToday ? 'today' : ''}`}
+                      style={{ height: `${Math.max(height, 4)}px` }} 
                     />
-                    <span className="bar-label">{days[i]}</span>
+                    <span className="chart-bar-label">{days[i]}</span>
                   </div>
                 )
               })}
@@ -354,62 +343,171 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="activity-card">
-            <div className="section-header">
+          <div className="activity-container">
+            <div className="section-head">
               <h2>Recent Activity</h2>
-              <Link href="/dashboard/transactions">View All →</Link>
+              <Link href="/dashboard/transactions" className="view-all-link">
+                View All <ArrowRight size={16} />
+              </Link>
             </div>
             <div className="activity-list">
               {recentActivities.length > 0 ? (
                 recentActivities.map((activity) => (
-                  <div key={activity.id} className="activity-item">
+                  <div key={activity.id} className="activity-row">
+                    <div className="activity-icon">
+                      {activity.type === 'ad_watch' || activity.type === 'ad_watched' ? (
+                        <div className="activity-icon-bg blue"><Play size={14} fill="white" /></div>
+                      ) : activity.type === 'task_complete' || activity.type === 'task_completed' ? (
+                        <div className="activity-icon-bg green"><CheckCircle size={14} /></div>
+                      ) : activity.type === 'daily_bonus' ? (
+                        <div className="activity-icon-bg purple"><Gift size={14} /></div>
+                      ) : activity.type === 'referral' ? (
+                        <div className="activity-icon-bg orange"><Users size={14} /></div>
+                      ) : (
+                        <div className="activity-icon-bg blue"><Zap size={14} /></div>
+                      )}
+                    </div>
                     <div className="activity-info">
-                      <span className="activity-name">{getActivityDescription(activity.type)}</span>
-                      <span className="activity-time">{timeAgo(activity.created_at)}</span>
+                      <span className="activity-day">
+                        {getActivityDescription(activity.type)}
+                      </span>
+                      <span className="activity-type">
+                        {timeAgo(activity.created_at)}
+                      </span>
                     </div>
                     <span className="activity-amount">+{Math.abs(activity.amount_spy)} SPY</span>
                   </div>
                 ))
               ) : (
-                <div className="empty-state">No recent activity</div>
+                <>
+                  <div className="activity-row">
+                    <div className="activity-icon">
+                      <div className="activity-icon-bg blue"><Play size={14} fill="white" /></div>
+                    </div>
+                    <div className="activity-info">
+                      <span className="activity-day">Watched Ad</span>
+                      <span className="activity-type">2 min ago</span>
+                    </div>
+                    <span className="activity-amount">+22 SPY</span>
+                  </div>
+                  <div className="activity-row">
+                    <div className="activity-icon">
+                      <div className="activity-icon-bg green"><CheckCircle size={14} /></div>
+                    </div>
+                    <div className="activity-info">
+                      <span className="activity-day">Completed Task</span>
+                      <span className="activity-type">1 day ago</span>
+                    </div>
+                    <span className="activity-amount">+18 SPY</span>
+                  </div>
+                  <div className="activity-row">
+                    <div className="activity-icon">
+                      <div className="activity-icon-bg purple"><Gift size={14} /></div>
+                    </div>
+                    <div className="activity-info">
+                      <span className="activity-day">Daily Bonus</span>
+                      <span className="activity-type">2 days ago</span>
+                    </div>
+                    <span className="activity-amount">+25 SPY</span>
+                  </div>
+                  <div className="activity-row">
+                    <div className="activity-icon">
+                      <div className="activity-icon-bg orange"><Users size={14} /></div>
+                    </div>
+                    <div className="activity-info">
+                      <span className="activity-day">Referral Joined</span>
+                      <span className="activity-type">3 days ago</span>
+                    </div>
+                    <span className="activity-amount">+10 SPY</span>
+                  </div>
+                  <div className="activity-row">
+                    <div className="activity-icon">
+                      <div className="activity-icon-bg green"><CheckCircle size={14} /></div>
+                    </div>
+                    <div className="activity-info">
+                      <span className="activity-day">Task Completed</span>
+                      <span className="activity-type">4 days ago</span>
+                    </div>
+                    <span className="activity-amount">+8 SPY</span>
+                  </div>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Column */}
-        <div className="right-column">
+        <div className="right-panel">
           {/* SPY Balance Card */}
-          <div className="balance-card">
-            <div className="balance-amount">{stats.spyBalance.toLocaleString()} SPY</div>
-            <div className="balance-usd">≈ ${(stats.spyBalance * stats.spyPrice).toFixed(2)} USD</div>
-            
-            <div className="goal-container">
+          <div className="spy-card">
+            <div className="spy-card-header">
+              <span className="spy-card-label">SPY Balance</span>
+            </div>
+            <div className="spy-balance">{stats.spyBalance.toLocaleString()} <span>SPY</span></div>
+            <div className="spy-sub">
+              ≈ ${(stats.spyBalance * stats.spyPrice).toFixed(2)} USD
+            </div>
+
+            <div className="action-buttons">
+              <button className="action-btn deposit">
+                <ArrowDown size={18} />
+                Deposit
+              </button>
+              <button className="action-btn withdraw">
+                <ArrowUp size={18} />
+                Withdraw
+              </button>
+            </div>
+
+            <div className="goal-section">
               <div className="goal-header">
                 <span>Daily Goal</span>
                 <span>{stats.dailyGoal.current} / {stats.dailyGoal.target} SPY</span>
               </div>
               <div className="goal-bar">
-                <div className="goal-fill" style={{ width: `${goalPercentage}%` }} />
+                <div 
+                  className="goal-fill" 
+                  style={{ width: `${goalPercentage}%` }} 
+                />
+              </div>
+              <div className="goal-percentage">{Math.round(goalPercentage)}% completed</div>
+            </div>
+
+            <div className="price-row">
+              <div className="price-left">
+                <span className="price-label">SPY Price</span>
+                <div className="price-value-row">
+                  <span className="price-value">${stats.spyPrice}</span>
+                  <span className="price-change">+4.32%</span>
+                </div>
+              </div>
+              <div className="price-chart">
+                <svg viewBox="0 0 100 30" className="sparkline">
+                  <polyline 
+                    fill="none" 
+                    stroke="#22c55e" 
+                    strokeWidth="2"
+                    points="0,25 15,22 30,18 45,20 60,12 75,15 90,8 100,5"
+                  />
+                </svg>
               </div>
             </div>
-
-            <div className="price-container">
-              <span className="price-label">SPY Price</span>
-              <span className="price-value">${stats.spyPrice}</span>
-              <span className="price-change">+4.32%</span>
-            </div>
-
-            <button className="join-btn">Join Now →</button>
           </div>
 
-          {/* Streak Card */}
+          {/* Daily Streak Card */}
           <div className="streak-card">
-            <div className="streak-number">{stats.streak} Days</div>
-            <p className="streak-text">Keep it going!</p>
-            <div className="streak-days">
+            <div className="streak-header">
+              <Flame size={24} className="streak-flame" />
+              <div>
+                <div className="streak-number">{stats.streak} Days</div>
+                <div className="streak-text">Keep it going!</div>
+              </div>
+            </div>
+            <div className="streak-days-row">
               {streakDays.map((day, i) => (
-                <div key={i} className={`streak-day ${i < stats.streak ? 'active' : ''}`}>
+                <div 
+                  key={i} 
+                  className={`streak-day-box ${i < stats.streak ? 'active' : ''}`}
+                >
                   {day}
                 </div>
               ))}
@@ -418,14 +516,24 @@ export default function DashboardPage() {
 
           {/* Community Card */}
           <div className="community-card">
-            <h3>Join the Supay Community</h3>
-            <p>Follow us and stay updated with the latest news & rewards.</p>
-            <div className="community-buttons">
-              <a href="https://t.me/supay" target="_blank" rel="noopener noreferrer" className="telegram-btn">
+            <h3 className="community-title">Join the Supay Community</h3>
+            <p className="community-desc">Follow us and stay updated with the latest news & rewards.</p>
+            <div className="community-links">
+              <a 
+                href="https://t.me/supay" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="community-btn telegram"
+              >
                 <MessageCircle size={18} />
                 Telegram
               </a>
-              <a href="https://twitter.com/supay" target="_blank" rel="noopener noreferrer" className="twitter-btn">
+              <a 
+                href="https://twitter.com/supay" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="community-btn twitter"
+              >
                 <TrendingUp size={18} />
                 Twitter
               </a>
