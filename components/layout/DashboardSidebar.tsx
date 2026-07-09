@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { FaHome, FaCoins, FaTasks, FaWallet, FaSignOutAlt } from 'react-icons/fa'
 import { useAuth } from '@/contexts/AuthContext'
-
+import './lay.css'
 export default function DashboardSidebar({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
   const pathname = usePathname()
   const { signOut } = useAuth()
