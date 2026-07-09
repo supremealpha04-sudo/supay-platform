@@ -9,7 +9,7 @@ import {
   FaChartLine, FaCog, FaQuestionCircle
 } from 'react-icons/fa'
 import { useAuth } from '@/contexts/AuthContext'
-import './dashboard-layout.css'
+import './layout-modules.css'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
