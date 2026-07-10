@@ -9,7 +9,7 @@ import {
   User, ChevronRight, Sparkles
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import './dashboard-layout.css'
+import './layout-modules.css'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
