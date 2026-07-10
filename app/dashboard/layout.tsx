@@ -1,61 +1,205 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
   Home, Coins, ClipboardList, CreditCard,
   Bell, Menu, X, Settings, HelpCircle, LogOut,
-  User, ChevronRight, Sparkles
+  User, ChevronRight, Sparkles, Trophy, 
+  Zap, Shield, Moon, Sun, ChevronDown
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import './layout-modules.css'
 
+// ===== TYPES =====
+interface Notification {
+  id: number
+  title: string
+  msg: string
+  time: string
+  read?: boolean
+  type?: 'task' | 'referral' | 'system' | 'reward'
+}
+
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  badge?: number
+  active?: boolean
+}
+
+// ===== CONSTANTS =====
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/dashboard/earn', label: 'Earn', icon: Coins },
+  { href: '/dashboard/tasks', label: 'Tasks', icon: ClipboardList, badge: 3 },
+  { href: '/dashboard/wallet', label: 'Wallet', icon: CreditCard },
+]
+
+const DEMO_NOTIFICATIONS: Notification[] = [
+  { id: 1, title: 'Task Completed', msg: 'You earned 25 SPY', time: '2m ago', type: 'task' },
+  { id: 2, title: 'New Task Available', msg: 'Watch video for 10 SPY', time: '1h ago', type: 'system' },
+  { id: 3, title: 'Referral Joined', msg: 'John joined using your link', time: '3h ago', type: 'referral' },
+  { id: 4, title: 'Daily Bonus Claimed', msg: 'Streak bonus +15 SPY', time: '5h ago', type: 'reward' },
+]
+
+// ===== MAIN COMPONENT =====
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const { profile, user, signOut } = useAuth()
+  
+  // ===== STATE =====
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [welcomePopup, setWelcomePopup] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>(DEMO_NOTIFICATIONS)
+  const [unreadCount, setUnreadCount] = useState(2)
   const [userName, setUserName] = useState('User')
-  const pathname = usePathname()
-  const { profile, signOut } = useAuth()
+  const [userEmail, setUserEmail] = useState('user@example.com')
+  const [isDarkMode, setIsDarkMode] = useState(true)
+  
+  // ===== REFS =====
+  const notifRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+  const popupTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/dashboard/earn', label: 'Earn', icon: Coins },
-    { href: '/dashboard/tasks', label: 'Tasks', icon: ClipboardList },
-    { href: '/dashboard/wallet', label: 'Wallet', icon: CreditCard },
-  ]
+  // ===== COMPUTED VALUES =====
+  const isDashboard = useMemo(() => pathname === '/dashboard', [pathname])
+  const isActiveRoute = useCallback((href: string) => {
+    if (href === '/dashboard') return pathname === '/dashboard'
+    return pathname?.startsWith(href + '/') || pathname === href
+  }, [pathname])
 
-  const notifications = [
-    { id: 1, title: 'Task Completed', msg: 'You earned 25 SPY', time: '2m ago' },
-    { id: 2, title: 'New Task Available', msg: 'Watch video for 10 SPY', time: '1h ago' },
-    { id: 3, title: 'Referral Joined', msg: 'John joined using your link', time: '3h ago' },
-  ]
+  // ===== HANDLERS =====
+  const handleDrawerToggle = useCallback(() => {
+    setDrawerOpen(prev => !prev)
+    // Prevent body scroll when drawer is open
+    document.body.style.overflow = !drawerOpen ? 'hidden' : ''
+  }, [drawerOpen])
 
+  const handleNotificationToggle = useCallback(() => {
+    setNotifOpen(prev => !prev)
+    setProfileOpen(false)
+  }, [])
+
+  const handleProfileToggle = useCallback(() => {
+    setProfileOpen(prev => !prev)
+    setNotifOpen(false)
+  }, [])
+
+  const handleSignOut = useCallback(async () => {
+    setProfileOpen(false)
+    setDrawerOpen(false)
+    await signOut()
+    router.push('/auth')
+  }, [signOut, router])
+
+  const markAllRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setUnreadCount(0)
+  }, [])
+
+  const dismissWelcomePopup = useCallback(() => {
+    setWelcomePopup(false)
+  }, [])
+
+  // ===== CLOSE DROPDOWNS ON ESCAPE =====
   useEffect(() => {
-    const name = profile?.full_name || profile?.username || 'User'
-    setUserName(name)
-
-    // Show welcome popup on dashboard only
-    if (pathname === '/dashboard') {
-      setWelcomePopup(true)
-      const timer = setTimeout(() => setWelcomePopup(false), 3000)
-      return () => clearTimeout(timer)
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setNotifOpen(false)
+        setProfileOpen(false)
+        setDrawerOpen(false)
+      }
     }
-  }, [profile, pathname])
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [])
 
+  // ===== CLOSE DROPDOWNS ON CLICK OUTSIDE =====
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      
+      if (notifOpen && notifRef.current && !notifRef.current.contains(target)) {
+        setNotifOpen(false)
+      }
+      
+      if (profileOpen && profileRef.current && !profileRef.current.contains(target)) {
+        setProfileOpen(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [notifOpen, profileOpen])
+
+  // ===== USER DATA =====
+  useEffect(() => {
+    const name = profile?.full_name || profile?.username || user?.email?.split('@')[0] || 'User'
+    const email = profile?.email || user?.email || 'user@example.com'
+    
+    setUserName(name)
+    setUserEmail(email)
+
+    // Show welcome popup only on dashboard
+    if (isDashboard) {
+      setWelcomePopup(true)
+      if (popupTimerRef.current) clearTimeout(popupTimerRef.current)
+      popupTimerRef.current = setTimeout(() => {
+        setWelcomePopup(false)
+      }, 4000)
+    }
+
+    return () => {
+      if (popupTimerRef.current) clearTimeout(popupTimerRef.current)
+    }
+  }, [profile, user, isDashboard])
+
+  // ===== THEME TOGGLE =====
+  const toggleTheme = useCallback(() => {
+    setIsDarkMode(prev => !prev)
+    document.documentElement.setAttribute('data-theme', !isDarkMode ? 'dark' : 'light')
+  }, [isDarkMode])
+
+  // ===== GET NOTIFICATION ICON =====
+  const getNotifIcon = useCallback((type?: string) => {
+    switch(type) {
+      case 'task': return <Trophy size={14} />
+      case 'referral': return <Users size={14} />
+      case 'reward': return <Zap size={14} />
+      default: return <Bell size={14} />
+    }
+  }, [])
+
+  // ===== RENDER =====
   return (
-    <div className="dash-wrapper">
+    <div className="dash-wrapper" data-theme={isDarkMode ? 'dark' : 'light'}>
       {/* Welcome Popup */}
       {welcomePopup && (
-        <div className="welcome-popup">
+        <div 
+          className="welcome-popup" 
+          role="status" 
+          aria-live="polite"
+          onClick={dismissWelcomePopup}
+        >
           <div className="popup-content">
             <Sparkles size={24} className="popup-icon" />
             <div>
               <h3>Welcome back, {userName}!</h3>
               <p>Ready to earn more SPY today?</p>
             </div>
+            <button 
+              className="popup-dismiss" 
+              onClick={(e) => { e.stopPropagation(); dismissWelcomePopup(); }}
+              aria-label="Dismiss welcome message"
+            >
+              <X size={16} />
+            </button>
           </div>
           <div className="popup-progress">
             <div className="popup-bar" />
@@ -64,9 +208,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Top Header */}
-      <header className="dash-topbar">
+      <header className="dash-topbar" role="banner">
         <div className="topbar-content">
-          <button className="topbar-btn" onClick={() => setDrawerOpen(true)}>
+          <button 
+            className="topbar-btn" 
+            onClick={handleDrawerToggle}
+            aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={drawerOpen}
+          >
             <Menu size={20} />
           </button>
 
@@ -77,63 +226,130 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="topbar-right">
             {/* Notification */}
-            <div className="dropdown-wrap">
+            <div className="dropdown-wrap" ref={notifRef}>
               <button 
                 className="topbar-btn notif"
-                onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
+                onClick={handleNotificationToggle}
+                aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+                aria-expanded={notifOpen}
               >
                 <Bell size={18} />
-                <span className="notif-dot" />
+                {unreadCount > 0 && (
+                  <span className="notif-dot" aria-hidden="true">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
               {notifOpen && (
-                <div className="dropdown notif-dropdown">
+                <div className="dropdown notif-dropdown" role="menu">
                   <div className="dropdown-header">
                     <span>Notifications</span>
-                    <button className="text-btn">Mark all read</button>
+                    {unreadCount > 0 && (
+                      <button 
+                        className="text-btn" 
+                        onClick={markAllRead}
+                        aria-label="Mark all as read"
+                      >
+                        Mark all read
+                      </button>
+                    )}
                   </div>
-                  {notifications.map(n => (
-                    <div key={n.id} className="notif-item">
-                      <div className="notif-dot-blue" />
-                      <div>
-                        <p className="notif-title">{n.title}</p>
-                        <p className="notif-msg">{n.msg}</p>
-                        <span className="notif-time">{n.time}</span>
-                      </div>
+                  {notifications.length === 0 ? (
+                    <div className="empty-state">
+                      <Bell size={24} />
+                      <p>No notifications</p>
                     </div>
-                  ))}
+                  ) : (
+                    notifications.map(n => (
+                      <div 
+                        key={n.id} 
+                        className={`notif-item ${!n.read ? 'unread' : ''}`}
+                        role="menuitem"
+                      >
+                        <div className="notif-icon">
+                          {getNotifIcon(n.type)}
+                        </div>
+                        <div className="notif-content">
+                          <p className="notif-title">{n.title}</p>
+                          <p className="notif-msg">{n.msg}</p>
+                          <span className="notif-time">{n.time}</span>
+                        </div>
+                        {!n.read && <div className="notif-dot-blue" />}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
 
+            {/* Theme Toggle */}
+            <button 
+              className="topbar-btn theme-toggle"
+              onClick={toggleTheme}
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+
             {/* Profile */}
-            <div className="dropdown-wrap">
+            <div className="dropdown-wrap" ref={profileRef}>
               <button 
                 className="topbar-btn avatar-btn"
-                onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
+                onClick={handleProfileToggle}
+                aria-label="Profile menu"
+                aria-expanded={profileOpen}
               >
-                <div className="avatar">
+                <div className="avatar" aria-hidden="true">
                   {userName.charAt(0).toUpperCase()}
                 </div>
+                <ChevronDown size={14} className={`profile-chevron ${profileOpen ? 'open' : ''}`} />
               </button>
               {profileOpen && (
-                <div className="dropdown profile-dropdown">
+                <div className="dropdown profile-dropdown" role="menu">
                   <div className="profile-header">
-                    <div className="avatar-large">{userName.charAt(0).toUpperCase()}</div>
+                    <div className="avatar-large">
+                      {userName.charAt(0).toUpperCase()}
+                    </div>
                     <div>
                       <p className="profile-name">{userName}</p>
-                      <p className="profile-email">{profile?.email || 'user@example.com'}</p>
+                      <p className="profile-email">{userEmail}</p>
                     </div>
                   </div>
-                  <Link href="/dashboard/profile" className="menu-item" onClick={() => setProfileOpen(false)}>
+                  
+                  <div className="profile-divider" />
+                  
+                  <Link 
+                    href="/dashboard/profile" 
+                    className="menu-item"
+                    onClick={() => setProfileOpen(false)}
+                    role="menuitem"
+                  >
                     <User size={14} /> Profile
                   </Link>
-                  <Link href="/dashboard/settings" className="menu-item" onClick={() => setProfileOpen(false)}>
+                  <Link 
+                    href="/dashboard/settings" 
+                    className="menu-item"
+                    onClick={() => setProfileOpen(false)}
+                    role="menuitem"
+                  >
                     <Settings size={14} /> Settings
                   </Link>
-                  <Link href="/dashboard/help" className="menu-item" onClick={() => setProfileOpen(false)}>
+                  <Link 
+                    href="/dashboard/help" 
+                    className="menu-item"
+                    onClick={() => setProfileOpen(false)}
+                    role="menuitem"
+                  >
                     <HelpCircle size={14} /> Help
                   </Link>
-                  <button className="menu-item logout" onClick={() => { setProfileOpen(false); signOut(); }}>
+                  
+                  <div className="profile-divider" />
+                  
+                  <button 
+                    className="menu-item logout" 
+                    onClick={handleSignOut}
+                    role="menuitem"
+                  >
                     <LogOut size={14} /> Logout
                   </button>
                 </div>
@@ -144,60 +360,115 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* Drawer Overlay */}
-      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
+      {drawerOpen && (
+        <div 
+          className="drawer-overlay" 
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Side Drawer */}
-      <div className={`side-drawer ${drawerOpen ? 'open' : ''}`}>
+      <div className={`side-drawer ${drawerOpen ? 'open' : ''}`} role="navigation" aria-label="Main navigation">
         <div className="drawer-header">
           <div>
             <span className="drawer-brand">Supay</span>
             <span className="drawer-tagline">The Future of Reward Platforms</span>
           </div>
-          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
+          <button 
+            className="drawer-close" 
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close menu"
+          >
             <X size={20} />
           </button>
         </div>
+        
+        <div className="drawer-user">
+          <div className="drawer-avatar">
+            {userName.charAt(0).toUpperCase()}
+          </div>
+          <div className="drawer-user-info">
+            <p className="drawer-username">{userName}</p>
+            <p className="drawer-useremail">{userEmail}</p>
+          </div>
+        </div>
+        
+        <div className="drawer-divider" />
+        
         <nav className="drawer-nav">
-          {navItems.map(item => {
+          {NAV_ITEMS.map(item => {
             const Icon = item.icon
-            const active = pathname === item.href
+            const active = isActiveRoute(item.href)
             return (
               <Link 
                 key={item.href} 
                 href={item.href}
                 className={`drawer-link ${active ? 'active' : ''}`}
                 onClick={() => setDrawerOpen(false)}
+                aria-current={active ? 'page' : undefined}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
+                {item.badge && <span className="drawer-badge">{item.badge}</span>}
+                {active && <ChevronRight size={14} className="drawer-active-indicator" />}
               </Link>
             )
           })}
-          <Link href="/dashboard/profile" className="drawer-link" onClick={() => setDrawerOpen(false)}>
+          
+          <div className="drawer-divider" />
+          
+          <Link 
+            href="/dashboard/profile" 
+            className="drawer-link"
+            onClick={() => setDrawerOpen(false)}
+          >
             <User size={18} /> Profile
           </Link>
-          <button className="drawer-link logout" onClick={() => { setDrawerOpen(false); signOut(); }}>
+          <Link 
+            href="/dashboard/settings" 
+            className="drawer-link"
+            onClick={() => setDrawerOpen(false)}
+          >
+            <Settings size={18} /> Settings
+          </Link>
+          <button 
+            className="drawer-link logout" 
+            onClick={handleSignOut}
+          >
             <LogOut size={18} /> Logout
           </button>
         </nav>
+        
+        <div className="drawer-footer">
+          <div className="drawer-version">v2.0.1</div>
+          <div className="drawer-theme-toggle" onClick={toggleTheme}>
+            {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+            <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+          </div>
+        </div>
       </div>
 
       {/* Main Content */}
-      <main className="dash-main">{children}</main>
+      <main className="dash-main" role="main">
+        {children}
+      </main>
 
       {/* Bottom Navigation */}
-      <nav className="bottom-nav">
-        {navItems.map(item => {
+      <nav className="bottom-nav" role="navigation" aria-label="Bottom navigation">
+        {NAV_ITEMS.map(item => {
           const Icon = item.icon
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          const active = isActiveRoute(item.href)
           return (
             <Link 
               key={item.href} 
               href={item.href}
               className={`bottom-btn ${active ? 'active' : ''}`}
+              aria-current={active ? 'page' : undefined}
             >
               <Icon size={20} />
               <span>{item.label}</span>
+              {item.badge && <span className="bottom-badge">{item.badge}</span>}
             </Link>
           )
         })}
