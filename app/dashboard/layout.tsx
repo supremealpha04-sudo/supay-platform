@@ -4,10 +4,9 @@ import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  FaHome, FaCoins, FaTasks, FaWallet, FaBars, 
-  FaBell, FaUserCircle, FaTimes, FaSignOutAlt,
-  FaChartLine, FaCog, FaQuestionCircle
-} from 'react-icons/fa'
+  Home, Coins, ClipboardList, CreditCard,
+  Bell, Menu, X, User, Settings, HelpCircle, LogOut
+} from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import './layout-modules.css'
 
@@ -19,116 +18,90 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { profile, signOut } = useAuth()
 
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: FaHome },
-    { href: '/dashboard/earn', label: 'Earn', icon: FaCoins },
-    { href: '/dashboard/tasks', label: 'Tasks', icon: FaTasks },
-    { href: '/dashboard/wallet', label: 'Wallet', icon: FaWallet },
+    { href: '/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/dashboard/earn', label: 'Earn', icon: Coins },
+    { href: '/dashboard/tasks', label: 'Tasks', icon: ClipboardList },
+    { href: '/dashboard/wallet', label: 'Wallet', icon: CreditCard },
   ]
 
   const notifications = [
-    { id: 1, title: 'Task Completed', msg: 'You earned 25 SPY', time: '2m ago', unread: true },
-    { id: 2, title: 'New Task Available', msg: 'Watch video for 10 SPY', time: '1h ago', unread: true },
-    { id: 3, title: 'Daily Bonus', msg: 'Claim your daily reward', time: '3h ago', unread: false },
+    { id: 1, title: 'Task Completed', msg: 'You earned 25 SPY', time: '2m ago' },
+    { id: 2, title: 'New Task', msg: 'Watch video for 10 SPY', time: '1h ago' },
   ]
+
+  const userName = profile?.username || profile?.full_name || 'User'
 
   return (
     <div className="dash-wrapper">
       {/* Top Header */}
-      <header className="top-header">
-        <div className="header-content">
-          {/* Left: Hamburger + Brand */}
-          <div className="header-left">
-            <button 
-              className="icon-btn hamburger"
-              onClick={() => setDrawerOpen(true)}
-            >
-              <FaBars size={20} />
-            </button>
-            <span className="header-brand">Supay</span>
-          </div>
+      <header className="dash-topbar">
+        <div className="topbar-content">
+          <button className="topbar-btn" onClick={() => setDrawerOpen(true)}>
+            <Menu size={20} />
+          </button>
+          <span className="topbar-brand">Supay</span>
 
-          {/* Right: Notification + Profile */}
-          <div className="header-right">
+          <div className="topbar-right">
             {/* Notification */}
-            <div className="notif-wrapper">
+            <div className="dropdown-wrap">
               <button 
-                className="icon-btn notif-btn"
-                onClick={() => {
-                  setNotifOpen(!notifOpen)
-                  setProfileOpen(false)
-                }}
+                className="topbar-btn notif"
+                onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
               >
-                <FaBell size={20} />
-                <span className="notif-badge">2</span>
+                <Bell size={18} />
+                <span className="notif-dot" />
               </button>
-
-              {/* Notification Dropdown */}
               {notifOpen && (
-                <div className="notif-dropdown">
-                  <div className="notif-header">
-                    <h4>Notifications</h4>
-                    <button className="mark-read">Mark all read</button>
+                <div className="dropdown notif-dropdown">
+                  <div className="dropdown-header">
+                    <span>Notifications</span>
+                    <button className="text-btn">Mark all read</button>
                   </div>
-                  <div className="notif-list">
-                    {notifications.map(n => (
-                      <div key={n.id} className={`notif-item ${n.unread ? 'unread' : ''}`}>
-                        <div className="notif-dot" />
-                        <div className="notif-content">
-                          <p className="notif-title">{n.title}</p>
-                          <p className="notif-msg">{n.msg}</p>
-                          <span className="notif-time">{n.time}</span>
-                        </div>
+                  {notifications.map(n => (
+                    <div key={n.id} className="notif-item">
+                      <div className="notif-dot-blue" />
+                      <div>
+                        <p className="notif-title">{n.title}</p>
+                        <p className="notif-msg">{n.msg}</p>
+                        <span className="notif-time">{n.time}</span>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
             {/* Profile */}
-            <div className="profile-wrapper">
+            <div className="dropdown-wrap">
               <button 
-                className="icon-btn profile-btn"
-                onClick={() => {
-                  setProfileOpen(!profileOpen)
-                  setNotifOpen(false)
-                }}
+                className="topbar-btn avatar-btn"
+                onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
               >
-                <div className="profile-avatar">
-                  {profile?.username ? profile.username.charAt(0).toUpperCase() : 'U'}
+                <div className="avatar">
+                  {userName.charAt(0).toUpperCase()}
                 </div>
               </button>
-
-              {/* Profile Dropdown */}
               {profileOpen && (
-                <div className="profile-dropdown">
+                <div className="dropdown profile-dropdown">
                   <div className="profile-header">
-                    <div className="profile-avatar-large">
-                      {profile?.username ? profile.username.charAt(0).toUpperCase() : 'U'}
-                    </div>
+                    <div className="avatar-large">{userName.charAt(0).toUpperCase()}</div>
                     <div>
-                      <p className="profile-name">{profile?.username || 'User'}</p>
+                      <p className="profile-name">{userName}</p>
                       <p className="profile-email">{profile?.email || 'user@example.com'}</p>
                     </div>
                   </div>
-                  <div className="profile-menu">
-                    <Link href="/dashboard" className="profile-item">
-                      <FaChartLine size={16} />
-                      <span>Dashboard</span>
-                    </Link>
-                    <Link href="/dashboard/settings" className="profile-item">
-                      <FaCog size={16} />
-                      <span>Settings</span>
-                    </Link>
-                    <Link href="/dashboard/help" className="profile-item">
-                      <FaQuestionCircle size={16} />
-                      <span>Help</span>
-                    </Link>
-                    <button onClick={signOut} className="profile-item logout">
-                      <FaSignOutAlt size={16} />
-                      <span>Logout</span>
-                    </button>
-                  </div>
+                  <Link href="/dashboard" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <Home size={14} /> Dashboard
+                  </Link>
+                  <Link href="/dashboard/settings" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <Settings size={14} /> Settings
+                  </Link>
+                  <Link href="/dashboard/help" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <HelpCircle size={14} /> Help
+                  </Link>
+                  <button className="menu-item logout" onClick={() => { setProfileOpen(false); signOut(); }}>
+                    <LogOut size={14} /> Logout
+                  </button>
                 </div>
               )}
             </div>
@@ -137,58 +110,220 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* Drawer Overlay */}
-      {drawerOpen && (
-        <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />
-      )}
+      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
 
       {/* Side Drawer */}
       <div className={`side-drawer ${drawerOpen ? 'open' : ''}`}>
         <div className="drawer-header">
           <span className="drawer-brand">Supay</span>
           <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
-            <FaTimes size={20} />
+            <X size={20} />
           </button>
         </div>
         <nav className="drawer-nav">
-          {navItems.map((item) => {
+          {navItems.map(item => {
             const Icon = item.icon
-            const isActive = pathname === item.href
+            const active = pathname === item.href
             return (
               <Link 
                 key={item.href} 
                 href={item.href}
-                className={`drawer-link ${isActive ? 'active' : ''}`}
+                className={`drawer-link ${active ? 'active' : ''}`}
                 onClick={() => setDrawerOpen(false)}
               >
-                <Icon size={20} />
+                <Icon size={18} />
                 <span>{item.label}</span>
               </Link>
             )
           })}
-          <button onClick={signOut} className="drawer-link logout">
-            <FaSignOutAlt size={20} />
-            <span>Logout</span>
+          <button className="drawer-link logout" onClick={() => { setDrawerOpen(false); signOut(); }}>
+            <LogOut size={18} /> Logout
           </button>
         </nav>
       </div>
 
       {/* Main Content */}
-      <main className="main-content">
-        {children}
-      </main>
+      <main className="dash-main">{children}</main>
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav">
-        {navItems.map((item) => {
+        {navItems.map(item => {
           const Icon = item.icon
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+          const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link 
               key={item.href} 
               href={item.href}
-              className={`bottom-btn ${isActive ? 'active' : ''}`}
+              className={`bottom-btn ${active ? 'active' : ''}`}
             >
-              <Icon size={22} />
+              <Icon size={20} />
+              <span>{item.label}</span>
+            </Link>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+'use client'
+
+import { useState } from 'react'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+import { 
+  Home, Coins, ClipboardList, CreditCard,
+  Bell, Menu, X, User, Settings, HelpCircle, LogOut
+} from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import './dashboard-layout.css'
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const pathname = usePathname()
+  const { profile, signOut } = useAuth()
+
+  const navItems = [
+    { href: '/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/dashboard/earn', label: 'Earn', icon: Coins },
+    { href: '/dashboard/tasks', label: 'Tasks', icon: ClipboardList },
+    { href: '/dashboard/wallet', label: 'Wallet', icon: CreditCard },
+  ]
+
+  const notifications = [
+    { id: 1, title: 'Task Completed', msg: 'You earned 25 SPY', time: '2m ago' },
+    { id: 2, title: 'New Task', msg: 'Watch video for 10 SPY', time: '1h ago' },
+  ]
+
+  const userName = profile?.username || profile?.full_name || 'User'
+
+  return (
+    <div className="dash-wrapper">
+      {/* Top Header */}
+      <header className="dash-topbar">
+        <div className="topbar-content">
+          <button className="topbar-btn" onClick={() => setDrawerOpen(true)}>
+            <Menu size={20} />
+          </button>
+          <span className="topbar-brand">Supay</span>
+
+          <div className="topbar-right">
+            {/* Notification */}
+            <div className="dropdown-wrap">
+              <button 
+                className="topbar-btn notif"
+                onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
+              >
+                <Bell size={18} />
+                <span className="notif-dot" />
+              </button>
+              {notifOpen && (
+                <div className="dropdown notif-dropdown">
+                  <div className="dropdown-header">
+                    <span>Notifications</span>
+                    <button className="text-btn">Mark all read</button>
+                  </div>
+                  {notifications.map(n => (
+                    <div key={n.id} className="notif-item">
+                      <div className="notif-dot-blue" />
+                      <div>
+                        <p className="notif-title">{n.title}</p>
+                        <p className="notif-msg">{n.msg}</p>
+                        <span className="notif-time">{n.time}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Profile */}
+            <div className="dropdown-wrap">
+              <button 
+                className="topbar-btn avatar-btn"
+                onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
+              >
+                <div className="avatar">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+              </button>
+              {profileOpen && (
+                <div className="dropdown profile-dropdown">
+                  <div className="profile-header">
+                    <div className="avatar-large">{userName.charAt(0).toUpperCase()}</div>
+                    <div>
+                      <p className="profile-name">{userName}</p>
+                      <p className="profile-email">{profile?.email || 'user@example.com'}</p>
+                    </div>
+                  </div>
+                  <Link href="/dashboard" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <Home size={14} /> Dashboard
+                  </Link>
+                  <Link href="/dashboard/settings" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <Settings size={14} /> Settings
+                  </Link>
+                  <Link href="/dashboard/help" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <HelpCircle size={14} /> Help
+                  </Link>
+                  <button className="menu-item logout" onClick={() => { setProfileOpen(false); signOut(); }}>
+                    <LogOut size={14} /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Drawer Overlay */}
+      {drawerOpen && <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />}
+
+      {/* Side Drawer */}
+      <div className={`side-drawer ${drawerOpen ? 'open' : ''}`}>
+        <div className="drawer-header">
+          <span className="drawer-brand">Supay</span>
+          <button className="drawer-close" onClick={() => setDrawerOpen(false)}>
+            <X size={20} />
+          </button>
+        </div>
+        <nav className="drawer-nav">
+          {navItems.map(item => {
+            const Icon = item.icon
+            const active = pathname === item.href
+            return (
+              <Link 
+                key={item.href} 
+                href={item.href}
+                className={`drawer-link ${active ? 'active' : ''}`}
+                onClick={() => setDrawerOpen(false)}
+              >
+                <Icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
+          <button className="drawer-link logout" onClick={() => { setDrawerOpen(false); signOut(); }}>
+            <LogOut size={18} /> Logout
+          </button>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <main className="dash-main">{children}</main>
+
+      {/* Bottom Navigation */}
+      <nav className="bottom-nav">
+        {navItems.map(item => {
+          const Icon = item.icon
+          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          return (
+            <Link 
+              key={item.href} 
+              href={item.href}
+              className={`bottom-btn ${active ? 'active' : ''}`}
+            >
+              <Icon size={20} />
               <span>{item.label}</span>
             </Link>
           )
