@@ -7,23 +7,11 @@ import Link from 'next/link'
 import { 
   Activity, DollarSign, Users, Wallet, Play, 
   CheckCircle, Gift, TrendingUp, ArrowRight,
-  Flame, Zap, ArrowUp, ArrowDown, Home, 
-  Coins, ClipboardList, CreditCard
+  Flame, Zap, ArrowUp, ArrowDown, X, Clock
 } from 'lucide-react'
 import './dashboard.css'
 
 const supabase = createClient()
-
-interface DashboardStats {
-  todayEarnings: number
-  totalEarned: number
-  referralCount: number
-  withdrawable: number
-  spyBalance: number
-  spyPrice: number
-  streak: number
-  dailyGoal: { current: number; target: number }
-}
 
 interface Transaction {
   id: string
@@ -35,7 +23,7 @@ interface Transaction {
 export default function DashboardPage() {
   const { profile, user } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats, setStats] = useState({
     todayEarnings: 0, totalEarned: 0, referralCount: 0,
     withdrawable: 0, spyBalance: 0, spyPrice: 0.023,
     streak: 0, dailyGoal: { current: 0, target: 20 }
@@ -43,6 +31,7 @@ export default function DashboardPage() {
   const [weeklyEarnings, setWeeklyEarnings] = useState<number[]>([0,0,0,0,0,0,0])
   const [recentActivities, setRecentActivities] = useState<Transaction[]>([])
   const [userName, setUserName] = useState('User')
+  const [showActivity, setShowActivity] = useState(false)
 
   const days = useMemo(() => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], [])
 
@@ -62,9 +51,7 @@ export default function DashboardPage() {
         .select('username, full_name')
         .eq('id', user?.id)
         .single()
-      if (data) {
-        setUserName(data.full_name || data.username || 'User')
-      }
+      if (data) setUserName(data.full_name || data.username || 'User')
     } catch (e) {
       setUserName(profile?.username || 'User')
     }
@@ -76,16 +63,14 @@ export default function DashboardPage() {
 
     try {
       const today = new Date(); today.setHours(0,0,0,0)
-      const todayStr = today.toISOString()
       const weekStart = new Date(today)
       weekStart.setDate(today.getDate() - today.getDay() + (today.getDay()===0?-6:1))
-      weekStart.setHours(0,0,0,0)
 
       let todayEarn = 0, breakdown = { earned_spy:0, referral_spy:0, staking_rewards_spy:0 }
       let weekly = [0,0,0,0,0,0,0], transactions: Transaction[] = []
 
       try {
-        const { data } = await supabase.from('ad_watches').select('reward_spy').eq('user_id', user.id).gte('created_at', todayStr)
+        const { data } = await supabase.from('ad_watches').select('reward_spy').eq('user_id', user.id).gte('created_at', today.toISOString())
         if (data) todayEarn = data.reduce((s, a) => s + (Number(a.reward_spy)||0), 0)
       } catch(e){}
 
@@ -103,7 +88,7 @@ export default function DashboardPage() {
       } catch(e){}
 
       try {
-        const { data } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at',{ascending:false}).limit(5)
+        const { data } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at',{ascending:false}).limit(10)
         if (data) transactions = data
       } catch(e){}
 
@@ -122,7 +107,6 @@ export default function DashboardPage() {
       setWeeklyEarnings(weekly)
       setRecentActivities(transactions.length ? transactions : getDemoActivities())
     } catch(err) {
-      console.error(err)
       setRecentActivities(getDemoActivities())
     } finally {
       setLoading(false)
@@ -135,6 +119,8 @@ export default function DashboardPage() {
     { id:'3', created_at: new Date(Date.now()-172800000).toISOString(), amount_spy:25, type:'daily_bonus' },
     { id:'4', created_at: new Date(Date.now()-259200000).toISOString(), amount_spy:10, type:'referral' },
     { id:'5', created_at: new Date(Date.now()-345600000).toISOString(), amount_spy:8, type:'task_complete' },
+    { id:'6', created_at: new Date(Date.now()-432000000).toISOString(), amount_spy:35, type:'ad_watch' },
+    { id:'7', created_at: new Date(Date.now()-518400000).toISOString(), amount_spy:15, type:'daily_bonus' },
   ]
 
   const quickActions = [
@@ -145,13 +131,8 @@ export default function DashboardPage() {
   ]
 
   const getActIcon = (type: string) => {
-    const map: Record<string, JSX.Element> = {
-      ad_watch: <div className="act-icon blue"><Play size={12} fill="white"/></div>,
-      task_complete: <div className="act-icon green"><CheckCircle size={12}/></div>,
-      daily_bonus: <div className="act-icon purple"><Gift size={12}/></div>,
-      referral: <div className="act-icon orange"><Users size={12}/></div>,
-    }
-    return map[type] || <div className="act-icon blue"><Zap size={12}/></div>
+    const map: Record<string, string> = { ad_watch:'blue', task_complete:'green', daily_bonus:'purple', referral:'orange' }
+    return map[type] || 'blue'
   }
 
   const getActLabel = (type: string) => {
@@ -172,24 +153,21 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard">
-      {/* TOP ROW: Welcome + SPY Balance */}
-      <div className="top-row">
-        <div className="welcome-block">
-          <h1>Welcome back, {userName}! 👋</h1>
-          <p>Keep earning and grow your SPY balance</p>
-          <span className="earn-badge"><TrendingUp size={12}/> +{stats.todayEarnings} SPY today</span>
+      {/* SPY BALANCE CARD */}
+      <div className="spy-card">
+        <div className="spy-header">
+          <span>SPY Balance</span>
+          <Zap size={16} className="spy-zap"/>
         </div>
-        <div className="spy-card">
-          <div className="spy-header">
-            <span>SPY Balance</span>
-            <Zap size={16} className="spy-zap"/>
-          </div>
-          <div className="spy-amount">{stats.spyBalance.toLocaleString()} <span>SPY</span></div>
-          <div className="spy-usd">≈ ${(stats.spyBalance*stats.spyPrice).toFixed(2)} USD</div>
-          <div className="spy-buttons">
-            <button className="spy-btn deposit"><ArrowDown size={14}/>Deposit</button>
-            <button className="spy-btn withdraw"><ArrowUp size={14}/>Withdraw</button>
-          </div>
+        <div className="spy-amount">{stats.spyBalance.toLocaleString()} <span>SPY</span></div>
+        <div className="spy-usd">≈ ${(stats.spyBalance*stats.spyPrice).toFixed(2)} USD</div>
+        <div className="spy-buttons">
+          <Link href="/dashboard/wallet?tab=deposit" className="spy-btn deposit">
+            <ArrowDown size={14}/>Deposit
+          </Link>
+          <Link href="/dashboard/wallet?tab=withdraw" className="spy-btn withdraw">
+            <ArrowUp size={14}/>Withdraw
+          </Link>
         </div>
       </div>
 
@@ -246,32 +224,39 @@ export default function DashboardPage() {
           <div className="chart-bars">
             {weeklyEarnings.map((v,i) => (
               <div key={i} className="c-bar-item">
-                <div className={`c-bar ${i===6?'today':''}`} style={{height:`${Math.max((v/maxW)*80,4)}px`}}/>
+                <div className={`c-bar ${i===6?'today':''}`} style={{height:`${Math.max((v/maxW)*70,3)}px`}}/>
                 <span>{days[i]}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="activity-box">
-          <div className="act-head"><h3>Recent Activity</h3><Link href="/dashboard/transactions">View All</Link></div>
+        {/* Recent Activity (clickable) */}
+        <div className="activity-box" onClick={() => setShowActivity(true)}>
+          <div className="act-head">
+            <h3>Recent Activity</h3>
+            <span className="view-all">View All <ArrowRight size={12}/></span>
+          </div>
           <div className="act-list">
-            {recentActivities.slice(0,4).map(a => (
+            {recentActivities.slice(0,3).map(a => (
               <div key={a.id} className="act-row">
-                {getActIcon(a.type)}
+                <div className={`act-icon ${getActIcon(a.type)}`}>
+                  {a.type==='ad_watch' ? <Play size={10} fill="white"/> : 
+                   a.type==='task_complete' ? <CheckCircle size={10}/> :
+                   a.type==='daily_bonus' ? <Gift size={10}/> : <Users size={10}/>}
+                </div>
                 <div className="act-info">
                   <span className="act-name">{getActLabel(a.type)}</span>
                   <span className="act-time">{timeAgo(a.created_at)}</span>
                 </div>
-                <span className="act-amt">+{Math.abs(a.amount_spy)} SPY</span>
+                <span className="act-amt">+{Math.abs(a.amount_spy)}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* DAILY GOAL + STREAK (compact) */}
+      {/* GOAL + STREAK */}
       <div className="compact-row">
         <div className="goal-mini">
           <div className="goal-head"><span>Daily Goal</span><span>{stats.dailyGoal.current}/{stats.dailyGoal.target} SPY</span></div>
@@ -282,6 +267,37 @@ export default function DashboardPage() {
           <span>{stats.streak} Day Streak</span>
         </div>
       </div>
+
+      {/* ACTIVITY MODAL */}
+      {showActivity && (
+        <div className="activity-modal">
+          <div className="modal-overlay" onClick={() => setShowActivity(false)}/>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Recent Activity</h2>
+              <button className="modal-close" onClick={() => setShowActivity(false)}>
+                <X size={20}/>
+              </button>
+            </div>
+            <div className="modal-list">
+              {recentActivities.map(a => (
+                <div key={a.id} className="modal-row">
+                  <div className={`act-icon ${getActIcon(a.type)}`}>
+                    {a.type==='ad_watch' ? <Play size={14} fill="white"/> : 
+                     a.type==='task_complete' ? <CheckCircle size={14}/> :
+                     a.type==='daily_bonus' ? <Gift size={14}/> : <Users size={14}/>}
+                  </div>
+                  <div className="modal-info">
+                    <span className="modal-name">{getActLabel(a.type)}</span>
+                    <span className="modal-time"><Clock size={12}/> {timeAgo(a.created_at)}</span>
+                  </div>
+                  <span className="modal-amt">+{Math.abs(a.amount_spy)} SPY</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
