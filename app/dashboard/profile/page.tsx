@@ -9,7 +9,7 @@ import {
   ArrowLeft, User, Mail, Phone, MapPin, Calendar,
   Edit3, Camera, Shield, CheckCircle, Save,
   X, AlertCircle, Sparkles, Trophy, Users, Coins,
-  Flame, RefreshCw
+  Flame, RefreshCw, Wallet, Settings, HelpCircle
 } from 'lucide-react'
 import './profile.css'
 
