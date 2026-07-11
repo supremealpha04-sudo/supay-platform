@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { 
   Home, Coins, ClipboardList, CreditCard,
   Bell, Menu, X, Settings, HelpCircle, LogOut,
-  User, ChevronRight, Sparkles, Trophy,
+  User, Users, ChevronRight, Sparkles, Trophy,
   Zap, Moon, Sun, ChevronDown
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
