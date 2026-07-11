@@ -1,51 +1,125 @@
-/* Earn page styles */
+/* ============================================
+   EARN PAGE STYLES
+   Enhanced with better organization & features
+   ============================================ */
 
+/* ===== CSS VARIABLES ===== */
+:root {
+  /* Earn-specific colors */
+  --earn-primary: #FF7A1A;
+  --earn-primary-dark: #e66a0f;
+  --earn-primary-light: rgba(255, 122, 26, 0.15);
+  --earn-success: #4ade80;
+  --earn-text: #e5f0ff;
+  --earn-muted: rgba(226, 232, 240, 0.7);
+  --earn-bg-start: #0a0e1a;
+  --earn-bg-end: #061129;
+  --earn-surface: rgba(255, 255, 255, 0.06);
+  --earn-border: rgba(255, 122, 26, 0.18);
+  --earn-radius: 24px;
+  --earn-radius-sm: 12px;
+  --earn-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  --earn-transition: 200ms ease;
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  --earn-bg-start: #f8f4f0;
+  --earn-bg-end: #f0ebe5;
+  --earn-text: #1a120e;
+  --earn-muted: rgba(26, 18, 14, 0.7);
+  --earn-surface: rgba(0, 0, 0, 0.04);
+  --earn-border: rgba(255, 122, 26, 0.2);
+  --earn-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== PAGE CONTAINER ===== */
 .earnPage {
   display: grid;
   gap: 1.5rem;
-  padding: 0;
-  --earn-bg: linear-gradient(135deg, #061028 0%, #0d2449 45%, #081426 100%);
-  --surface: rgba(255, 255, 255, 0.08);
-  --surface-strong: rgba(255, 255, 255, 0.12);
-  --border: rgba(96, 165, 250, 0.18);
-  --border-soft: rgba(255, 255, 255, 0.08);
-  --accent: #60a5fa;
-  --accent-2: #f97316;
-  --muted: rgba(226, 232, 240, 0.72);
-  --text: #eef2ff;
-  --radius: 28px;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: var(--earn-text);
+  background: linear-gradient(135deg, var(--earn-bg-start), var(--earn-bg-end));
+  min-height: calc(100vh - 60px);
+  transition: background var(--earn-transition), color var(--earn-transition);
 }
 
-.heroCard,
-.card,
-.actionCard,
-.timerCard,
-.bonusCard {
-  background: rgba(8, 18, 40, 0.82);
-  border: 1px solid var(--border-soft);
-  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.24);
-  border-radius: var(--radius);
-  -webkit-backdrop-filter: blur(30px);
-  backdrop-filter: blur(30px);
+/* ===== LOADING ===== */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: var(--earn-muted);
 }
 
+.loadingSpinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--earn-surface);
+  border-top-color: var(--earn-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== HERO CARD ===== */
 .heroCard {
-  padding: 2rem;
+  text-align: center;
+  padding: 2rem 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 122, 26, 0.12), rgba(255, 122, 26, 0.04));
+  border: 1px solid var(--earn-border);
+  border-radius: var(--earn-radius);
+  box-shadow: var(--earn-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.heroCard::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(255, 122, 26, 0.05), transparent 70%);
+  animation: heroGlow 8s ease-in-out infinite alternate;
+}
+
+@keyframes heroGlow {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(10%, 10%) scale(1.2); }
 }
 
 .heroCard h1 {
-  font-size: clamp(1.9rem, 2.5vw, 2.6rem);
-  margin-bottom: 0.75rem;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+  background: linear-gradient(135deg, var(--earn-primary), #ff9a4a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  z-index: 1;
 }
 
 .heroCard p {
-  color: var(--muted);
-  line-height: 1.75;
+  font-size: 1.05rem;
+  color: var(--earn-muted);
+  margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
+/* ===== STATS GRID ===== */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
 }
 
@@ -53,225 +127,591 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1.2rem;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1.25rem;
+  background: rgba(6, 18, 41, 0.9);
+  border: 1px solid var(--earn-border);
+  border-radius: var(--earn-radius-sm);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: all var(--earn-transition);
+}
+
+[data-theme="light"] .statCard {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 122, 26, 0.3);
+  box-shadow: 0 8px 24px rgba(255, 122, 26, 0.08);
 }
 
 .statIcon {
-  width: 52px;
-  height: 52px;
-  min-width: 52px;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  border-radius: 18px;
-  background: rgba(96, 165, 250, 0.16);
-  color: var(--accent);
-  font-size: 1.2rem;
+  background: var(--earn-primary-light);
+  color: var(--earn-primary);
+  font-size: 1.1rem;
 }
 
 .statText {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.statText p {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
 }
 
 .statLabel {
-  color: var(--muted);
-  font-size: 0.88rem;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--earn-muted);
+  font-weight: 500;
 }
 
 .statValue {
-  color: var(--text);
-  font-size: 1.3rem;
+  margin: 0;
+  font-size: 1.2rem;
   font-weight: 700;
+  color: var(--earn-text);
+  white-space: nowrap;
 }
 
-.actionCard,
-.timerCard,
-.bonusCard {
-  padding: 2rem;
-}
-
+/* ===== ACTION CARD ===== */
 .actionCard {
+  padding: 2.5rem 2rem;
+  background: linear-gradient(135deg, rgba(6, 18, 41, 0.95), rgba(6, 18, 41, 0.98));
+  border: 1px solid var(--earn-border);
+  border-radius: var(--earn-radius);
+  box-shadow: var(--earn-shadow);
   text-align: center;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+[data-theme="light"] .actionCard {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.85rem;
-  width: min(100%, 320px);
-  min-height: 56px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  border-radius: 20px;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
   border: none;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: white;
-  font-size: 1rem;
+  border-radius: 2rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  box-shadow: 0 18px 45px rgba(96, 165, 250, 0.22);
-  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+  color: white;
+  background: linear-gradient(135deg, var(--earn-primary), var(--earn-primary-dark));
   cursor: pointer;
+  transition: all var(--earn-transition);
+  min-width: 200px;
+  min-height: 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.button:hover:not(:disabled)::before {
+  transform: translateX(100%);
 }
 
 .button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 28px 60px rgba(96, 165, 250, 0.24);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(255, 122, 26, 0.35);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--earn-primary);
+  outline-offset: 3px;
 }
 
 .buttonDisabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
-  background: rgba(148, 163, 184, 0.2);
-  box-shadow: none;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
-.statusText {
-  margin-top: 1.25rem;
-  color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.7;
-}
-
-.highlight {
-  color: var(--accent);
-  font-weight: 700;
-}
-
+/* ===== TIMER CARD ===== */
 .timerCard {
-  display: grid;
-  justify-items: center;
-  gap: 1.5rem;
+  padding: 2.5rem 2rem;
+  background: linear-gradient(135deg, rgba(6, 18, 41, 0.95), rgba(6, 18, 41, 0.98));
+  border: 1px solid var(--earn-border);
+  border-radius: var(--earn-radius);
+  box-shadow: var(--earn-shadow);
   text-align: center;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+[data-theme="light"] .timerCard {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .timerRing {
   position: relative;
-  width: min(100%, 240px);
-  height: min(100%, 240px);
+  width: 192px;
+  height: 192px;
+  margin: 0 auto 1.5rem;
 }
 
 .timerSvg {
+  transform: rotate(-90deg);
   width: 100%;
   height: 100%;
-  transform: rotate(-90deg);
+}
+
+.timerSvg circle {
+  transition: stroke-dashoffset 1s linear;
 }
 
 .timerValue {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .timerNumber {
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  font-size: 3.5rem;
   font-weight: 800;
-  letter-spacing: -0.05em;
+  color: var(--earn-primary);
+  line-height: 1;
 }
 
 .timerLabel {
-  color: var(--muted);
-  font-size: 0.95rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--earn-muted);
 }
 
+/* ===== BONUS CARD ===== */
 .bonusCard {
-  display: grid;
-  gap: 1.25rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(6, 18, 41, 0.9), rgba(6, 18, 41, 0.95));
+  border: 1px solid rgba(255, 122, 26, 0.15);
+  border-radius: var(--earn-radius-sm);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  transition: all var(--earn-transition);
+}
+
+[data-theme="light"] .bonusCard {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.bonusCard:hover {
+  border-color: rgba(255, 122, 26, 0.3);
 }
 
 .bonusHeader {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
   margin: 0;
-  color: white;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--earn-text);
 }
 
 .bonusDetail {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.bonusText,
-.bonusHint {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .bonusText {
-  color: var(--muted);
+  margin: 0;
   font-size: 0.95rem;
+  color: var(--earn-muted);
+}
+
+.highlight {
+  color: var(--earn-primary);
+  font-weight: 700;
 }
 
 .bonusHint {
-  color: rgba(148, 163, 184, 0.9);
-  font-size: 0.82rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--earn-muted);
 }
 
 .linkButton {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 0.5rem;
-  padding: 0.9rem 1rem;
-  border-radius: 18px;
-  border: 1px solid rgba(96, 165, 250, 0.25);
-  background: rgba(255, 255, 255, 0.05);
-  color: #dbeafe;
-  font-size: 0.92rem;
+  padding: 0.6rem 1.5rem;
+  border-radius: 2rem;
+  background: var(--earn-primary-light);
+  color: var(--earn-primary);
   text-decoration: none;
-  transition: background 160ms ease;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all var(--earn-transition);
+  border: 1px solid transparent;
 }
 
 .linkButton:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--earn-primary);
+  color: white;
+  border-color: var(--earn-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 122, 26, 0.2);
 }
 
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 5rem 0;
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+  .earnPage {
+    gap: 1.25rem;
+    padding: 0.75rem;
+  }
 }
 
-.loadingSpinner {
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
-  border: 5px solid rgba(255, 255, 255, 0.12);
-  border-top-color: var(--accent);
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@media (max-width: 840px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .bonusCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .button {
+    min-width: 160px;
+    padding: 0.9rem 2rem;
+    font-size: 1rem;
   }
 }
 
 @media (max-width: 640px) {
+  .earnPage {
+    gap: 1rem;
+    padding: 0.5rem;
+    min-height: calc(100vh - 50px);
+  }
+  
+  .heroCard {
+    padding: 1.5rem 1rem;
+  }
+  
+  .heroCard h1 {
+    font-size: 1.6rem;
+  }
+  
+  .heroCard p {
+    font-size: 0.95rem;
+  }
+  
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  
+  .statCard {
+    padding: 0.9rem;
+    gap: 0.75rem;
+  }
+  
+  .statIcon {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    font-size: 0.9rem;
+  }
+  
+  .statValue {
+    font-size: 1rem;
+  }
+  
+  .statLabel {
+    font-size: 0.7rem;
+  }
+  
+  .actionCard,
+  .timerCard {
+    padding: 1.75rem 1.25rem;
+  }
+  
+  .button {
+    min-width: 140px;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    min-height: 48px;
+  }
+  
+  .timerRing {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .timerNumber {
+    font-size: 3rem;
+  }
+  
+  .bonusCard {
+    padding: 1.25rem;
+  }
+  
+  .bonusHeader {
+    font-size: 1rem;
+  }
+  
+  .linkButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .statCard {
+    padding: 0.8rem;
+  }
+  
+  .timerRing {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .timerNumber {
+    font-size: 2.5rem;
+  }
+  
+  .button {
+    min-width: 100%;
+    font-size: 0.9rem;
+  }
+  
+  .heroCard h1 {
+    font-size: 1.4rem;
+  }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  .earnPage {
+    background: white;
+    padding: 20px;
+    min-height: auto;
+  }
+  
   .heroCard,
+  .statCard,
   .actionCard,
   .timerCard,
   .bonusCard {
-    padding: 1.5rem;
+    background: white !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
+  
+  .button,
+  .linkButton {
+    display: none !important;
+  }
+  
+  .heroCard h1 {
+    -webkit-text-fill-color: #1a120e;
+    background: none;
+  }
+}
 
-  .statCard {
-    padding: 1rem;
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
+  
+  .heroCard::before {
+    animation: none !important;
+  }
+  
+  .button::before {
+    display: none !important;
+  }
+  
+  .button:hover:not(:disabled) {
+    transform: none !important;
+  }
+  
+  .statCard:hover {
+    transform: none !important;
+  }
+}
 
-  .button {
-    width: 100%;
-  }
+/* ===== ANIMATIONS ===== */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== UTILITY CLASSES ===== */
+.text-center {
+  text-align: center;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
+
+.text-gray-400 {
+  color: var(--earn-muted);
+}
+
+.text-gray-500 {
+  color: var(--earn-muted);
+  opacity: 0.7;
+}
+
+.text-accent-500 {
+  color: var(--earn-primary);
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+.transition-all {
+  transition: all var(--earn-transition);
+}
+
+.duration-1000 {
+  transition-duration: 1000ms;
+}
+
+.ease-linear {
+  transition-timing-function: linear;
+}
+
+/* ===== DARK MODE SPECIFIC ===== */
+[data-theme="dark"] .statCard {
+  background: rgba(6, 18, 41, 0.95);
+}
+
+[data-theme="dark"] .actionCard {
+  background: rgba(6, 18, 41, 0.98);
+}
+
+[data-theme="dark"] .timerCard {
+  background: rgba(6, 18, 41, 0.98);
+}
+
+[data-theme="dark"] .bonusCard {
+  background: rgba(6, 18, 41, 0.95);
+}
+
+/* ===== GLOW EFFECTS ===== */
+.button::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 2rem;
+  background: linear-gradient(135deg, var(--earn-primary), #ff9a4a, var(--earn-primary));
+  background-size: 200% 200%;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity var(--earn-transition);
+}
+
+.button:hover:not(:disabled)::after {
+  opacity: 1;
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ===== TIMER RING GLOW ===== */
+.timerRing::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 122, 26, 0.1), transparent 70%);
+  opacity: 0;
+  transition: opacity var(--earn-transition);
+  pointer-events: none;
+}
+
+.timerCard:hover .timerRing::after {
+  opacity: 1;
 }
