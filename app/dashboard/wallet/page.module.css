@@ -1019,35 +1019,6 @@
   }
 }
 
-/* ===== REDUCED MOTION ===== */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  
-  .pulseDot {
-    animation: none !important;
-  }
-  
-  .spinning {
-    animation: none !important;
-  }
-  
-  .balanceCard:hover {
-    transform: none !important;
-  }
-  
-  .methodCard:hover {
-    transform: none !important;
-  }
-  
-  .txRow:hover {
-    transform: none !important;
-  }
-}
-
 /* ===== DARK MODE SPECIFIC ===== */
 [data-theme="dark"] .balanceCard {
   background: rgba(6, 18, 41, 0.95);
