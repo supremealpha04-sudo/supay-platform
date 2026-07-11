@@ -1,10 +1,9 @@
 /* ============================================
    EARN PAGE STYLES
-   Enhanced with better organization & features
    ============================================ */
 
 /* ===== CSS VARIABLES ===== */
-:root {
+:global(:root) {
   /* Earn-specific colors */
   --earn-primary: #FF7A1A;
   --earn-primary-dark: #e66a0f;
@@ -22,8 +21,7 @@
   --earn-transition: 200ms ease;
 }
 
-/* Light theme overrides */
-[data-theme="light"] {
+:global([data-theme="light"]) {
   --earn-bg-start: #f8f4f0;
   --earn-bg-end: #f0ebe5;
   --earn-text: #1a120e;
@@ -136,7 +134,7 @@
   transition: all var(--earn-transition);
 }
 
-[data-theme="light"] .statCard {
+:global([data-theme="light"]) .statCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -196,7 +194,7 @@
   gap: 1rem;
 }
 
-[data-theme="light"] .actionCard {
+:global([data-theme="light"]) .actionCard {
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -271,7 +269,7 @@
   min-height: 300px;
 }
 
-[data-theme="light"] .timerCard {
+:global([data-theme="light"]) .timerCard {
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -330,7 +328,7 @@
   transition: all var(--earn-transition);
 }
 
-[data-theme="light"] .bonusCard {
+:global([data-theme="light"]) .bonusCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -582,49 +580,33 @@
   }
 }
 
-/* ===== ANIMATIONS ===== */
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(0.95); }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 /* ===== UTILITY CLASSES ===== */
-.text-center {
+.textCenter {
   text-align: center;
 }
 
-.text-sm {
+.textSm {
   font-size: 0.875rem;
 }
 
-.text-xs {
+.textXs {
   font-size: 0.75rem;
 }
 
-.text-gray-400 {
+.textGray400 {
   color: var(--earn-muted);
 }
 
-.text-gray-500 {
+.textGray500 {
   color: var(--earn-muted);
   opacity: 0.7;
 }
 
-.text-accent-500 {
+.textAccent500 {
   color: var(--earn-primary);
 }
 
-.mt-4 {
+.mt4 {
   margin-top: 1rem;
 }
 
@@ -632,48 +614,48 @@
   display: flex;
 }
 
-.items-center {
+.itemsCenter {
   align-items: center;
 }
 
-.justify-center {
+.justifyCenter {
   justify-content: center;
 }
 
-.gap-2 {
+.gap2 {
   gap: 0.5rem;
 }
 
-.space-y-4 > * + * {
+.spaceY4 > * + * {
   margin-top: 1rem;
 }
 
-.transition-all {
+.transitionAll {
   transition: all var(--earn-transition);
 }
 
-.duration-1000 {
+.duration1000 {
   transition-duration: 1000ms;
 }
 
-.ease-linear {
+.easeLinear {
   transition-timing-function: linear;
 }
 
 /* ===== DARK MODE SPECIFIC ===== */
-[data-theme="dark"] .statCard {
+:global([data-theme="dark"]) .statCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-[data-theme="dark"] .actionCard {
+:global([data-theme="dark"]) .actionCard {
   background: rgba(6, 18, 41, 0.98);
 }
 
-[data-theme="dark"] .timerCard {
+:global([data-theme="dark"]) .timerCard {
   background: rgba(6, 18, 41, 0.98);
 }
 
-[data-theme="dark"] .bonusCard {
+:global([data-theme="dark"]) .bonusCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
