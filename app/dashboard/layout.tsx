@@ -6,13 +6,15 @@ import Link from 'next/link'
 import { 
   Home, Coins, ClipboardList, CreditCard,
   Bell, Menu, X, Settings, HelpCircle, LogOut,
-  User, ChevronRight, Sparkles, Trophy, 
-  Zap, Shield, Moon, Sun, ChevronDown
+  User, ChevronRight, Sparkles, Trophy,
+  Zap, Moon, Sun, ChevronDown
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import './layout-modules.css'
 
-// ===== TYPES =====
+// ============================================
+// TYPES
+// ============================================
 interface Notification {
   id: number
   title: string
@@ -27,10 +29,11 @@ interface NavItem {
   label: string
   icon: React.ComponentType<{ size?: number; className?: string }>
   badge?: number
-  active?: boolean
 }
 
-// ===== CONSTANTS =====
+// ============================================
+// CONSTANTS
+// ============================================
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/dashboard/earn', label: 'Earn', icon: Coins },
@@ -45,7 +48,9 @@ const DEMO_NOTIFICATIONS: Notification[] = [
   { id: 4, title: 'Daily Bonus Claimed', msg: 'Streak bonus +15 SPY', time: '5h ago', type: 'reward' },
 ]
 
-// ===== MAIN COMPONENT =====
+// ============================================
+// MAIN LAYOUT COMPONENT
+// ============================================
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -67,8 +72,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const profileRef = useRef<HTMLDivElement>(null)
   const popupTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // ===== COMPUTED VALUES =====
+  // ===== COMPUTED =====
   const isDashboard = useMemo(() => pathname === '/dashboard', [pathname])
+  
   const isActiveRoute = useCallback((href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname?.startsWith(href + '/') || pathname === href
@@ -76,10 +82,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // ===== HANDLERS =====
   const handleDrawerToggle = useCallback(() => {
-    setDrawerOpen(prev => !prev)
-    // Prevent body scroll when drawer is open
-    document.body.style.overflow = !drawerOpen ? 'hidden' : ''
-  }, [drawerOpen])
+    setDrawerOpen(prev => {
+      document.body.style.overflow = !prev ? 'hidden' : ''
+      return !prev
+    })
+  }, [])
 
   const handleNotificationToggle = useCallback(() => {
     setNotifOpen(prev => !prev)
@@ -107,7 +114,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setWelcomePopup(false)
   }, [])
 
-  // ===== CLOSE DROPDOWNS ON ESCAPE =====
+  const toggleTheme = useCallback(() => {
+    setIsDarkMode(prev => {
+      const newTheme = !prev
+      document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light')
+      localStorage.setItem('theme', newTheme ? 'dark' : 'light')
+      return newTheme
+    })
+  }, [])
+
+  // ===== EFFECTS =====
+  // Load theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null
+    if (savedTheme) {
+      setIsDarkMode(savedTheme === 'dark')
+      document.documentElement.setAttribute('data-theme', savedTheme)
+    }
+  }, [])
+
+  // Close dropdowns on Escape
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -120,7 +146,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener('keydown', handleEsc)
   }, [])
 
-  // ===== CLOSE DROPDOWNS ON CLICK OUTSIDE =====
+  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node
@@ -138,7 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [notifOpen, profileOpen])
 
-  // ===== USER DATA =====
+  // User data and welcome popup
   useEffect(() => {
     const name = profile?.full_name || profile?.username || user?.email?.split('@')[0] || 'User'
     const email = profile?.email || user?.email || 'user@example.com'
@@ -146,7 +172,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setUserName(name)
     setUserEmail(email)
 
-    // Show welcome popup only on dashboard
     if (isDashboard) {
       setWelcomePopup(true)
       if (popupTimerRef.current) clearTimeout(popupTimerRef.current)
@@ -160,13 +185,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [profile, user, isDashboard])
 
-  // ===== THEME TOGGLE =====
-  const toggleTheme = useCallback(() => {
-    setIsDarkMode(prev => !prev)
-    document.documentElement.setAttribute('data-theme', !isDarkMode ? 'dark' : 'light')
-  }, [isDarkMode])
-
-  // ===== GET NOTIFICATION ICON =====
+  // ===== HELPERS =====
   const getNotifIcon = useCallback((type?: string) => {
     switch(type) {
       case 'task': return <Trophy size={14} />
@@ -195,7 +214,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <button 
               className="popup-dismiss" 
-              onClick={(e) => { e.stopPropagation(); dismissWelcomePopup(); }}
+              onClick={(e) => { e.stopPropagation(); dismissWelcomePopup() }}
               aria-label="Dismiss welcome message"
             >
               <X size={16} />
