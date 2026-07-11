@@ -1,35 +1,9 @@
+/* app/dashboard/earn/page.module.css */
+
 /* ============================================
    EARN PAGE STYLES
+   Variables are defined in globals.css
    ============================================ */
-
-/* ===== CSS VARIABLES ===== */
-:global(:root) {
-  /* Earn-specific colors */
-  --earn-primary: #FF7A1A;
-  --earn-primary-dark: #e66a0f;
-  --earn-primary-light: rgba(255, 122, 26, 0.15);
-  --earn-success: #4ade80;
-  --earn-text: #e5f0ff;
-  --earn-muted: rgba(226, 232, 240, 0.7);
-  --earn-bg-start: #0a0e1a;
-  --earn-bg-end: #061129;
-  --earn-surface: rgba(255, 255, 255, 0.06);
-  --earn-border: rgba(255, 122, 26, 0.18);
-  --earn-radius: 24px;
-  --earn-radius-sm: 12px;
-  --earn-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
-  --earn-transition: 200ms ease;
-}
-
-:global([data-theme="light"]) {
-  --earn-bg-start: #f8f4f0;
-  --earn-bg-end: #f0ebe5;
-  --earn-text: #1a120e;
-  --earn-muted: rgba(26, 18, 14, 0.7);
-  --earn-surface: rgba(0, 0, 0, 0.04);
-  --earn-border: rgba(255, 122, 26, 0.2);
-  --earn-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
-}
 
 /* ===== PAGE CONTAINER ===== */
 .earnPage {
@@ -39,9 +13,9 @@
   max-width: 1200px;
   margin: 0 auto;
   color: var(--earn-text);
-  background: linear-gradient(135deg, var(--earn-bg-start), var(--earn-bg-end));
+  background: var(--earn-bg);
   min-height: calc(100vh - 60px);
-  transition: background var(--earn-transition), color var(--earn-transition);
+  transition: background var(--transition-base), color var(--transition-base);
 }
 
 /* ===== LOADING ===== */
@@ -57,7 +31,7 @@
   width: 48px;
   height: 48px;
   border: 4px solid var(--earn-surface);
-  border-top-color: var(--earn-primary);
+  border-top-color: var(--earn-accent-2);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -70,10 +44,10 @@
 .heroCard {
   text-align: center;
   padding: 2rem 1.5rem;
-  background: linear-gradient(135deg, rgba(255, 122, 26, 0.12), rgba(255, 122, 26, 0.04));
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(249, 115, 22, 0.04));
   border: 1px solid var(--earn-border);
   border-radius: var(--earn-radius);
-  box-shadow: var(--earn-shadow);
+  box-shadow: var(--shadow-md);
   position: relative;
   overflow: hidden;
 }
@@ -85,7 +59,7 @@
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at center, rgba(255, 122, 26, 0.05), transparent 70%);
+  background: radial-gradient(circle at center, rgba(249, 115, 22, 0.05), transparent 70%);
   animation: heroGlow 8s ease-in-out infinite alternate;
 }
 
@@ -98,7 +72,7 @@
   font-size: clamp(1.8rem, 3vw, 2.5rem);
   font-weight: 800;
   margin: 0 0 0.5rem;
-  background: linear-gradient(135deg, var(--earn-primary), #ff9a4a);
+  background: linear-gradient(135deg, var(--earn-accent-2), #ff9a4a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -126,22 +100,22 @@
   align-items: center;
   gap: 1rem;
   padding: 1.25rem;
-  background: rgba(6, 18, 41, 0.9);
+  background: var(--earn-surface);
   border: 1px solid var(--earn-border);
   border-radius: var(--earn-radius-sm);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  transition: all var(--earn-transition);
+  transition: all var(--transition-base);
 }
 
-:global([data-theme="light"]) .statCard {
+[data-theme="light"] .statCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
 .statCard:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 122, 26, 0.3);
-  box-shadow: 0 8px 24px rgba(255, 122, 26, 0.08);
+  border-color: rgba(249, 115, 22, 0.3);
+  box-shadow: var(--shadow-glow);
 }
 
 .statIcon {
@@ -151,8 +125,8 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--earn-primary-light);
-  color: var(--earn-primary);
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--earn-accent-2);
   font-size: 1.1rem;
 }
 
@@ -181,10 +155,10 @@
 /* ===== ACTION CARD ===== */
 .actionCard {
   padding: 2.5rem 2rem;
-  background: linear-gradient(135deg, rgba(6, 18, 41, 0.95), rgba(6, 18, 41, 0.98));
+  background: var(--earn-surface-strong);
   border: 1px solid var(--earn-border);
   border-radius: var(--earn-radius);
-  box-shadow: var(--earn-shadow);
+  box-shadow: var(--shadow-md);
   text-align: center;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -194,7 +168,7 @@
   gap: 1rem;
 }
 
-:global([data-theme="light"]) .actionCard {
+[data-theme="light"] .actionCard {
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -209,9 +183,9 @@
   font-size: 1.1rem;
   font-weight: 700;
   color: white;
-  background: linear-gradient(135deg, var(--earn-primary), var(--earn-primary-dark));
+  background: linear-gradient(135deg, var(--earn-accent-2), #ea580c);
   cursor: pointer;
-  transition: all var(--earn-transition);
+  transition: all var(--transition-base);
   min-width: 200px;
   min-height: 56px;
   position: relative;
@@ -233,7 +207,7 @@
 
 .button:hover:not(:disabled) {
   transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(255, 122, 26, 0.35);
+  box-shadow: 0 12px 32px rgba(249, 115, 22, 0.35);
 }
 
 .button:active:not(:disabled) {
@@ -241,7 +215,7 @@
 }
 
 .button:focus-visible {
-  outline: 3px solid var(--earn-primary);
+  outline: 3px solid var(--earn-accent-2);
   outline-offset: 3px;
 }
 
@@ -255,10 +229,10 @@
 /* ===== TIMER CARD ===== */
 .timerCard {
   padding: 2.5rem 2rem;
-  background: linear-gradient(135deg, rgba(6, 18, 41, 0.95), rgba(6, 18, 41, 0.98));
+  background: var(--earn-surface-strong);
   border: 1px solid var(--earn-border);
   border-radius: var(--earn-radius);
-  box-shadow: var(--earn-shadow);
+  box-shadow: var(--shadow-md);
   text-align: center;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -269,7 +243,7 @@
   min-height: 300px;
 }
 
-:global([data-theme="light"]) .timerCard {
+[data-theme="light"] .timerCard {
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -302,7 +276,7 @@
 .timerNumber {
   font-size: 3.5rem;
   font-weight: 800;
-  color: var(--earn-primary);
+  color: var(--earn-accent-2);
   line-height: 1;
 }
 
@@ -315,8 +289,8 @@
 /* ===== BONUS CARD ===== */
 .bonusCard {
   padding: 1.5rem;
-  background: linear-gradient(135deg, rgba(6, 18, 41, 0.9), rgba(6, 18, 41, 0.95));
-  border: 1px solid rgba(255, 122, 26, 0.15);
+  background: var(--earn-surface);
+  border: 1px solid rgba(249, 115, 22, 0.15);
   border-radius: var(--earn-radius-sm);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -325,15 +299,15 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
-  transition: all var(--earn-transition);
+  transition: all var(--transition-base);
 }
 
-:global([data-theme="light"]) .bonusCard {
+[data-theme="light"] .bonusCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
 .bonusCard:hover {
-  border-color: rgba(255, 122, 26, 0.3);
+  border-color: rgba(249, 115, 22, 0.3);
 }
 
 .bonusHeader {
@@ -359,7 +333,7 @@
 }
 
 .highlight {
-  color: var(--earn-primary);
+  color: var(--earn-accent-2);
   font-weight: 700;
 }
 
@@ -375,21 +349,21 @@
   gap: 0.5rem;
   padding: 0.6rem 1.5rem;
   border-radius: 2rem;
-  background: var(--earn-primary-light);
-  color: var(--earn-primary);
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--earn-accent-2);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: all var(--earn-transition);
+  transition: all var(--transition-base);
   border: 1px solid transparent;
 }
 
 .linkButton:hover {
-  background: var(--earn-primary);
+  background: var(--earn-accent-2);
   color: white;
-  border-color: var(--earn-primary);
+  border-color: var(--earn-accent-2);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(255, 122, 26, 0.2);
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.2);
 }
 
 /* ===== RESPONSIVE ===== */
@@ -580,120 +554,19 @@
   }
 }
 
-/* ===== UTILITY CLASSES ===== */
-.textCenter {
-  text-align: center;
-}
-
-.textSm {
-  font-size: 0.875rem;
-}
-
-.textXs {
-  font-size: 0.75rem;
-}
-
-.textGray400 {
-  color: var(--earn-muted);
-}
-
-.textGray500 {
-  color: var(--earn-muted);
-  opacity: 0.7;
-}
-
-.textAccent500 {
-  color: var(--earn-primary);
-}
-
-.mt4 {
-  margin-top: 1rem;
-}
-
-.flex {
-  display: flex;
-}
-
-.itemsCenter {
-  align-items: center;
-}
-
-.justifyCenter {
-  justify-content: center;
-}
-
-.gap2 {
-  gap: 0.5rem;
-}
-
-.spaceY4 > * + * {
-  margin-top: 1rem;
-}
-
-.transitionAll {
-  transition: all var(--earn-transition);
-}
-
-.duration1000 {
-  transition-duration: 1000ms;
-}
-
-.easeLinear {
-  transition-timing-function: linear;
-}
-
 /* ===== DARK MODE SPECIFIC ===== */
-:global([data-theme="dark"]) .statCard {
+[data-theme="dark"] .statCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-:global([data-theme="dark"]) .actionCard {
+[data-theme="dark"] .actionCard {
   background: rgba(6, 18, 41, 0.98);
 }
 
-:global([data-theme="dark"]) .timerCard {
+[data-theme="dark"] .timerCard {
   background: rgba(6, 18, 41, 0.98);
 }
 
-:global([data-theme="dark"]) .bonusCard {
+[data-theme="dark"] .bonusCard {
   background: rgba(6, 18, 41, 0.95);
-}
-
-/* ===== GLOW EFFECTS ===== */
-.button::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 2rem;
-  background: linear-gradient(135deg, var(--earn-primary), #ff9a4a, var(--earn-primary));
-  background-size: 200% 200%;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity var(--earn-transition);
-}
-
-.button:hover:not(:disabled)::after {
-  opacity: 1;
-  animation: glowPulse 2s ease-in-out infinite;
-}
-
-@keyframes glowPulse {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-/* ===== TIMER RING GLOW ===== */
-.timerRing::after {
-  content: '';
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 122, 26, 0.1), transparent 70%);
-  opacity: 0;
-  transition: opacity var(--earn-transition);
-  pointer-events: none;
-}
-
-.timerCard:hover .timerRing::after {
-  opacity: 1;
 }
