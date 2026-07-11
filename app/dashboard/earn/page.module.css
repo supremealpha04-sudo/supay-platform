@@ -529,31 +529,6 @@
   }
 }
 
-/* ===== REDUCED MOTION ===== */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  
-  .heroCard::before {
-    animation: none !important;
-  }
-  
-  .button::before {
-    display: none !important;
-  }
-  
-  .button:hover:not(:disabled) {
-    transform: none !important;
-  }
-  
-  .statCard:hover {
-    transform: none !important;
-  }
-}
-
 /* ===== DARK MODE SPECIFIC ===== */
 [data-theme="dark"] .statCard {
   background: rgba(6, 18, 41, 0.95);
