@@ -1,10 +1,9 @@
 /* ============================================
    WALLET PAGE STYLES
-   Enhanced with better organization & features
    ============================================ */
 
 /* ===== CSS VARIABLES ===== */
-:root {
+:global(:root) {
   /* Wallet-specific colors */
   --wallet-bg-start: #061129;
   --wallet-bg-end: #081c39;
@@ -24,8 +23,7 @@
   --wallet-transition: 160ms ease;
 }
 
-/* Light theme overrides for wallet */
-[data-theme="light"] {
+:global([data-theme="light"]) {
   --wallet-bg-start: #f0f4ff;
   --wallet-bg-end: #e8eeff;
   --wallet-surface: rgba(0, 0, 0, 0.04);
@@ -134,7 +132,7 @@
   transition: all var(--wallet-transition);
 }
 
-[data-theme="light"] .balanceCard {
+:global([data-theme="light"]) .balanceCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -144,7 +142,7 @@
   box-shadow: 0 32px 64px rgba(0, 0, 0, 0.3);
 }
 
-[data-theme="light"] .balanceCard:hover {
+:global([data-theme="light"]) .balanceCard:hover {
   box-shadow: 0 32px 64px rgba(0, 0, 0, 0.1);
 }
 
@@ -289,7 +287,7 @@
   transition: all var(--wallet-transition);
 }
 
-[data-theme="light"] .sectionCard {
+:global([data-theme="light"]) .sectionCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -318,7 +316,7 @@
   min-height: 90px;
 }
 
-[data-theme="light"] .methodCard {
+:global([data-theme="light"]) .methodCard {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -389,9 +387,9 @@
   font-family: inherit;
 }
 
-[data-theme="light"] .inputField,
-[data-theme="light"] .selectField,
-[data-theme="light"] .textareaField {
+:global([data-theme="light"]) .inputField,
+:global([data-theme="light"]) .selectField,
+:global([data-theme="light"]) .textareaField {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -474,7 +472,7 @@
   min-width: auto;
 }
 
-[data-theme="light"] .secondaryButton {
+:global([data-theme="light"]) .secondaryButton {
   background: rgba(0, 0, 0, 0.04);
 }
 
@@ -506,7 +504,7 @@
   transition: all var(--wallet-transition);
 }
 
-[data-theme="light"] .nestedSection {
+:global([data-theme="light"]) .nestedSection {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -631,7 +629,7 @@
   flex-wrap: wrap;
 }
 
-[data-theme="light"] .pendingItem {
+:global([data-theme="light"]) .pendingItem {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -668,7 +666,7 @@
   transition: all var(--wallet-transition);
 }
 
-[data-theme="light"] .historyCard {
+:global([data-theme="light"]) .historyCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -699,7 +697,6 @@
   gap: 0.75rem;
 }
 
-/* Custom scrollbar */
 .transactionList::-webkit-scrollbar {
   width: 4px;
 }
@@ -730,7 +727,7 @@
   transition: all var(--wallet-transition);
 }
 
-[data-theme="light"] .txRow {
+:global([data-theme="light"]) .txRow {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -1081,30 +1078,30 @@
 }
 
 /* ===== DARK MODE SPECIFIC ===== */
-[data-theme="dark"] .balanceCard {
+:global([data-theme="dark"]) .balanceCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-[data-theme="dark"] .sectionCard {
+:global([data-theme="dark"]) .sectionCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-[data-theme="dark"] .historyCard {
+:global([data-theme="dark"]) .historyCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-[data-theme="dark"] .methodCard {
+:global([data-theme="dark"]) .methodCard {
   background: rgba(255, 255, 255, 0.04);
 }
 
-[data-theme="dark"] .methodCard:hover {
+:global([data-theme="dark"]) .methodCard:hover {
   background: rgba(255, 255, 255, 0.07);
 }
 
-[data-theme="dark"] .nestedSection {
+:global([data-theme="dark"]) .nestedSection {
   background: rgba(255, 255, 255, 0.04);
 }
 
-[data-theme="dark"] .addressContainer {
+:global([data-theme="dark"]) .addressContainer {
   background: rgba(0, 0, 0, 0.3);
 }
