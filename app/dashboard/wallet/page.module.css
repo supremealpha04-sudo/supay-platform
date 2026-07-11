@@ -1,38 +1,9 @@
+/* app/dashboard/wallet/page.module.css */
+
 /* ============================================
    WALLET PAGE STYLES
+   Variables are defined in globals.css
    ============================================ */
-
-/* ===== CSS VARIABLES ===== */
-:global(:root) {
-  /* Wallet-specific colors */
-  --wallet-bg-start: #061129;
-  --wallet-bg-end: #081c39;
-  --wallet-surface: rgba(255, 255, 255, 0.06);
-  --wallet-surface-strong: rgba(255, 255, 255, 0.1);
-  --wallet-border: rgba(96, 165, 250, 0.18);
-  --wallet-text: #e5f0ff;
-  --wallet-muted: rgba(226, 232, 240, 0.7);
-  --wallet-accent: #60a5fa;
-  --wallet-accent-strong: #38bdf8;
-  --wallet-success: #4ade80;
-  --wallet-warning: #fbbf24;
-  --wallet-danger: #f87171;
-  --wallet-radius: 24px;
-  --wallet-radius-sm: 12px;
-  --wallet-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
-  --wallet-transition: 160ms ease;
-}
-
-:global([data-theme="light"]) {
-  --wallet-bg-start: #f0f4ff;
-  --wallet-bg-end: #e8eeff;
-  --wallet-surface: rgba(0, 0, 0, 0.04);
-  --wallet-surface-strong: rgba(0, 0, 0, 0.08);
-  --wallet-border: rgba(59, 130, 246, 0.2);
-  --wallet-text: #0f172a;
-  --wallet-muted: rgba(15, 23, 42, 0.7);
-  --wallet-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
-}
 
 /* ===== PAGE CONTAINER ===== */
 .walletPage {
@@ -44,7 +15,7 @@
   color: var(--wallet-text);
   background: linear-gradient(135deg, var(--wallet-bg-start), var(--wallet-bg-end));
   min-height: calc(100vh - 60px);
-  transition: background var(--wallet-transition), color var(--wallet-transition);
+  transition: background var(--transition-base), color var(--transition-base);
 }
 
 /* ===== ERROR BANNER ===== */
@@ -75,7 +46,7 @@
   padding: 0 0.25rem;
   line-height: 1;
   opacity: 0.7;
-  transition: opacity var(--wallet-transition);
+  transition: opacity var(--transition-base);
 }
 
 .errorDismiss:hover {
@@ -120,7 +91,7 @@
   background: rgba(6, 18, 41, 0.9);
   border: 1px solid var(--wallet-border);
   border-radius: var(--wallet-radius);
-  box-shadow: var(--wallet-shadow);
+  box-shadow: var(--shadow-md);
   padding: 1.5rem;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -129,10 +100,10 @@
   gap: 0.85rem;
   position: relative;
   overflow: hidden;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
 }
 
-:global([data-theme="light"]) .balanceCard {
+[data-theme="light"] .balanceCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -142,7 +113,7 @@
   box-shadow: 0 32px 64px rgba(0, 0, 0, 0.3);
 }
 
-:global([data-theme="light"]) .balanceCard:hover {
+[data-theme="light"] .balanceCard:hover {
   box-shadow: 0 32px 64px rgba(0, 0, 0, 0.1);
 }
 
@@ -233,7 +204,7 @@
   cursor: pointer;
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
   font-weight: 500;
   font-size: 0.9rem;
   white-space: nowrap;
@@ -277,17 +248,17 @@
   background: rgba(6, 18, 41, 0.9);
   border: 1px solid var(--wallet-border);
   border-radius: var(--wallet-radius);
-  box-shadow: var(--wallet-shadow);
+  box-shadow: var(--shadow-md);
   padding: 1.5rem;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
 }
 
-:global([data-theme="light"]) .sectionCard {
+[data-theme="light"] .sectionCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -311,12 +282,12 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--wallet-text);
   cursor: pointer;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
   text-align: left;
   min-height: 90px;
 }
 
-:global([data-theme="light"]) .methodCard {
+[data-theme="light"] .methodCard {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -383,13 +354,13 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--wallet-text);
   font-size: 1rem;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
   font-family: inherit;
 }
 
-:global([data-theme="light"]) .inputField,
-:global([data-theme="light"]) .selectField,
-:global([data-theme="light"]) .textareaField {
+[data-theme="light"] .inputField,
+[data-theme="light"] .selectField,
+[data-theme="light"] .textareaField {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -429,7 +400,7 @@
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -472,7 +443,7 @@
   min-width: auto;
 }
 
-:global([data-theme="light"]) .secondaryButton {
+[data-theme="light"] .secondaryButton {
   background: rgba(0, 0, 0, 0.04);
 }
 
@@ -501,10 +472,10 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 1.2rem;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
 }
 
-:global([data-theme="light"]) .nestedSection {
+[data-theme="light"] .nestedSection {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -625,11 +596,11 @@
   border-radius: 1.2rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
   flex-wrap: wrap;
 }
 
-:global([data-theme="light"]) .pendingItem {
+[data-theme="light"] .pendingItem {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -657,16 +628,16 @@
   background: rgba(6, 18, 41, 0.9);
   border: 1px solid var(--wallet-border);
   border-radius: var(--wallet-radius);
-  box-shadow: var(--wallet-shadow);
+  box-shadow: var(--shadow-md);
   padding: 1.5rem;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   max-height: 32rem;
   overflow: hidden;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
 }
 
-:global([data-theme="light"]) .historyCard {
+[data-theme="light"] .historyCard {
   background: rgba(255, 255, 255, 0.9);
 }
 
@@ -724,10 +695,10 @@
   border-radius: 1.2rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
 }
 
-:global([data-theme="light"]) .txRow {
+[data-theme="light"] .txRow {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -854,7 +825,7 @@
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: all var(--wallet-transition);
+  transition: all var(--transition-base);
   margin-top: 0.5rem;
 }
 
@@ -1078,30 +1049,30 @@
 }
 
 /* ===== DARK MODE SPECIFIC ===== */
-:global([data-theme="dark"]) .balanceCard {
+[data-theme="dark"] .balanceCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-:global([data-theme="dark"]) .sectionCard {
+[data-theme="dark"] .sectionCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-:global([data-theme="dark"]) .historyCard {
+[data-theme="dark"] .historyCard {
   background: rgba(6, 18, 41, 0.95);
 }
 
-:global([data-theme="dark"]) .methodCard {
+[data-theme="dark"] .methodCard {
   background: rgba(255, 255, 255, 0.04);
 }
 
-:global([data-theme="dark"]) .methodCard:hover {
+[data-theme="dark"] .methodCard:hover {
   background: rgba(255, 255, 255, 0.07);
 }
 
-:global([data-theme="dark"]) .nestedSection {
+[data-theme="dark"] .nestedSection {
   background: rgba(255, 255, 255, 0.04);
 }
 
-:global([data-theme="dark"]) .addressContainer {
+[data-theme="dark"] .addressContainer {
   background: rgba(0, 0, 0, 0.3);
 }
