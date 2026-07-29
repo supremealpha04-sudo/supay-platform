@@ -7,9 +7,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { 
   FaPlay, FaClock, FaCoins, FaStopwatch, FaFire, 
-  FaAd, FaHistory, FaStar, FaGift, FaChartLine,
-  FaVideo, FaMousePointer, FaTrophy
+  FaAd, FaHistory, FaStar, FaChartLine,
+  FaVideo, FaMousePointer
 } from 'react-icons/fa'
+import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
 const supabase = createClient()
@@ -32,8 +33,6 @@ const AD_PLATFORMS = [
     icon: '🎯',
     description: 'High CPM video & banner ads',
     hasApi: true,
-    color: 'from-blue-500/20 to-purple-500/20',
-    borderColor: 'border-blue-500/30'
   },
   {
     id: 'monetag',
@@ -41,8 +40,6 @@ const AD_PLATFORMS = [
     icon: '📊',
     description: 'Popunder & display ads',
     hasApi: false,
-    color: 'from-orange-500/20 to-red-500/20',
-    borderColor: 'border-orange-500/30'
   }
 ]
 
@@ -126,7 +123,8 @@ export default function EarnPage() {
       })
       const data = await response.json()
       return { available: data.available, ecpm: data.ecpm || 1.50 }
-    } catch {
+    } catch (error) {
+      console.error('Adsterra check error:', error)
       return { available: true, ecpm: 1.50 } // Fallback
     }
   }, [])
@@ -148,7 +146,8 @@ export default function EarnPage() {
           available: true, 
           ecpm: recentImpressions && recentImpressions.length > 0 ? 0.80 : 0.50 
         }
-      } catch {
+      } catch (error) {
+        console.error('Monetag check error:', error)
         return { available: true, ecpm: 0.50 }
       }
     }
@@ -280,14 +279,6 @@ export default function EarnPage() {
           platform: selectedPlatform,
           fraudSignals: fraudScore,
           fraudScore,
-          platformData: {
-            adsterra: {
-              // Any Adsterra-specific data
-            },
-            monetag: {
-              // Monetag doesn't need extra data
-            }
-          }
         }),
       })
 
@@ -381,7 +372,7 @@ export default function EarnPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Today', value: `${stats.todayEarnings} SPY`, icon: FaCoins, color: 'text-accent-500' },
+          { label: 'Today', value: `${stats.todayEarnings.toFixed(2)} SPY`, icon: FaCoins, color: 'text-accent-500' },
           { label: 'Remaining', value: `${stats.dailyRemaining} ads`, icon: FaStopwatch, color: 'text-blue-400' },
           { label: 'Streak', value: `${stats.streak} days 🔥`, icon: FaFire, color: 'text-orange-400' },
           { label: 'Total Views', value: `${stats.totalAds}`, icon: FaChartLine, color: 'text-green-400' },
@@ -393,7 +384,7 @@ export default function EarnPage() {
             transition={{ delay: i * 0.1 }}
             className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition"
           >
-            <s.icon className={`${s.color} mb-2`} />
+            <s.icon className={`${s.color} mb-2 text-xl`} />
             <p className="text-gray-400 text-xs">{s.label}</p>
             <p className="text-white font-bold text-lg">{s.value}</p>
           </motion.div>
@@ -409,7 +400,7 @@ export default function EarnPage() {
               const platformInfo = AD_PLATFORMS.find(p => p.id === platform)
               return (
                 <span key={platform} className="text-xs bg-gray-700 px-3 py-1 rounded-full">
-                  {platformInfo?.icon || '📊'} {platform}: {amount} SPY
+                  {platformInfo?.icon || '📊'} {platform}: {amount.toFixed(2)} SPY
                 </span>
               )
             })}
@@ -418,12 +409,12 @@ export default function EarnPage() {
       )}
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700">
         {['all', 'display', 'video', 'popunder'].map((tier) => (
           <button
             key={tier}
             onClick={() => setSelectedTier(tier)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
               selectedTier === tier
                 ? 'bg-accent-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
@@ -458,7 +449,7 @@ export default function EarnPage() {
               whileTap={{ scale: hasAvailablePlatform ? 0.98 : 1 }}
               onClick={() => hasAvailablePlatform && startAd(option)}
               disabled={!hasAvailablePlatform || isChecking}
-              className={`flex items-center gap-4 bg-gray-800 rounded-xl p-4 border transition text-left ${
+              className={`flex items-center gap-4 bg-gray-800 rounded-xl p-4 border transition text-left w-full ${
                 hasAvailablePlatform 
                   ? 'border-gray-700 hover:border-accent-500/50 cursor-pointer hover:shadow-lg hover:shadow-accent-500/10' 
                   : 'border-gray-700/50 opacity-50 cursor-not-allowed'
@@ -468,7 +459,7 @@ export default function EarnPage() {
                 <Icon className="text-white text-2xl" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <h3 className="font-bold text-white">{option.title}</h3>
                   {option.tier === 'video' && (
                     <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">BEST VALUE</span>
@@ -517,7 +508,7 @@ export default function EarnPage() {
           <h3 className="font-bold text-white mb-3 flex items-center gap-2">
             <FaHistory /> Today's Activity
           </h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
             {recentActivity.map((watch, i) => (
               <div key={i} className="flex items-center justify-between text-sm py-1 border-b border-gray-700/50 last:border-0">
                 <div className="flex items-center gap-2">
@@ -531,7 +522,7 @@ export default function EarnPage() {
                     </span>
                   )}
                 </div>
-                <span className="text-green-400 font-medium">+{watch.reward_spy} SPY</span>
+                <span className="text-green-400 font-medium">+{watch.reward_spy.toFixed(2)} SPY</span>
               </div>
             ))}
           </div>
