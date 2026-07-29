@@ -1,232 +1,287 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { AdsterraAd } from './AdsterraAd'
-import { GoogleAd } from './GoogleAd'
+import { useState } from 'react'
+import dynamic from 'next/dynamic'
+
+// Lazy load platform-specific components
+const AdsterraAd = dynamic(() => import('./AdsterraAd'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+    </div>
+  )
+})
+
+const MonetagAd = dynamic(() => import('./MonetagAd'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+    </div>
+  )
+})
+
+const MonetagPopunder = dynamic(() => import('./MonetagPopunder'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+    </div>
+  )
+})
 
 interface AdViewerProps {
   userId: string
-  adTier: 'banner' | 'interstitial' | 'rewarded'
+  platform: string
+  adTier: string
   minDuration: number
-  onComplete: (reward: number) => void
-  onError?: (error: string) => void
-  onSkip?: () => void
+  onComplete: (reward: number, tier: string, fraudScore: any) => void
+  onCancel: () => void
 }
 
-interface AdViewerState {
-  isPlaying: boolean
-  isComplete: boolean
-  progress: number
-  remainingTime: number
-}
-
-export function AdViewer({
+export default function AdViewer({
   userId,
+  platform,
   adTier,
   minDuration,
   onComplete,
-  onError,
-  onSkip
+  onCancel
 }: AdViewerProps) {
-  const [state, setState] = useState<AdViewerState>({
-    isPlaying: false,
-    isComplete: false,
-    progress: 0,
-    remainingTime: minDuration
-  })
-  
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const startTimeRef = useRef<number>(0)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Simulate ad loading
-    setState(prev => ({ ...prev, isPlaying: true }))
-    startTimeRef.current = Date.now()
-    
-    // Start timer
-    timerRef.current = setInterval(() => {
-      const elapsed = (Date.now() - startTimeRef.current) / 1000
-      const progress = Math.min(elapsed / minDuration, 1)
-      const remaining = Math.max(minDuration - elapsed, 0)
-      
-      setState(prev => ({
-        ...prev,
-        progress,
-        remainingTime: remaining
-      }))
-      
-      if (progress >= 1) {
-        handleAdComplete()
-      }
-    }, 100)
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
-    }
-  }, [minDuration])
-
-  const handleAdComplete = () => {
-    if (state.isComplete) return
-    
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
+  const handleAdComplete = (reward: number) => {
+    // Fraud detection data
+    const fraudScore = {
+      avgViewTime: minDuration,
+      tabSwitches: 0,
+      isHeadlessBrowser: false,
+      isProxy: false,
+      fraudScore: 0.1 // Low score for legit views
     }
     
-    setState(prev => ({
-      ...prev,
-      isComplete: true,
-      isPlaying: false
-    }))
-    
-    // Calculate reward based on duration and tier
-    const reward = calculateReward(minDuration, adTier)
-    onComplete(reward)
+    onComplete(reward, adTier, fraudScore)
   }
 
-  const calculateReward = (duration: number, tier: string): number => {
-    const baseReward = tier === 'rewarded' ? 5 : tier === 'interstitial' ? 3 : 1
-    const durationBonus = Math.floor(duration / 5)
-    return baseReward + durationBonus
+  const handleAdError = (errorMsg: string) => {
+    setError(errorMsg)
+    setTimeout(() => onCancel(), 3000)
   }
 
-  const handleSkip = () => {
-    if (onSkip) {
-      onSkip()
-    }
-  }
-
-  const getAdText = () => {
-    switch (adTier) {
-      case 'rewarded':
-        return 'Watch this rewarded ad to earn SPY'
-      case 'interstitial':
-        return 'Interstitial ad playing...'
-      case 'banner':
-        return 'Advertisement'
+  // Render platform-specific ad component
+  const renderAd = () => {
+    switch(platform) {
+      case 'adsterra':
+        return (
+          <AdsterraAd
+            userId={userId}
+            adType={adTier}
+            minDuration={minDuration}
+            onComplete={handleAdComplete}
+            onError={handleAdError}
+          />
+        )
+      case 'monetag':
+        // Monetag handles different ad types
+        if (adTier === 'popunder') {
+          return (
+            <MonetagPopunder
+              userId={userId}
+              onComplete={handleAdComplete}
+              onError={handleAdError}
+            />
+          )
+        } else {
+          return (
+            <MonetagAd
+              userId={userId}
+              adType={adTier}
+              onAdComplete={handleAdComplete}
+              onAdError={handleAdError}
+            />
+          )
+        }
       default:
-        return 'Loading ad...'
+        return <div className="text-gray-400">Unsupported platform</div>
     }
-  }
-
-  const renderAdContent = () => {
-    // If using real Adsterra
-    // return <AdsterraAd userId={userId} adType={adTier} />
-    
-    // Simulated ad display
-    return (
-      <div className="ad-container">
-        <div className="ad-content">
-          <div className="ad-icon">📺</div>
-          <div className="ad-text">{getAdText()}</div>
-          <div className="ad-timer">
-            <div className="timer-progress">
-              <div 
-                className="timer-fill"
-                style={{ width: `${state.progress * 100}%` }}
-              />
-            </div>
-            <span className="timer-text">
-              {Math.ceil(state.remainingTime)}s
-            </span>
-          </div>
-        </div>
-        <div className="ad-controls">
-          {onSkip && (
-            <button 
-              className="skip-button"
-              onClick={handleSkip}
-              disabled={state.progress < 0.5}
-            >
-              Skip {state.progress >= 0.5 ? '↗' : '🔒'}
-            </button>
-          )}
-        </div>
-      </div>
-    )
   }
 
   return (
-    <div className="ad-viewer">
-      {renderAdContent()}
-      
-      <style jsx>{`
-        .ad-viewer {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.9);
-          z-index: 9999;
-        }
+    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4">
+      <div className="relative w-full max-w-4xl h-[80vh] bg-gray-900 rounded-2xl overflow-hidden border border-gray-700">
+        {/* Close button */}
+        <button
+          onClick={onCancel}
+          className="absolute top-4 right-4 z-10 w-10 h-10 bg-gray-800/80 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
         
-        .ad-container {
-          background: #1a1a2e;
-          border-radius: 24px;
-          padding: 48px;
-          max-width: 480px;
-          width: 100%;
-          text-align: center;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        {/* Ad content */}
+        <div className="w-full h-full">
+          {error ? (
+            <div className="flex flex-col items-center justify-center h-full text-red-400 p-4">
+              <svg className="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-center">{error}</p>
+              <p className="text-gray-500 text-sm mt-2">Closing in 3 seconds...</p>
+            </div>
+          ) : (
+            renderAd()
+          )}
+        </div>
         
-        .ad-icon {
-          font-size: 64px;
-          margin-bottom: 24px;
+        {/* Platform indicator */}
+        <div className="absolute bottom-4 left-4 text-xs text-gray-500 bg-gray-800/80 px-3 py-1 rounded-full">
+          Powered by {platform}
+        </div>
+      </div>
+    </div>
+  )
+}'use client'
+
+import { useState } from 'react'
+import dynamic from 'next/dynamic'
+
+// Lazy load platform-specific components
+const AdsterraAd = dynamic(() => import('./AdsterraAd'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+    </div>
+  )
+})
+
+const MonetagAd = dynamic(() => import('./MonetagAd'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+    </div>
+  )
+})
+
+const MonetagPopunder = dynamic(() => import('./MonetagPopunder'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+    </div>
+  )
+})
+
+interface AdViewerProps {
+  userId: string
+  platform: string
+  adTier: string
+  minDuration: number
+  onComplete: (reward: number, tier: string, fraudScore: any) => void
+  onCancel: () => void
+}
+
+export default function AdViewer({
+  userId,
+  platform,
+  adTier,
+  minDuration,
+  onComplete,
+  onCancel
+}: AdViewerProps) {
+  const [error, setError] = useState<string | null>(null)
+
+  const handleAdComplete = (reward: number) => {
+    // Fraud detection data
+    const fraudScore = {
+      avgViewTime: minDuration,
+      tabSwitches: 0,
+      isHeadlessBrowser: false,
+      isProxy: false,
+      fraudScore: 0.1 // Low score for legit views
+    }
+    
+    onComplete(reward, adTier, fraudScore)
+  }
+
+  const handleAdError = (errorMsg: string) => {
+    setError(errorMsg)
+    setTimeout(() => onCancel(), 3000)
+  }
+
+  // Render platform-specific ad component
+  const renderAd = () => {
+    switch(platform) {
+      case 'adsterra':
+        return (
+          <AdsterraAd
+            userId={userId}
+            adType={adTier}
+            minDuration={minDuration}
+            onComplete={handleAdComplete}
+            onError={handleAdError}
+          />
+        )
+      case 'monetag':
+        // Monetag handles different ad types
+        if (adTier === 'popunder') {
+          return (
+            <MonetagPopunder
+              userId={userId}
+              onComplete={handleAdComplete}
+              onError={handleAdError}
+            />
+          )
+        } else {
+          return (
+            <MonetagAd
+              userId={userId}
+              adType={adTier}
+              onAdComplete={handleAdComplete}
+              onAdError={handleAdError}
+            />
+          )
         }
+      default:
+        return <div className="text-gray-400">Unsupported platform</div>
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4">
+      <div className="relative w-full max-w-4xl h-[80vh] bg-gray-900 rounded-2xl overflow-hidden border border-gray-700">
+        {/* Close button */}
+        <button
+          onClick={onCancel}
+          className="absolute top-4 right-4 z-10 w-10 h-10 bg-gray-800/80 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
         
-        .ad-text {
-          color: white;
-          font-size: 18px;
-          margin-bottom: 32px;
-        }
+        {/* Ad content */}
+        <div className="w-full h-full">
+          {error ? (
+            <div className="flex flex-col items-center justify-center h-full text-red-400 p-4">
+              <svg className="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-center">{error}</p>
+              <p className="text-gray-500 text-sm mt-2">Closing in 3 seconds...</p>
+            </div>
+          ) : (
+            renderAd()
+          )}
+        </div>
         
-        .timer-progress {
-          width: 100%;
-          height: 6px;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
-          overflow: hidden;
-          margin-bottom: 12px;
-        }
-        
-        .timer-fill {
-          height: 100%;
-          background: linear-gradient(90deg, #3b82f6, #f97316);
-          transition: width 0.1s linear;
-          border-radius: 3px;
-        }
-        
-        .timer-text {
-          color: #8b8ca6;
-          font-size: 14px;
-        }
-        
-        .skip-button {
-          background: transparent;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: white;
-          padding: 10px 24px;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          margin-top: 16px;
-        }
-        
-        .skip-button:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .skip-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      `}</style>
+        {/* Platform indicator */}
+        <div className="absolute bottom-4 left-4 text-xs text-gray-500 bg-gray-800/80 px-3 py-1 rounded-full">
+          Powered by {platform}
+        </div>
+      </div>
     </div>
   )
 }
