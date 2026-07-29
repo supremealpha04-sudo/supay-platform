@@ -3,21 +3,19 @@
 import { useEffect, useState } from 'react'
 
 interface MonetagPopunderProps {
+  userId?: string
   onComplete?: (reward: number) => void
   onError?: (error: string) => void
-  userId?: string
 }
 
 export default function MonetagPopunder({ 
+  userId, 
   onComplete, 
-  onError, 
-  userId 
+  onError 
 }: MonetagPopunderProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [startTime, setStartTime] = useState<number | null>(null)
+  const [startTime] = useState<number>(Date.now())
 
   useEffect(() => {
-    // Open popunder
     const openPopunder = () => {
       const popunder = window.open(
         'https://3nbf4.com/click?zoneId=11365022',
@@ -26,29 +24,20 @@ export default function MonetagPopunder({
       )
       
       if (popunder) {
-        setIsOpen(true)
-        setStartTime(Date.now())
-        
-        // Monitor popunder
         const checkInterval = setInterval(() => {
           if (popunder.closed) {
-            // Popunder was closed
             clearInterval(checkInterval)
-            setIsOpen(false)
-            
-            const timeViewed = Date.now() - (startTime || Date.now())
-            const reward = calculateReward(timeViewed)
+            const timeViewed = Date.now() - startTime
+            const reward = Math.round(Math.min(0.05 * Math.min(timeViewed / 5000, 2), 0.30) * 100) / 100
             onComplete?.(reward)
           }
         }, 1000)
         
-        // Safety timeout
         setTimeout(() => {
           clearInterval(checkInterval)
           if (!popunder.closed) {
-            // Give reward anyway after 30 seconds
-            const timeViewed = Date.now() - (startTime || Date.now())
-            const reward = calculateReward(Math.min(timeViewed, 30000))
+            const timeViewed = Date.now() - startTime
+            const reward = Math.round(Math.min(0.05 * Math.min(Math.min(timeViewed, 30000) / 5000, 2), 0.30) * 100) / 100
             onComplete?.(reward)
           }
         }, 30000)
@@ -57,21 +46,9 @@ export default function MonetagPopunder({
       }
     }
 
-    // Open popunder after 1 second
     const timer = setTimeout(openPopunder, 1000)
-
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [onComplete, onError, userId, startTime])
-
-  const calculateReward = (timeViewed: number): number => {
-    // Popunder reward calculation
-    const baseRate = 0.05
-    const timeMultiplier = Math.min(timeViewed / 5000, 2) // Up to 2x for 10+ seconds
-    const reward = baseRate * timeMultiplier
-    return Math.round(Math.min(reward, 0.30) * 100) / 100
-  }
+    return () => clearTimeout(timer)
+  }, [onComplete, onError, startTime])
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-gray-800/50 p-8">
@@ -84,12 +61,6 @@ export default function MonetagPopunder({
         <h3 className="text-white font-bold text-lg mb-2">Opening Popunder Ad</h3>
         <p className="text-gray-400 text-sm">A new window will open in a moment</p>
         <p className="text-gray-500 text-xs mt-2">Please allow popups for this site</p>
-        {isOpen && (
-          <div className="mt-4 inline-flex items-center gap-2 text-green-400 text-sm">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            Ad is open
-          </div>
-        )}
       </div>
     </div>
   )
