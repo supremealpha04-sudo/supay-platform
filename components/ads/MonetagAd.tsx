@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 interface MonetagAdProps {
   onAdComplete?: (reward: number) => void
   onAdError?: (error: string) => void
-  adType?: 'display' | 'popunder' | 'interstitial'
+  adType?: string
   userId?: string
 }
 
@@ -19,6 +19,7 @@ export default function MonetagAd({
   const [isLoading, setIsLoading] = useState(true)
   const [isComplete, setIsComplete] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const viewTimeRef = useRef<number>(0)
 
   useEffect(() => {
     // Register Monetag Service Worker
@@ -83,11 +84,10 @@ export default function MonetagAd({
     }
 
     // Track if user is still viewing the ad
-    let viewTime = 0
     const interval = 1000 // Check every second
     
     timerRef.current = setInterval(() => {
-      viewTime += interval
+      viewTimeRef.current += interval
       
       // Check if user is still on page and ad is visible
       if (document.hidden) {
@@ -112,13 +112,13 @@ export default function MonetagAd({
       }
       
       // Ad is being viewed
-      if (viewTime >= duration) {
+      if (viewTimeRef.current >= duration) {
         // Ad complete
         clearInterval(timerRef.current!)
         setIsComplete(true)
         
         // Calculate reward (different for Monetag)
-        const reward = calculateMonetagReward(adType, viewTime)
+        const reward = calculateMonetagReward(adType || 'display', viewTimeRef.current)
         onAdComplete?.(reward)
       }
     }, interval)
@@ -126,13 +126,13 @@ export default function MonetagAd({
 
   const calculateMonetagReward = (type: string, timeViewed: number): number => {
     // Monetag-specific reward calculation
-    const baseRates = {
+    const baseRates: Record<string, number> = {
       'display': 0.08,
       'popunder': 0.06,
       'interstitial': 0.15
     }
     
-    const baseRate = baseRates[type as keyof typeof baseRates] || 0.08
+    const baseRate = baseRates[type] || 0.08
     const timeMultiplier = Math.min(timeViewed / 10000, 1.5) // Max 1.5x
     const reward = baseRate * timeMultiplier
     
@@ -146,16 +146,22 @@ export default function MonetagAd({
   return (
     <div 
       ref={containerRef} 
-      className="monetag-ad-container w-full h-full min-h-[250px] relative"
+      className="monetag-ad-container w-full h-full min-h-[250px] relative bg-gray-800/30"
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50">
-          <div className="w-8 h-8 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50">
+          <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+          <p className="text-gray-400 text-sm mt-4">Loading Monetag ad...</p>
         </div>
       )}
       {isComplete && (
         <div className="absolute inset-0 flex items-center justify-center bg-green-500/10 backdrop-blur-sm">
-          <div className="text-green-400 font-medium">✓ Ad Complete!</div>
+          <div className="text-green-400 font-medium flex flex-col items-center gap-2">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>Ad Complete!</span>
+          </div>
         </div>
       )}
     </div>
