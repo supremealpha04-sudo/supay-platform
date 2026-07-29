@@ -92,7 +92,7 @@ const AD_OPTIONS: AdOption[] = [
 ]
 
 export default function EarnPage() {
-  const { profile, user, refreshProfile } = useAuth()
+  const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
   const [showAd, setShowAd] = useState(false)
   const [selectedAd, setSelectedAd] = useState<AdOption | null>(null)
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null)
@@ -112,6 +112,14 @@ export default function EarnPage() {
   }>>({})
   const [isChecking, setIsChecking] = useState(false)
   const [selectedTier, setSelectedTier] = useState<string>('all')
+  const [error, setError] = useState<string | null>(null)
+
+  // Debug logging
+  console.log('🔍 EarnPage Debug:')
+  console.log('  authLoading:', authLoading)
+  console.log('  user:', user?.id || 'null')
+  console.log('  profile:', profile?.id || 'null')
+  console.log('  isLoading:', isLoading)
 
   // Check Adsterra availability via API
   const checkAdsterraAvailability = useCallback(async (adTier: string) => {
@@ -155,19 +163,30 @@ export default function EarnPage() {
   }, [])
 
   const fetchStats = useCallback(async () => {
-    if (!profile?.id) return
+    if (!profile?.id) {
+      console.log('⚠️ No profile.id, skipping fetchStats')
+      setIsLoading(false)
+      return
+    }
+    
     setIsLoading(true)
+    setError(null)
 
     try {
       const today = new Date().toISOString().split('T')[0]
 
       // Get today's watches
-      const { data: todayWatches } = await supabase
+      const { data: todayWatches, error: watchError } = await supabase
         .from('ad_watches')
         .select('reward_spy, ad_tier, platform_used, created_at')
         .eq('user_id', profile.id)
         .gte('created_at', today)
         .order('created_at', { ascending: false })
+
+      if (watchError) {
+        console.error('Watch error:', watchError)
+        throw watchError
+      }
 
       // Calculate earnings by platform
       const platformEarnings: Record<string, number> = {}
@@ -193,11 +212,15 @@ export default function EarnPage() {
       
       setPlatformStatus(statuses)
 
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('daily_bonus_streak')
         .eq('id', profile.id)
         .single()
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError)
+      }
 
       setStats({
         todayEarnings: earnings,
@@ -209,15 +232,22 @@ export default function EarnPage() {
       setRecentActivity(todayWatches?.slice(0, 5) || [])
     } catch (error) {
       console.error('Error fetching stats:', error)
+      setError('Failed to load stats')
       toast.error('Failed to load stats')
     } finally {
       setIsLoading(false)
     }
   }, [profile, checkAdsterraAvailability, checkMonetagAvailability])
 
+  // Load stats when profile is available
   useEffect(() => {
-    if (profile) fetchStats()
-  }, [profile, fetchStats])
+    if (profile) {
+      fetchStats()
+    } else if (!authLoading) {
+      // If auth is done and no profile, stop loading
+      setIsLoading(false)
+    }
+  }, [profile, authLoading, fetchStats])
 
   const startAd = async (option: AdOption) => {
     setIsChecking(true)
@@ -308,14 +338,65 @@ export default function EarnPage() {
     ? AD_OPTIONS 
     : AD_OPTIONS.filter(ad => ad.tier === selectedTier)
 
-  if (isLoading) {
+  // ===== EARLY RETURNS =====
+  
+  // Show auth loading
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mx-auto" />
+          <p className="text-gray-400 mt-4">Loading...</p>
+        </div>
       </div>
     )
   }
 
+  // Show login prompt if no user
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-gray-400">Please log in to earn rewards</p>
+          <Link href="/login" className="text-accent-500 hover:text-accent-400 mt-2 inline-block">
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mx-auto" />
+          <p className="text-gray-400 mt-4">Loading your earnings...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md">
+          <p className="text-red-400 font-medium">Something went wrong</p>
+          <p className="text-gray-400 text-sm mt-2">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-3 px-4 py-2 bg-accent-500 rounded-lg text-white text-sm hover:bg-accent-600 transition"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ===== RENDER =====
   return (
     <div className="p-4 max-w-4xl mx-auto">
       <AnimatePresence>
