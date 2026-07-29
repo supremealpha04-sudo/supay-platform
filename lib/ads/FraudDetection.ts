@@ -1,3 +1,13 @@
+// lib/ads/FraudDetection.ts
+
+// Add this at the very top of the file (before any code)
+declare global {
+  interface Window {
+    Cypress?: any;
+    __playwright?: any;
+  }
+}
+
 export interface FraudSignals {
   userAgent: string
   screenResolution: string
@@ -128,8 +138,8 @@ class FraudDetectionService {
       /Chrome\/\d+/.test(navigator.userAgent) && navigator.plugins.length === 0,
       window.outerWidth === 0 && window.outerHeight === 0,
       !navigator.mimeTypes || navigator.mimeTypes.length === 0,
-      !!window.Cypress,
-      !!window.__playwright,
+      !!(window as any).Cypress,        // Fixed: use type assertion
+      !!(window as any).__playwright,   // Fixed: use type assertion
     ]
     return checks.filter(Boolean).length >= 3
   }
