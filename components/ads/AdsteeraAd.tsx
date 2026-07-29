@@ -23,7 +23,6 @@ export default function AdsterraAd({
 
   useEffect(() => {
     // Adsterra integration with API key
-    // Since you have Adsterra API key, you can fetch ads from your backend
     const loadAd = async () => {
       try {
         const response = await fetch('/api/ads/adsterra/get-ad', {
@@ -51,6 +50,7 @@ export default function AdsterraAd({
           onError('Failed to load Adsterra ad')
         }
       } catch (error) {
+        console.error('Adsterra error:', error)
         onError('Error loading Adsterra ad')
       }
     }
@@ -91,12 +91,13 @@ export default function AdsterraAd({
   return (
     <div 
       ref={containerRef} 
-      className="w-full h-full flex items-center justify-center"
+      className="w-full h-full flex items-center justify-center bg-gray-800/50"
     >
       {isLoading && (
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
-          <p className="text-gray-400 text-sm">Loading ad...</p>
+          <p className="text-gray-400 text-sm">Loading Adsterra ad...</p>
+          <p className="text-gray-500 text-xs">Please wait</p>
         </div>
       )}
     </div>
