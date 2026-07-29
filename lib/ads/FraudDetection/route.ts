@@ -1,5 +1,19 @@
 // lib/ads/FraudDetection.ts
 
+// Add this at the very top of the file
+declare global {
+  interface Window {
+    callPhantom?: any;
+    _phantom?: any;
+    __nightmare?: any;
+    Cypress?: any;
+    __playwright?: any;
+    __pw_manual?: any;
+    chrome?: any;
+    runtime?: any;
+  }
+}
+
 export interface FraudSignals {
   // Browser integrity
   userAgent: string
@@ -147,9 +161,9 @@ class FraudDetectionService {
       // Navigator properties
       navigator.webdriver === true,
       !!window.document.documentElement?.getAttribute('webdriver'),
-      !!window.callPhantom,
-      !!window._phantom,
-      !!window.__nightmare,
+      !!(window as any).callPhantom,        // Type assertion
+      !!(window as any)._phantom,           // Type assertion
+      !!(window as any).__nightmare,        // Type assertion
       
       // Chrome headless indicators
       /HeadlessChrome/.test(navigator.userAgent),
@@ -164,9 +178,9 @@ class FraudDetectionService {
       !window.chrome || !window.chrome.runtime,
       
       // Automation frameworks
-      !!window.Cypress,
-      !!window.__playwright,
-      !!window.__pw_manual,
+      !!(window as any).Cypress,            // Type assertion
+      !!(window as any).__playwright,       // Type assertion
+      !!(window as any).__pw_manual,        // Type assertion
     ]
     
     return checks.filter(Boolean).length >= 3
