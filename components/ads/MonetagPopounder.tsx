@@ -57,18 +57,10 @@ export default function MonetagPopunder({
       }
     }
 
-    // Open popunder on user click (to avoid blocking)
-    const handleClick = () => {
-      openPopunder()
-    }
-
-    document.addEventListener('click', handleClick)
-    
-    // If no click, open after 1 second (for auto-open)
+    // Open popunder after 1 second
     const timer = setTimeout(openPopunder, 1000)
 
     return () => {
-      document.removeEventListener('click', handleClick)
       clearTimeout(timer)
     }
   }, [onComplete, onError, userId, startTime])
@@ -81,5 +73,24 @@ export default function MonetagPopunder({
     return Math.round(Math.min(reward, 0.30) * 100) / 100
   }
 
-  return null // Popunder doesn't render anything visible
+  return (
+    <div className="flex flex-col items-center justify-center h-full bg-gray-800/50 p-8">
+      <div className="text-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-orange-500/20 rounded-full flex items-center justify-center">
+          <svg className="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+          </svg>
+        </div>
+        <h3 className="text-white font-bold text-lg mb-2">Opening Popunder Ad</h3>
+        <p className="text-gray-400 text-sm">A new window will open in a moment</p>
+        <p className="text-gray-500 text-xs mt-2">Please allow popups for this site</p>
+        {isOpen && (
+          <div className="mt-4 inline-flex items-center gap-2 text-green-400 text-sm">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            Ad is open
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
