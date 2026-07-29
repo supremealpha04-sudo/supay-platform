@@ -368,7 +368,7 @@ export default function DashboardPage() {
     return (
       <div className="dash-empty" role="alert">
         <p>Please sign in to view your dashboard</p>
-        <Link href="/auth" className="btn-primary">
+        <Link href="/login" className="btn-primary">
           Sign In
         </Link>
       </div>
