@@ -1,115 +1,232 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import dynamic from 'next/dynamic'
-
-// Lazy load platform-specific components
-const AdsterraAd = dynamic(() => import('./AdsterraAd'), { ssr: false })
-const MonetagAd = dynamic(() => import('./MonetagAd'), { ssr: false })
-const MonetagPopunder = dynamic(() => import('./MonetagPopunder'), { ssr: false })
+import { useState, useEffect, useRef } from 'react'
+import { AdsterraAd } from './AdsterraAd'
+import { GoogleAd } from './GoogleAd'
 
 interface AdViewerProps {
   userId: string
-  platform: string
-  adTier: string
+  adTier: 'banner' | 'interstitial' | 'rewarded'
   minDuration: number
-  onComplete: (reward: number, tier: string, fraudScore: any) => void
-  onCancel: () => void
+  onComplete: (reward: number) => void
+  onError?: (error: string) => void
+  onSkip?: () => void
 }
 
-export default function AdViewer({
+interface AdViewerState {
+  isPlaying: boolean
+  isComplete: boolean
+  progress: number
+  remainingTime: number
+}
+
+export function AdViewer({
   userId,
-  platform,
   adTier,
   minDuration,
   onComplete,
-  onCancel
+  onError,
+  onSkip
 }: AdViewerProps) {
-  const [error, setError] = useState<string | null>(null)
+  const [state, setState] = useState<AdViewerState>({
+    isPlaying: false,
+    isComplete: false,
+    progress: 0,
+    remainingTime: minDuration
+  })
+  
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const startTimeRef = useRef<number>(0)
 
-  const handleAdComplete = (reward: number) => {
-    // Fraud detection data
-    const fraudScore = {
-      avgViewTime: minDuration / 1000,
-      tabSwitches: 0,
-      isHeadlessBrowser: false,
-      isProxy: false,
-      fraudScore: 0.1 // Low score for legit views
+  useEffect(() => {
+    // Simulate ad loading
+    setState(prev => ({ ...prev, isPlaying: true }))
+    startTimeRef.current = Date.now()
+    
+    // Start timer
+    timerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000
+      const progress = Math.min(elapsed / minDuration, 1)
+      const remaining = Math.max(minDuration - elapsed, 0)
+      
+      setState(prev => ({
+        ...prev,
+        progress,
+        remainingTime: remaining
+      }))
+      
+      if (progress >= 1) {
+        handleAdComplete()
+      }
+    }, 100)
+    
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [minDuration])
+
+  const handleAdComplete = () => {
+    if (state.isComplete) return
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
     }
     
-    onComplete(reward, adTier, fraudScore)
+    setState(prev => ({
+      ...prev,
+      isComplete: true,
+      isPlaying: false
+    }))
+    
+    // Calculate reward based on duration and tier
+    const reward = calculateReward(minDuration, adTier)
+    onComplete(reward)
   }
 
-  const handleAdError = (errorMsg: string) => {
-    setError(errorMsg)
-    setTimeout(() => onCancel(), 3000)
+  const calculateReward = (duration: number, tier: string): number => {
+    const baseReward = tier === 'rewarded' ? 5 : tier === 'interstitial' ? 3 : 1
+    const durationBonus = Math.floor(duration / 5)
+    return baseReward + durationBonus
   }
 
-  // Render platform-specific ad component
-  const renderAd = () => {
-    switch(platform) {
-      case 'adsterra':
-        return (
-          <AdsterraAd
-            userId={userId}
-            adType={adTier}
-            minDuration={minDuration}
-            onComplete={handleAdComplete}
-            onError={handleAdError}
-          />
-        )
-      case 'monetag':
-        // Monetag handles different ad types
-        if (adTier === 'popunder') {
-          return (
-            <MonetagPopunder
-              userId={userId}
-              onComplete={handleAdComplete}
-              onError={handleAdError}
-            />
-          )
-        } else {
-          return (
-            <MonetagAd
-              userId={userId}
-              adType={adTier}
-              onAdComplete={handleAdComplete}
-              onAdError={handleAdError}
-            />
-          )
-        }
-      default:
-        return <div>Unsupported platform</div>
+  const handleSkip = () => {
+    if (onSkip) {
+      onSkip()
     }
+  }
+
+  const getAdText = () => {
+    switch (adTier) {
+      case 'rewarded':
+        return 'Watch this rewarded ad to earn SPY'
+      case 'interstitial':
+        return 'Interstitial ad playing...'
+      case 'banner':
+        return 'Advertisement'
+      default:
+        return 'Loading ad...'
+    }
+  }
+
+  const renderAdContent = () => {
+    // If using real Adsterra
+    // return <AdsterraAd userId={userId} adType={adTier} />
+    
+    // Simulated ad display
+    return (
+      <div className="ad-container">
+        <div className="ad-content">
+          <div className="ad-icon">📺</div>
+          <div className="ad-text">{getAdText()}</div>
+          <div className="ad-timer">
+            <div className="timer-progress">
+              <div 
+                className="timer-fill"
+                style={{ width: `${state.progress * 100}%` }}
+              />
+            </div>
+            <span className="timer-text">
+              {Math.ceil(state.remainingTime)}s
+            </span>
+          </div>
+        </div>
+        <div className="ad-controls">
+          {onSkip && (
+            <button 
+              className="skip-button"
+              onClick={handleSkip}
+              disabled={state.progress < 0.5}
+            >
+              Skip {state.progress >= 0.5 ? '↗' : '🔒'}
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center">
-      <div className="relative w-full max-w-4xl h-[80vh] bg-gray-900 rounded-2xl overflow-hidden">
-        {/* Close button */}
-        <button
-          onClick={onCancel}
-          className="absolute top-4 right-4 z-10 text-gray-400 hover:text-white transition"
-        >
-          ✕
-        </button>
+    <div className="ad-viewer">
+      {renderAdContent()}
+      
+      <style jsx>{`
+        .ad-viewer {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.9);
+          z-index: 9999;
+        }
         
-        {/* Ad content */}
-        <div className="w-full h-full">
-          {error ? (
-            <div className="flex items-center justify-center h-full text-red-400">
-              <p>{error}</p>
-            </div>
-          ) : (
-            renderAd()
-          )}
-        </div>
+        .ad-container {
+          background: #1a1a2e;
+          border-radius: 24px;
+          padding: 48px;
+          max-width: 480px;
+          width: 100%;
+          text-align: center;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
         
-        {/* Platform indicator */}
-        <div className="absolute bottom-4 left-4 text-xs text-gray-500">
-          Powered by {platform}
-        </div>
-      </div>
+        .ad-icon {
+          font-size: 64px;
+          margin-bottom: 24px;
+        }
+        
+        .ad-text {
+          color: white;
+          font-size: 18px;
+          margin-bottom: 32px;
+        }
+        
+        .timer-progress {
+          width: 100%;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
+          overflow: hidden;
+          margin-bottom: 12px;
+        }
+        
+        .timer-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #3b82f6, #f97316);
+          transition: width 0.1s linear;
+          border-radius: 3px;
+        }
+        
+        .timer-text {
+          color: #8b8ca6;
+          font-size: 14px;
+        }
+        
+        .skip-button {
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: white;
+          padding: 10px 24px;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin-top: 16px;
+        }
+        
+        .skip-button:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .skip-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      `}</style>
     </div>
   )
 }
