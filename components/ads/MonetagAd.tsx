@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 
 interface MonetagAdProps {
+  userId?: string
+  adType?: string
   onAdComplete?: (reward: number) => void
   onAdError?: (error: string) => void
-  adType?: string
-  userId?: string
 }
 
 export default function MonetagAd({ 
+  userId, 
+  adType = 'display', 
   onAdComplete, 
-  onAdError, 
-  adType = 'display',
-  userId 
+  onAdError 
 }: MonetagAdProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -24,18 +24,12 @@ export default function MonetagAd({
   useEffect(() => {
     // Register Monetag Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/monetag-sw.js')
-        .then((registration) => {
-          console.log('Monetag Service Worker registered:', registration)
-        })
-        .catch((error) => {
-          console.error('Monetag Service Worker registration failed:', error)
-          onAdError?.('Failed to load monetag ads')
-        })
+      navigator.serviceWorker.register('/monetag-sw.js').catch(err => 
+        console.error('Monetag SW registration failed:', err)
+      )
     }
 
-    // Inject Monetag script for the ad
+    // Inject Monetag script
     const script = document.createElement('script')
     script.src = `https://3nbf4.com/act/${adType}.js?zoneId=11365022`
     script.async = true
@@ -43,9 +37,6 @@ export default function MonetagAd({
     
     script.onload = () => {
       setIsLoading(false)
-      console.log('Monetag ad loaded:', adType)
-      
-      // Start tracking ad view
       startAdTracking()
     }
     
@@ -59,10 +50,7 @@ export default function MonetagAd({
     }
 
     return () => {
-      // Cleanup
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-      }
+      if (timerRef.current) clearTimeout(timerRef.current)
       if (containerRef.current) {
         const scripts = containerRef.current.querySelectorAll('script')
         scripts.forEach(s => s.remove())
@@ -71,83 +59,37 @@ export default function MonetagAd({
   }, [adType, userId, onAdError])
 
   const startAdTracking = () => {
-    // Simulate ad viewing time based on ad type
-    let duration = 0
-    switch(adType) {
-      case 'display': duration = 10000 // 10 seconds
-        break
-      case 'popunder': duration = 5000 // 5 seconds
-        break
-      case 'interstitial': duration = 15000 // 15 seconds
-        break
-      default: duration = 10000
+    const durations: Record<string, number> = {
+      'display': 10000,
+      'popunder': 5000,
+      'interstitial': 15000
     }
+    const duration = durations[adType] || 10000
 
-    // Track if user is still viewing the ad
-    const interval = 1000 // Check every second
-    
     timerRef.current = setInterval(() => {
-      viewTimeRef.current += interval
+      viewTimeRef.current += 1000
       
-      // Check if user is still on page and ad is visible
-      if (document.hidden) {
-        // User switched tabs - pause tracking
-        return
-      }
+      if (document.hidden) return
       
-      // Check if element is visible
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect()
-        const isVisible = (
-          rect.top >= 0 &&
-          rect.left >= 0 &&
-          rect.bottom <= window.innerHeight &&
-          rect.right <= window.innerWidth
-        )
-        
-        if (!isVisible) {
-          // Ad not visible - pause tracking
-          return
-        }
+        const isVisible = rect.top >= 0 && rect.left >= 0 && 
+          rect.bottom <= window.innerHeight && rect.right <= window.innerWidth
+        if (!isVisible) return
       }
       
-      // Ad is being viewed
       if (viewTimeRef.current >= duration) {
-        // Ad complete
         clearInterval(timerRef.current!)
         setIsComplete(true)
-        
-        // Calculate reward (different for Monetag)
-        const reward = calculateMonetagReward(adType || 'display', viewTimeRef.current)
+        const baseRate = { 'display': 0.08, 'popunder': 0.06, 'interstitial': 0.15 }[adType] || 0.08
+        const reward = Math.min(Math.round((baseRate * Math.min(viewTimeRef.current / 10000, 1.5)) * 100) / 100, 0.50)
         onAdComplete?.(reward)
       }
-    }, interval)
-  }
-
-  const calculateMonetagReward = (type: string, timeViewed: number): number => {
-    // Monetag-specific reward calculation
-    const baseRates: Record<string, number> = {
-      'display': 0.08,
-      'popunder': 0.06,
-      'interstitial': 0.15
-    }
-    
-    const baseRate = baseRates[type] || 0.08
-    const timeMultiplier = Math.min(timeViewed / 10000, 1.5) // Max 1.5x
-    const reward = baseRate * timeMultiplier
-    
-    // Small random variation
-    const variation = 0.8 + (Math.random() * 0.4)
-    const finalReward = Math.round((reward * variation) * 100) / 100
-    
-    return Math.min(finalReward, 0.50) // Cap at 0.50 SPY
+    }, 1000)
   }
 
   return (
-    <div 
-      ref={containerRef} 
-      className="monetag-ad-container w-full h-full min-h-[250px] relative bg-gray-800/30"
-    >
+    <div ref={containerRef} className="w-full h-full min-h-[250px] relative bg-gray-800/30">
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50">
           <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
