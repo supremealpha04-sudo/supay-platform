@@ -1,0 +1,767 @@
+/* app/dashboard/earn/page.css */
+
+/* ============================================
+   EARN PAGE STYLES
+   ============================================ */
+
+/* --------------------------------------------
+   1. PAGE CONTAINER
+   -------------------------------------------- */
+.earn-container {
+  padding: 1rem;
+  max-width: 56rem;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* --------------------------------------------
+   2. HEADER
+   -------------------------------------------- */
+.earn-header {
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.15) 0%, 
+    rgba(139, 92, 246, 0.15) 50%,
+    rgba(99, 102, 241, 0.05) 100%
+  );
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, 
+    rgba(99, 102, 241, 0.05) 0%, 
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.earn-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.earn-header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.25rem;
+}
+
+.earn-header-subtitle {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.earn-header-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.earn-premium-badge {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(234, 179, 8, 0.2);
+  color: #fbbf24;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------
+   3. PLATFORM BADGES
+   -------------------------------------------- */
+.earn-platform-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  background: rgba(31, 41, 55, 0.5);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  transition: all 0.2s ease;
+}
+
+.earn-platform-badge.available {
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.earn-platform-badge.unavailable {
+  border-color: rgba(239, 68, 68, 0.3);
+  opacity: 0.6;
+}
+
+/* --------------------------------------------
+   4. STATS CARDS
+   -------------------------------------------- */
+.earn-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .earn-stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.earn-stat-card {
+  background: rgba(31, 41, 55, 0.8);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-stat-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.earn-stat-icon-accent {
+  color: #818cf8;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+}
+.earn-stat-icon-blue {
+  color: #60a5fa;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+}
+.earn-stat-icon-orange {
+  color: #fb923c;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+}
+.earn-stat-icon-green {
+  color: #34d399;
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+}
+
+.earn-stat-label {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.earn-stat-value {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-top: 0.25rem;
+}
+
+/* --------------------------------------------
+   5. EARNINGS BREAKDOWN
+   -------------------------------------------- */
+.earn-earnings-breakdown {
+  background: rgba(31, 41, 55, 0.5);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+.earn-earnings-breakdown-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+
+.earn-earnings-breakdown-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  background: rgba(55, 65, 81, 0.5);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* --------------------------------------------
+   6. FILTER TABS
+   -------------------------------------------- */
+.earn-filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(55, 65, 81, 0.5) transparent;
+}
+
+.earn-filter-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.earn-filter-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.earn-filter-tabs::-webkit-scrollbar-thumb {
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 9999px;
+}
+
+.earn-filter-tab {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  background: rgba(31, 41, 55, 0.8);
+  color: #9ca3af;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.earn-filter-tab:hover {
+  background: rgba(55, 65, 81, 0.8);
+  color: #e5e7eb;
+}
+
+.earn-filter-tab.active {
+  background: #818cf8;
+  color: #ffffff;
+  border-color: #818cf8;
+}
+
+.earn-filter-tab.active:hover {
+  background: #6366f1;
+}
+
+/* --------------------------------------------
+   7. AD OPTION CARDS
+   -------------------------------------------- */
+.earn-ad-option {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(31, 41, 55, 0.8);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-ad-option:hover:not(.disabled) {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: scale(1.02);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
+}
+
+.earn-ad-option:active:not(.disabled) {
+  transform: scale(0.98);
+}
+
+.earn-ad-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.earn-icon-wrapper-blue {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #3b82f6;
+}
+.earn-icon-wrapper-purple {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #8b5cf6;
+}
+.earn-icon-wrapper-orange {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #f97316;
+}
+.earn-icon-wrapper-green {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #22c55e;
+}
+
+.earn-icon-wrapper-blue svg,
+.earn-icon-wrapper-purple svg,
+.earn-icon-wrapper-orange svg,
+.earn-icon-wrapper-green svg {
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+
+.earn-ad-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.earn-ad-title {
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.earn-ad-badge-best-value {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.earn-ad-description {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.earn-ad-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.earn-ad-meta-item {
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.earn-ad-reward-estimate {
+  color: #34d399;
+  font-weight: 500;
+}
+
+.earn-ad-platform-icons {
+  color: #60a5fa;
+}
+
+.earn-ad-action-button {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.earn-ad-option:hover:not(.disabled) .earn-ad-action-button {
+  background: rgba(99, 102, 241, 0.3);
+  transform: scale(1.1);
+}
+
+.earn-ad-action-button svg {
+  color: #818cf8;
+}
+
+.earn-ad-no-inventory {
+  font-size: 0.625rem;
+  color: #6b7280;
+  padding: 0.25rem 0.75rem;
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 9999px;
+}
+
+/* --------------------------------------------
+   8. RECENT ACTIVITY
+   -------------------------------------------- */
+.earn-recent-activity {
+  background: rgba(31, 41, 55, 0.8);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+}
+
+.earn-recent-activity-title {
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.earn-activity-list {
+  max-height: 12rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(55, 65, 81, 0.5) transparent;
+}
+
+.earn-activity-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.earn-activity-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.earn-activity-list::-webkit-scrollbar-thumb {
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 9999px;
+}
+
+.earn-activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+}
+
+.earn-activity-item:last-child {
+  border-bottom: none;
+}
+
+.earn-activity-time {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.earn-activity-tier {
+  font-size: 0.75rem;
+  background: rgba(55, 65, 81, 0.5);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.earn-activity-platform {
+  font-size: 0.75rem;
+}
+
+.earn-activity-reward {
+  color: #34d399;
+  font-weight: 500;
+}
+
+/* --------------------------------------------
+   9. PREMIUM BANNER
+   -------------------------------------------- */
+.earn-premium-banner {
+  margin-top: 1.5rem;
+  background: linear-gradient(135deg, 
+    rgba(234, 179, 8, 0.15) 0%, 
+    rgba(251, 146, 60, 0.15) 100%
+  );
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.earn-premium-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.earn-premium-banner-title {
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.earn-star {
+  color: #fbbf24;
+}
+
+.earn-premium-banner-description {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.earn-upgrade-btn {
+  padding: 0.5rem 1.5rem;
+  background: #fbbf24;
+  color: #000000;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.earn-upgrade-btn:hover {
+  background: #f59e0b;
+  transform: scale(1.05);
+}
+
+/* --------------------------------------------
+   10. LOADING & ERROR STATES
+   -------------------------------------------- */
+.earn-loading-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.earn-loading-content {
+  text-align: center;
+}
+
+.earn-loading-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: earn-spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+.earn-loading-text {
+  color: #9ca3af;
+  margin-top: 1rem;
+}
+
+.earn-login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.earn-login-content {
+  text-align: center;
+}
+
+.earn-login-text {
+  color: #9ca3af;
+}
+
+.earn-login-link {
+  color: #818cf8;
+  margin-top: 0.5rem;
+  display: inline-block;
+}
+
+.earn-login-link:hover {
+  color: #a5b4fc;
+}
+
+.earn-error-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.earn-error-box {
+  text-align: center;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-width: 28rem;
+}
+
+.earn-error-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #ef4444;
+  margin: 0 auto 0.75rem;
+}
+
+.earn-error-title {
+  color: #ef4444;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.earn-error-message {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.earn-retry-btn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.5rem;
+  background: #818cf8;
+  color: #ffffff;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.earn-retry-btn:hover {
+  background: #6366f1;
+}
+
+/* --------------------------------------------
+   11. LOADING OVERLAY
+   -------------------------------------------- */
+.earn-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+/* --------------------------------------------
+   12. SECTION TITLE
+   -------------------------------------------- */
+.earn-section-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 1rem;
+}
+
+/* --------------------------------------------
+   13. ANIMATIONS
+   -------------------------------------------- */
+@keyframes earn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --------------------------------------------
+   14. RESPONSIVE ADJUSTMENTS
+   -------------------------------------------- */
+@media (max-width: 640px) {
+  .earn-header {
+    padding: 1rem;
+  }
+  
+  .earn-header-title {
+    font-size: 1.25rem;
+  }
+  
+  .earn-stat-value {
+    font-size: 1rem;
+  }
+  
+  .earn-ad-option {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  
+  .earn-icon-wrapper-blue,
+  .earn-icon-wrapper-purple,
+  .earn-icon-wrapper-orange,
+  .earn-icon-wrapper-green {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .earn-icon-wrapper-blue svg,
+  .earn-icon-wrapper-purple svg,
+  .earn-icon-wrapper-orange svg,
+  .earn-icon-wrapper-green svg {
+    font-size: 1rem;
+  }
+  
+  .earn-ad-meta {
+    gap: 0.5rem;
+  }
+  
+  .earn-premium-banner-content {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  
+  .earn-upgrade-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .earn-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .earn-stat-card {
+    padding: 0.75rem;
+  }
+  
+  .earn-filter-tabs {
+    gap: 0.375rem;
+  }
+  
+  .earn-filter-tab {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+  }
+}
