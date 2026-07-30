@@ -1,3 +1,4 @@
+// app/dashboard/earn/page.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -13,12 +14,10 @@ import {
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
-// Import CSS
 import './page.css'
 
 const supabase = createClient()
 
-// AdViewer component
 const AdViewer = dynamic(() => import('@/components/ads/AdViewer'), {
   ssr: false,
   loading: () => (
@@ -32,7 +31,9 @@ interface AdOption {
   tier: 'display' | 'video'
   title: string
   description: string
-  duration: number
+  totalDuration: number
+  adCount: number
+  adDuration: number
   icon: any
   color: string
   dailyLimit: number
@@ -42,30 +43,33 @@ interface AdOption {
 const AD_OPTIONS: AdOption[] = [
   {
     tier: 'display',
-    title: 'Display Ad',
-    description: 'View native banner ads',
-    duration: 10,
+    title: 'Display Ads',
+    description: 'Watch 3 display ads (25s each)',
+    totalDuration: 75, // 3 ads × 25 seconds
+    adCount: 3,
+    adDuration: 25,
     icon: FaAd,
     color: 'bg-blue-500',
     dailyLimit: 20,
-    estimatedReward: '0.1 - 0.3 SPY'
+    estimatedReward: '0.45 SPY'
   },
   {
     tier: 'video',
-    title: 'Video Ad',
-    description: 'Watch video ads (higher payout)',
-    duration: 30,
+    title: 'Video Ads',
+    description: 'Watch 2 video ads (30s each)',
+    totalDuration: 60, // 2 ads × 30 seconds
+    adCount: 2,
+    adDuration: 30,
     icon: FaVideo,
     color: 'bg-purple-500',
     dailyLimit: 10,
-    estimatedReward: '0.5 - 2 SPY'
+    estimatedReward: '1.00 SPY'
   }
 ]
 
 export default function EarnPage() {
   const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
   
-  // ===== STATE =====
   const [showAd, setShowAd] = useState(false)
   const [selectedAd, setSelectedAd] = useState<AdOption | null>(null)
   const [stats, setStats] = useState({
@@ -76,7 +80,6 @@ export default function EarnPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
-  const [isChecking, setIsChecking] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
@@ -91,7 +94,6 @@ export default function EarnPage() {
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      // Get today's watches
       const { data: todayWatches, error: watchError } = await supabase
         .from('ad_watches')
         .select('reward_spy, ad_tier, created_at')
@@ -164,7 +166,7 @@ export default function EarnPage() {
 
       const data = await res.json()
       if (data.success) {
-        toast.success(`+${data.reward} SPY!`)
+        toast.success(`+${data.reward} SPY! 🎉`)
         await refreshProfile()
         fetchStats()
       } else {
@@ -245,7 +247,8 @@ export default function EarnPage() {
             userId={user?.id || ''}
             platform="adsterra"
             adTier={selectedAd.tier}
-            minDuration={selectedAd.duration}
+            totalDuration={selectedAd.totalDuration}
+            adCount={selectedAd.adCount}
             onComplete={handleAdComplete}
             onCancel={handleCancelAd}
           />
@@ -334,8 +337,9 @@ export default function EarnPage() {
                 <p className="earn-ad-description">{option.description}</p>
                 <div className="earn-ad-meta">
                   <span className="earn-ad-meta-item">
-                    <FaClock className="inline" /> {option.duration}s
+                    <FaClock className="inline" /> {option.totalDuration}s total
                   </span>
+                  <span className="earn-ad-meta-item">{option.adCount} ads</span>
                   <span className="earn-ad-meta-item">Limit: {option.dailyLimit}/day</span>
                   <span className="earn-ad-reward-estimate">
                     {option.estimatedReward}
