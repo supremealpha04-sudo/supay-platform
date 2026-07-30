@@ -27,26 +27,25 @@ export default function AdsterraAd({
   useEffect(() => {
     console.log('🎬 Loading Adsterra Native Banner ad...')
 
-    // Your Adsterra ad tag
-    const adTag = `
-      <script async="async" data-cfasync="false" src="https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js"></script>
-      <div id="container-478289f3c17549c6c042b9e58c05b749"></div>
-    `
-
+    // Clear previous content
     if (containerRef.current) {
-      // Clear container
       containerRef.current.innerHTML = ''
       
-      // Create a wrapper for the ad
+      // Create a wrapper
       const wrapper = document.createElement('div')
-      wrapper.className = 'adsterra-native-wrapper w-full h-full flex items-center justify-center'
+      wrapper.className = 'w-full h-full flex items-center justify-center p-4'
       
       // Create container for the ad
       const adContainer = document.createElement('div')
       adContainer.id = 'adsterra-ad-container'
-      adContainer.className = 'w-full h-full min-h-[250px]'
+      adContainer.className = 'w-full min-h-[250px] flex items-center justify-center'
       
-      // Inject the ad tag
+      // Create the container div that Adsterra expects
+      const containerDiv = document.createElement('div')
+      containerDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
+      containerDiv.className = 'w-full'
+      
+      // Create and load the script
       const script = document.createElement('script')
       script.async = true
       script.setAttribute('data-cfasync', 'false')
@@ -57,33 +56,47 @@ export default function AdsterraAd({
         setIsLoading(false)
         setAdLoaded(true)
         
-        // Start tracking after ad loads
+        // Start tracking after a delay to let ad render
         setTimeout(() => {
           startTracking()
-        }, 2000) // Give ad 2 seconds to render
+        }, 3000)
       }
       
-      script.onerror = () => {
-        console.error('❌ Failed to load Adsterra ad')
+      script.onerror = (error) => {
+        console.error('❌ Failed to load Adsterra ad:', error)
         setIsLoading(false)
         onError('Failed to load ad. Please try again.')
       }
       
-      // Create container div for the ad
-      const containerDiv = document.createElement('div')
-      containerDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
-      
-      // Append everything
-      adContainer.appendChild(script)
+      // Build the structure
       adContainer.appendChild(containerDiv)
       wrapper.appendChild(adContainer)
       containerRef.current.appendChild(wrapper)
+      
+      // Add the script to the document head or body
+      // This is sometimes needed for Adsterra ads
+      const scriptTag = document.createElement('script')
+      scriptTag.async = true
+      scriptTag.setAttribute('data-cfasync', 'false')
+      scriptTag.src = 'https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js'
+      document.body.appendChild(scriptTag)
+      
+      // Also add the container div to body if needed
+      const bodyContainer = document.createElement('div')
+      bodyContainer.id = 'container-478289f3c17549c6c042b9e58c05b749'
+      bodyContainer.style.display = 'none'
+      document.body.appendChild(bodyContainer)
     }
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current)
       }
+      // Clean up body elements
+      const bodyScript = document.querySelector('script[src*="pl30607520"]')
+      if (bodyScript) bodyScript.remove()
+      const bodyContainer = document.getElementById('container-478289f3c17549c6c042b9e58c05b749')
+      if (bodyContainer) bodyContainer.remove()
     }
   }, [])
 
