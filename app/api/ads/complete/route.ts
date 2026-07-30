@@ -36,8 +36,24 @@ export async function POST(request: Request) {
       }, { status: 404 })
     }
 
-    // Calculate reward (simple version for testing)
-    const reward = calculateReward(adTier, platform, profile.is_premium)
+    // Check daily limit
+    const today = new Date().toISOString().split('T')[0]
+    const { count: todayCount } = await supabase
+      .from('ad_watches')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', today)
+
+    const dailyLimit = profile.is_premium ? 30 : 20
+    if (todayCount && todayCount >= dailyLimit) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Daily limit reached. Come back tomorrow!' 
+      }, { status: 400 })
+    }
+
+    // Calculate reward
+    const reward = calculateReward(adTier, profile.is_premium)
     console.log('💰 Calculated reward:', reward)
 
     // Record the ad watch
@@ -50,7 +66,7 @@ export async function POST(request: Request) {
         reward_spy: reward,
         duration_seconds: getDurationForTier(adTier),
         fraud_score: fraudScore || 0,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString()
       })
 
     if (error) {
@@ -66,6 +82,9 @@ export async function POST(request: Request) {
       user_id: userId,
       amount: reward
     })
+
+    // Update streak
+    await updateStreak(userId)
 
     return NextResponse.json({
       success: true,
@@ -84,21 +103,13 @@ export async function POST(request: Request) {
   }
 }
 
-function calculateReward(tier: string, platform: string, isPremium: boolean): number {
-  // Simple reward calculation for testing
-  const baseRates: Record<string, Record<string, number>> = {
-    'adsterra': {
-      'display': 0.15,
-      'video': 1.00,
-      'popunder': 0.10
-    },
-    'monetag': {
-      'display': 0.10,
-      'popunder': 0.08
-    }
+function calculateReward(tier: string, isPremium: boolean): number {
+  const baseRates: Record<string, number> = {
+    'display': 0.15,
+    'video': 0.50
   }
   
-  const baseRate = baseRates[platform]?.[tier] || 0.10
+  const baseRate = baseRates[tier] || 0.10
   const premiumMultiplier = isPremium ? 2.0 : 1.0
   
   return Math.round((baseRate * premiumMultiplier) * 100) / 100
@@ -107,8 +118,50 @@ function calculateReward(tier: string, platform: string, isPremium: boolean): nu
 function getDurationForTier(tier: string): number {
   const durations: Record<string, number> = {
     'display': 10,
-    'video': 30,
-    'popunder': 5
+    'video': 30
   }
   return durations[tier] || 10
+}
+
+async function updateStreak(userId: string) {
+  const supabase = createRouteHandlerClient({ cookies })
+  
+  const today = new Date().toISOString().split('T')[0]
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  
+  // Check if user watched today
+  const { data: todayWatch } = await supabase
+    .from('ad_watches')
+    .select('id')
+    .eq('user_id', userId)
+    .gte('created_at', today)
+    .limit(1)
+  
+  if (todayWatch && todayWatch.length > 0) {
+    // Check if watched yesterday
+    const { data: yesterdayWatch } = await supabase
+      .from('ad_watches')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', yesterday)
+      .lt('created_at', today)
+      .limit(1)
+    
+    if (yesterdayWatch && yesterdayWatch.length > 0) {
+      await supabase.rpc('increment_streak', { user_id: userId })
+    } else {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('daily_bonus_streak')
+        .eq('id', userId)
+        .single()
+      
+      if (profile?.daily_bonus_streak === 0) {
+        await supabase
+          .from('profiles')
+          .update({ daily_bonus_streak: 1 })
+          .eq('id', userId)
+      }
+    }
+  }
 }
