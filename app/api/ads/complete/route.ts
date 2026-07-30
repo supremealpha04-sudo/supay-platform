@@ -10,7 +10,6 @@ export async function POST(request: Request) {
     
     console.log('📝 Ad completion request:', { adTier, platform })
 
-    // Get user from session
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ 
@@ -21,7 +20,6 @@ export async function POST(request: Request) {
     
     const userId = session.user.id
 
-    // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('is_premium, spy_balance')
@@ -36,7 +34,6 @@ export async function POST(request: Request) {
       }, { status: 404 })
     }
 
-    // Check daily limit
     const today = new Date().toISOString().split('T')[0]
     const { count: todayCount, error: countError } = await supabase
       .from('ad_watches')
@@ -56,11 +53,9 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    // Calculate reward
     const reward = calculateReward(adTier, profile.is_premium)
     console.log('💰 Calculated reward:', reward)
 
-    // Record the ad watch
     const { error: insertError } = await supabase
       .from('ad_watches')
       .insert({
@@ -81,7 +76,7 @@ export async function POST(request: Request) {
       }, { status: 500 })
     }
 
-    // Update user balance using the function
+    // Update user balance
     const { error: updateError } = await supabase.rpc('increment_spy_balance', {
       user_id: userId,
       amount: reward
@@ -89,20 +84,8 @@ export async function POST(request: Request) {
 
     if (updateError) {
       console.error('❌ Error updating balance:', updateError)
-      // Try direct update as fallback
-      const { error: directUpdateError } = await supabase
-        .from('profiles')
-        .update({ 
-          spy_balance: supabase.rpc('increment_spy_balance', { user_id: userId, amount: reward })
-        })
-        .eq('id', userId)
-      
-      if (directUpdateError) {
-        console.error('❌ Direct update error:', directUpdateError)
-      }
     }
 
-    // Update streak
     await updateStreak(userId)
 
     return NextResponse.json({
@@ -124,8 +107,8 @@ export async function POST(request: Request) {
 
 function calculateReward(tier: string, isPremium: boolean): number {
   const baseRates: Record<string, number> = {
-    'display': 0.15,
-    'video': 0.50
+    'display': 0.45, // 3 ads × 0.15
+    'video': 1.00    // 2 ads × 0.50
   }
   
   const baseRate = baseRates[tier] || 0.10
@@ -136,8 +119,8 @@ function calculateReward(tier: string, isPremium: boolean): number {
 
 function getDurationForTier(tier: string): number {
   const durations: Record<string, number> = {
-    'display': 10,
-    'video': 30
+    'display': 75,  // 3 ads × 25s
+    'video': 60     // 2 ads × 30s
   }
   return durations[tier] || 10
 }
@@ -149,7 +132,6 @@ async function updateStreak(userId: string) {
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
   
   try {
-    // Check if user watched today
     const { data: todayWatch } = await supabase
       .from('ad_watches')
       .select('id')
@@ -158,7 +140,6 @@ async function updateStreak(userId: string) {
       .limit(1)
     
     if (todayWatch && todayWatch.length > 0) {
-      // Check if watched yesterday
       const { data: yesterdayWatch } = await supabase
         .from('ad_watches')
         .select('id')
@@ -168,11 +149,8 @@ async function updateStreak(userId: string) {
         .limit(1)
       
       if (yesterdayWatch && yesterdayWatch.length > 0) {
-        // Increment streak
-        const { error } = await supabase.rpc('increment_streak', { user_id: userId })
-        if (error) console.error('Streak increment error:', error)
+        await supabase.rpc('increment_streak', { user_id: userId })
       } else {
-        // Check if streak is 0, then set to 1
         const { data: profile } = await supabase
           .from('profiles')
           .select('daily_bonus_streak')
@@ -180,11 +158,10 @@ async function updateStreak(userId: string) {
           .single()
         
         if (profile?.daily_bonus_streak === 0) {
-          const { error } = await supabase
+          await supabase
             .from('profiles')
             .update({ daily_bonus_streak: 1 })
             .eq('id', userId)
-          if (error) console.error('Streak set error:', error)
         }
       }
     }
