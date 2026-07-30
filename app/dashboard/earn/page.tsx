@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import './page.module.css
 
 const supabase = createClient()
 
