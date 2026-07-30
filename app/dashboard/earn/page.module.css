@@ -1,547 +1,833 @@
 /* app/dashboard/earn/page.module.css */
 
 /* ============================================
-   EARN PAGE STYLES
-   Variables are defined in globals.css
+   EARN PAGE STYLES (CSS Modules)
    ============================================ */
 
-/* ===== PAGE CONTAINER ===== */
-.earnPage {
-  display: grid;
-  gap: 1.5rem;
+/* --------------------------------------------
+   1. PAGE CONTAINER
+   -------------------------------------------- */
+.container {
   padding: 1rem;
-  max-width: 1200px;
+  max-width: 56rem;
   margin: 0 auto;
-  color: var(--earn-text);
-  background: var(--earn-bg);
-  min-height: calc(100vh - 60px);
-  transition: background var(--transition-base), color var(--transition-base);
+  min-height: 100vh;
 }
 
-/* ===== LOADING ===== */
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  color: var(--earn-muted);
-}
-
-.loadingSpinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid var(--earn-surface);
-  border-top-color: var(--earn-accent-2);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ===== HERO CARD ===== */
-.heroCard {
-  text-align: center;
-  padding: 2rem 1.5rem;
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(249, 115, 22, 0.04));
-  border: 1px solid var(--earn-border);
-  border-radius: var(--earn-radius);
-  box-shadow: var(--shadow-md);
+/* --------------------------------------------
+   2. HEADER
+   -------------------------------------------- */
+.header {
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.15) 0%, 
+    rgba(139, 92, 246, 0.15) 50%,
+    rgba(99, 102, 241, 0.05) 100%
+  );
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
 }
 
-.heroCard::before {
+.header::before {
   content: '';
   position: absolute;
   top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle at center, rgba(249, 115, 22, 0.05), transparent 70%);
-  animation: heroGlow 8s ease-in-out infinite alternate;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, 
+    rgba(99, 102, 241, 0.05) 0%, 
+    transparent 70%
+  );
+  pointer-events: none;
 }
 
-@keyframes heroGlow {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(10%, 10%) scale(1.2); }
+.headerTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.25rem;
 }
 
-.heroCard h1 {
-  font-size: clamp(1.8rem, 3vw, 2.5rem);
-  font-weight: 800;
-  margin: 0 0 0.5rem;
-  background: linear-gradient(135deg, var(--earn-accent-2), #ff9a4a);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  position: relative;
-  z-index: 1;
+.headerSubtitle {
+  color: #9ca3af;
+  font-size: 0.875rem;
 }
 
-.heroCard p {
-  font-size: 1.05rem;
-  color: var(--earn-muted);
-  margin: 0;
-  position: relative;
-  z-index: 1;
+.headerTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
-/* ===== STATS GRID ===== */
+.headerBadges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.premiumBadge {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(234, 179, 8, 0.2);
+  color: #fbbf24;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------
+   3. PLATFORM BADGES
+   -------------------------------------------- */
+.platformBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  background: rgba(31, 41, 55, 0.5);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  transition: all 0.2s ease;
+}
+
+.platformBadgeAvailable {
+  composes: platformBadge;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.platformBadgeUnavailable {
+  composes: platformBadge;
+  border-color: rgba(239, 68, 68, 0.3);
+  opacity: 0.6;
+}
+
+.statusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.statusDotOnline {
+  composes: statusDot;
+  background: #34d399;
+  animation: pulseGlow 2s infinite;
+}
+
+.statusDotOffline {
+  composes: statusDot;
+  background: #ef4444;
+}
+
+/* --------------------------------------------
+   4. STATS CARDS
+   -------------------------------------------- */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .statsGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .statCard {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: var(--earn-surface);
-  border: 1px solid var(--earn-border);
-  border-radius: var(--earn-radius-sm);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  transition: all var(--transition-base);
-}
-
-[data-theme="light"] .statCard {
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.statCard:hover {
-  transform: translateY(-2px);
-  border-color: rgba(249, 115, 22, 0.3);
-  box-shadow: var(--shadow-glow);
-}
-
-.statIcon {
-  width: 2.75rem;
-  height: 2.75rem;
-  min-width: 2.75rem;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(249, 115, 22, 0.15);
-  color: var(--earn-accent-2);
-  font-size: 1.1rem;
-}
-
-.statText {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.statLabel {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--earn-muted);
-  font-weight: 500;
-}
-
-.statValue {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--earn-text);
-  white-space: nowrap;
-}
-
-/* ===== ACTION CARD ===== */
-.actionCard {
-  padding: 2.5rem 2rem;
-  background: var(--earn-surface-strong);
-  border: 1px solid var(--earn-border);
-  border-radius: var(--earn-radius);
-  box-shadow: var(--shadow-md);
-  text-align: center;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-[data-theme="light"] .actionCard {
-  background: rgba(255, 255, 255, 0.95);
-}
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem 2.5rem;
-  border: none;
-  border-radius: 2rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: white;
-  background: linear-gradient(135deg, var(--earn-accent-2), #ea580c);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  min-width: 200px;
-  min-height: 56px;
+  background: rgba(31, 41, 55, 0.8);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
 
-.button::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.6s;
+.statCard:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
-.button:hover:not(:disabled)::before {
-  transform: translateX(100%);
+.statCardIcon {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
 }
 
-.button:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(249, 115, 22, 0.35);
+.statCardIconAccent {
+  composes: statCardIcon;
+  color: #818cf8;
 }
 
-.button:active:not(:disabled) {
-  transform: translateY(0);
+.statCardIconBlue {
+  composes: statCardIcon;
+  color: #60a5fa;
 }
 
-.button:focus-visible {
-  outline: 3px solid var(--earn-accent-2);
-  outline-offset: 3px;
+.statCardIconOrange {
+  composes: statCardIcon;
+  color: #fb923c;
 }
 
-.buttonDisabled {
+.statCardIconGreen {
+  composes: statCardIcon;
+  color: #34d399;
+}
+
+.statCardLabel {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statCardValue {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-top: 0.25rem;
+}
+
+/* --------------------------------------------
+   5. EARNINGS BREAKDOWN
+   -------------------------------------------- */
+.earningsBreakdown {
+  background: rgba(31, 41, 55, 0.5);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+.earningsBreakdownTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+
+.earningsBreakdownItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  background: rgba(55, 65, 81, 0.5);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* --------------------------------------------
+   6. FILTER TABS
+   -------------------------------------------- */
+.filterTabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(55, 65, 81, 0.5) transparent;
+}
+
+.filterTabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.filterTabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filterTabs::-webkit-scrollbar-thumb {
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 9999px;
+}
+
+.filterTab {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  background: rgba(31, 41, 55, 0.8);
+  color: #9ca3af;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.filterTab:hover {
+  background: rgba(55, 65, 81, 0.8);
+  color: #e5e7eb;
+}
+
+.filterTabActive {
+  composes: filterTab;
+  background: #818cf8;
+  color: #ffffff;
+  border-color: #818cf8;
+}
+
+.filterTabActive:hover {
+  background: #6366f1;
+}
+
+/* --------------------------------------------
+   7. AD OPTION CARDS
+   -------------------------------------------- */
+.adOption {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(31, 41, 55, 0.8);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.adOption:hover:not(.adOptionDisabled) {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: scale(1.02);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
+}
+
+.adOption:active:not(.adOptionDisabled) {
+  transform: scale(0.98);
+}
+
+.adOptionDisabled {
+  composes: adOption;
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
 }
 
-/* ===== TIMER CARD ===== */
-.timerCard {
-  padding: 2.5rem 2rem;
-  background: var(--earn-surface-strong);
-  border: 1px solid var(--earn-border);
-  border-radius: var(--earn-radius);
-  box-shadow: var(--shadow-md);
-  text-align: center;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+.iconWrapper {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  flex-shrink: 0;
 }
 
-[data-theme="light"] .timerCard {
-  background: rgba(255, 255, 255, 0.95);
+.iconWrapperBlue {
+  composes: iconWrapper;
+  background: #3b82f6;
 }
 
-.timerRing {
-  position: relative;
-  width: 192px;
-  height: 192px;
-  margin: 0 auto 1.5rem;
+.iconWrapperPurple {
+  composes: iconWrapper;
+  background: #8b5cf6;
 }
 
-.timerSvg {
-  transform: rotate(-90deg);
-  width: 100%;
-  height: 100%;
+.iconWrapperOrange {
+  composes: iconWrapper;
+  background: #f97316;
 }
 
-.timerSvg circle {
-  transition: stroke-dashoffset 1s linear;
+.iconWrapperGreen {
+  composes: iconWrapper;
+  background: #22c55e;
 }
 
-.timerValue {
-  position: absolute;
-  inset: 0;
+.iconWrapper svg {
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 700;
+  color: #ffffff;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.titleBadge {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.titleBadgeBestValue {
+  composes: titleBadge;
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.description {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.metaItem {
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.rewardEstimate {
+  color: #34d399;
+  font-weight: 500;
+}
+
+.platformIcons {
+  color: #60a5fa;
+}
+
+.actionButton {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 9999px;
+  display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.3s ease;
 }
 
-.timerNumber {
-  font-size: 3.5rem;
-  font-weight: 800;
-  color: var(--earn-accent-2);
-  line-height: 1;
+.adOption:hover:not(.adOptionDisabled) .actionButton {
+  background: rgba(99, 102, 241, 0.3);
+  transform: scale(1.1);
 }
 
-.timerLabel {
-  margin: 0.25rem 0 0;
-  font-size: 0.85rem;
-  color: var(--earn-muted);
+.actionButton svg {
+  color: #818cf8;
 }
 
-/* ===== BONUS CARD ===== */
-.bonusCard {
-  padding: 1.5rem;
-  background: var(--earn-surface);
-  border: 1px solid rgba(249, 115, 22, 0.15);
-  border-radius: var(--earn-radius-sm);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+.noInventory {
+  font-size: 0.625rem;
+  color: #6b7280;
+  padding: 0.25rem 0.75rem;
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 9999px;
+}
+
+/* --------------------------------------------
+   8. RECENT ACTIVITY
+   -------------------------------------------- */
+.recentActivity {
+  background: rgba(31, 41, 55, 0.8);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+}
+
+.recentActivityTitle {
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.activityList {
+  max-height: 12rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(55, 65, 81, 0.5) transparent;
+}
+
+.activityList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.activityList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activityList::-webkit-scrollbar-thumb {
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 9999px;
+}
+
+.activityItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+}
+
+.activityTime {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.activityTier {
+  font-size: 0.75rem;
+  background: rgba(55, 65, 81, 0.5);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.activityPlatform {
+  font-size: 0.75rem;
+}
+
+.activityReward {
+  color: #34d399;
+  font-weight: 500;
+}
+
+/* --------------------------------------------
+   9. PREMIUM BANNER
+   -------------------------------------------- */
+.premiumBanner {
+  margin-top: 1.5rem;
+  background: linear-gradient(135deg, 
+    rgba(234, 179, 8, 0.15) 0%, 
+    rgba(251, 146, 60, 0.15) 100%
+  );
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.premiumBannerContent {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1rem;
-  transition: all var(--transition-base);
-}
-
-[data-theme="light"] .bonusCard {
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.bonusCard:hover {
-  border-color: rgba(249, 115, 22, 0.3);
-}
-
-.bonusHeader {
-  display: flex;
-  align-items: center;
   gap: 0.75rem;
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--earn-text);
 }
 
-.bonusDetail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.bonusText {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--earn-muted);
-}
-
-.highlight {
-  color: var(--earn-accent-2);
+.premiumBannerTitle {
   font-weight: 700;
-}
-
-.bonusHint {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--earn-muted);
-}
-
-.linkButton {
-  display: inline-flex;
+  color: #ffffff;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 1.5rem;
-  border-radius: 2rem;
-  background: rgba(249, 115, 22, 0.15);
-  color: var(--earn-accent-2);
-  text-decoration: none;
+}
+
+.premiumBannerTitle .star {
+  color: #fbbf24;
+}
+
+.premiumBannerDescription {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.upgradeBtn {
+  padding: 0.5rem 1.5rem;
+  background: #fbbf24;
+  color: #000000;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.upgradeBtn:hover {
+  background: #f59e0b;
+  transform: scale(1.05);
+}
+
+/* --------------------------------------------
+   10. LOADING OVERLAY
+   -------------------------------------------- */
+.loadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.loadingContent {
+  background: rgba(31, 41, 55, 0.95);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loadingSpinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loadingText {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------
+   11. LOADING STATE (Centered)
+   -------------------------------------------- */
+.loadingCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.loadingCenterContent {
+  text-align: center;
+}
+
+.loadingCenterSpinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+.loadingCenterText {
+  color: #9ca3af;
+  margin-top: 1rem;
+}
+
+/* --------------------------------------------
+   12. ERROR STATE
+   -------------------------------------------- */
+.errorContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.errorBox {
+  text-align: center;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-width: 28rem;
+}
+
+.errorIcon {
+  width: 3rem;
+  height: 3rem;
+  color: #ef4444;
+  margin: 0 auto 0.75rem;
+}
+
+.errorTitle {
+  color: #ef4444;
   font-weight: 600;
-  font-size: 0.9rem;
-  transition: all var(--transition-base);
-  border: 1px solid transparent;
+  margin-bottom: 0.5rem;
 }
 
-.linkButton:hover {
-  background: var(--earn-accent-2);
-  color: white;
-  border-color: var(--earn-accent-2);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.2);
+.errorMessage {
+  color: #9ca3af;
+  font-size: 0.875rem;
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1024px) {
-  .earnPage {
-    gap: 1.25rem;
-    padding: 0.75rem;
+.retryBtn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.5rem;
+  background: #818cf8;
+  color: #ffffff;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.retryBtn:hover {
+  background: #6366f1;
+}
+
+/* --------------------------------------------
+   13. LOGIN PROMPT
+   -------------------------------------------- */
+.loginPrompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.loginPromptContent {
+  text-align: center;
+}
+
+.loginPromptText {
+  color: #9ca3af;
+}
+
+.loginPromptLink {
+  color: #818cf8;
+  margin-top: 0.5rem;
+  display: inline-block;
+}
+
+.loginPromptLink:hover {
+  color: #a5b4fc;
+}
+
+/* --------------------------------------------
+   14. ANIMATIONS
+   -------------------------------------------- */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.6);
   }
 }
 
-@media (max-width: 840px) {
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* --------------------------------------------
+   15. RESPONSIVE ADJUSTMENTS
+   -------------------------------------------- */
+@media (max-width: 640px) {
+  .header {
+    padding: 1rem;
+  }
+  
+  .headerTitle {
+    font-size: 1.25rem;
+  }
+  
+  .statCardValue {
+    font-size: 1rem;
+  }
+  
+  .adOption {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  
+  .iconWrapper {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .iconWrapper svg {
+    font-size: 1rem;
+  }
+  
+  .meta {
+    gap: 0.5rem;
+  }
+  
+  .premiumBannerContent {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  
+  .upgradeBtn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .bonusCard {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .button {
-    min-width: 160px;
-    padding: 0.9rem 2rem;
-    font-size: 1rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .earnPage {
-    gap: 1rem;
-    padding: 0.5rem;
-    min-height: calc(100vh - 50px);
-  }
-  
-  .heroCard {
-    padding: 1.5rem 1rem;
-  }
-  
-  .heroCard h1 {
-    font-size: 1.6rem;
-  }
-  
-  .heroCard p {
-    font-size: 0.95rem;
-  }
-  
-  .statsGrid {
-    grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
   }
   
   .statCard {
-    padding: 0.9rem;
-    gap: 0.75rem;
+    padding: 0.75rem;
   }
   
-  .statIcon {
-    width: 2.25rem;
-    height: 2.25rem;
-    min-width: 2.25rem;
-    font-size: 0.9rem;
+  .filterTabs {
+    gap: 0.375rem;
   }
   
-  .statValue {
-    font-size: 1rem;
+  .filterTab {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
   }
-  
-  .statLabel {
-    font-size: 0.7rem;
-  }
-  
-  .actionCard,
-  .timerCard {
-    padding: 1.75rem 1.25rem;
-  }
-  
-  .button {
-    min-width: 140px;
-    padding: 0.8rem 1.5rem;
-    font-size: 0.95rem;
-    min-height: 48px;
-  }
-  
-  .timerRing {
-    width: 160px;
-    height: 160px;
-  }
-  
-  .timerNumber {
-    font-size: 3rem;
-  }
-  
-  .bonusCard {
-    padding: 1.25rem;
-  }
-  
-  .bonusHeader {
-    font-size: 1rem;
-  }
-  
-  .linkButton {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 420px) {
-  .statsGrid {
-    grid-template-columns: 1fr;
-  }
-  
-  .statCard {
-    padding: 0.8rem;
-  }
-  
-  .timerRing {
-    width: 140px;
-    height: 140px;
-  }
-  
-  .timerNumber {
-    font-size: 2.5rem;
-  }
-  
-  .button {
-    min-width: 100%;
-    font-size: 0.9rem;
-  }
-  
-  .heroCard h1 {
-    font-size: 1.4rem;
-  }
-}
-
-/* ===== PRINT STYLES ===== */
-@media print {
-  .earnPage {
-    background: white;
-    padding: 20px;
-    min-height: auto;
-  }
-  
-  .heroCard,
-  .statCard,
-  .actionCard,
-  .timerCard,
-  .bonusCard {
-    background: white !important;
-    border: 1px solid #ddd !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-  
-  .button,
-  .linkButton {
-    display: none !important;
-  }
-  
-  .heroCard h1 {
-    -webkit-text-fill-color: #1a120e;
-    background: none;
-  }
-}
-
-/* ===== DARK MODE SPECIFIC ===== */
-[data-theme="dark"] .statCard {
-  background: rgba(6, 18, 41, 0.95);
-}
-
-[data-theme="dark"] .actionCard {
-  background: rgba(6, 18, 41, 0.98);
-}
-
-[data-theme="dark"] .timerCard {
-  background: rgba(6, 18, 41, 0.98);
-}
-
-[data-theme="dark"] .bonusCard {
-  background: rgba(6, 18, 41, 0.95);
 }
