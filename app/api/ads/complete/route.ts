@@ -1,152 +1,202 @@
-// components/ads/AdViewer.tsx (Minimal working version)
-'use client'
+// app/api/ads/complete/route.ts
+import { createClient } from '@/lib/supabase/client'
+import { NextResponse } from 'next/server'
 
-import { useState, useEffect, useRef } from 'react'
-import { FaTimes } from 'react-icons/fa'
+export async function POST(request: Request) {
+  try {
+    const supabase = createClient()
+    const body = await request.json()
+    const { adTier, platform, fraudSignals, fraudScore } = body
+    
+    console.log('📝 Ad completion request:', { adTier, platform })
 
-interface AdViewerProps {
-  userId: string
-  platform: string
-  adTier: string
-  totalDuration: number
-  adCount: number
-  onComplete: (reward: number, tier: string, fraudScore: any) => void
-  onCancel: () => void
+    // Get user session
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Unauthorized' 
+      }, { status: 401 })
+    }
+    
+    const userId = session.user.id
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_premium, spy_balance')
+      .eq('id', userId)
+      .single()
+    
+    if (profileError || !profile) {
+      console.error('❌ Profile fetch error:', profileError)
+      return NextResponse.json({ 
+        success: false, 
+        message: 'User not found' 
+      }, { status: 404 })
+    }
+
+    // Check daily limit
+    const today = new Date().toISOString().split('T')[0]
+    const { count: todayCount, error: countError } = await supabase
+      .from('ad_watches')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', today)
+
+    if (countError) {
+      console.error('❌ Count error:', countError)
+    }
+
+    const dailyLimit = profile.is_premium ? 30 : 20
+    if (todayCount && todayCount >= dailyLimit) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Daily limit reached. Come back tomorrow!' 
+      }, { status: 400 })
+    }
+
+    // Calculate reward based on ad tier and premium status
+    const reward = calculateReward(adTier, profile.is_premium)
+    console.log('💰 Calculated reward:', reward)
+
+    // Record the ad watch
+    const { error: insertError } = await supabase
+      .from('ad_watches')
+      .insert({
+        user_id: userId,
+        ad_tier: adTier,
+        platform_used: platform || 'adsterra',
+        reward_spy: reward,
+        duration_seconds: getDurationForTier(adTier),
+        fraud_score: fraudScore || 0,
+        created_at: new Date().toISOString()
+      })
+
+    if (insertError) {
+      console.error('❌ Error recording ad watch:', insertError)
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Failed to record ad watch' 
+      }, { status: 500 })
+    }
+
+    // Update user balance using the increment function
+    const { error: updateError } = await supabase.rpc('increment_spy_balance', {
+      user_id: userId,
+      amount: reward
+    })
+
+    if (updateError) {
+      console.error('❌ Error updating balance:', updateError)
+      // Try direct update as fallback
+      const { error: directUpdateError } = await supabase
+        .from('profiles')
+        .update({ spy_balance: supabase.rpc('increment_spy_balance', { user_id: userId, amount: reward }) })
+        .eq('id', userId)
+      
+      if (directUpdateError) {
+        console.error('❌ Direct update error:', directUpdateError)
+      }
+    }
+
+    // Update streak
+    await updateStreak(userId)
+
+    return NextResponse.json({
+      success: true,
+      reward: reward,
+      platform: platform || 'adsterra',
+      userTier: profile.is_premium ? 'premium' : 'standard',
+      message: `+${reward} SPY earned!`
+    })
+
+  } catch (error) {
+    console.error('❌ Complete API error:', error)
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to process ad completion'
+    }, { status: 500 })
+  }
 }
 
-export default function AdViewer({
-  userId,
-  platform,
-  adTier,
-  totalDuration,
-  adCount = 3,
-  onComplete,
-  onCancel
-}: AdViewerProps) {
-  const [currentAd, setCurrentAd] = useState(1)
-  const [timeLeft, setTimeLeft] = useState(totalDuration)
-  const [isComplete, setIsComplete] = useState(false)
-  const [canClose, setCanClose] = useState(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-
-  useEffect(() => {
-    console.log('🎬 Starting ad...')
-    let elapsed = 0
-    
-    timerRef.current = setInterval(() => {
-      elapsed += 1
-      const remaining = Math.max(0, totalDuration - elapsed)
-      setTimeLeft(remaining)
-      
-      // Simulate ad switching
-      const adDuration = totalDuration / adCount
-      const newAd = Math.min(Math.floor(elapsed / adDuration) + 1, adCount)
-      if (newAd !== currentAd) {
-        setCurrentAd(newAd)
-      }
-      
-      if (elapsed >= totalDuration) {
-        clearInterval(timerRef.current!)
-        setIsComplete(true)
-        setCanClose(true)
-        console.log('✅ All ads complete!')
-      }
-    }, 1000)
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
-    }
-  }, [])
-
-  const handleClose = () => {
-    if (!canClose) {
-      alert('Please watch the full ad to earn rewards!')
-      return
-    }
-    
-    if (isComplete) {
-      const reward = adTier === 'video' ? 1.00 : 0.45
-      onComplete(reward, adTier, { fraudScore: 0.1 })
-    } else {
-      onCancel()
-    }
+/**
+ * Calculate reward based on ad tier and premium status
+ */
+function calculateReward(tier: string, isPremium: boolean): number {
+  const baseRates: Record<string, number> = {
+    'display': 0.45, // 3 ads × 0.15
+    'video': 1.00    // 2 ads × 0.50
   }
+  
+  const baseRate = baseRates[tier] || 0.10
+  const premiumMultiplier = isPremium ? 2.0 : 1.0
+  
+  // Round to 2 decimal places
+  return Math.round((baseRate * premiumMultiplier) * 100) / 100
+}
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-black/80 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <span className="text-accent-500 font-bold">Ad {currentAd}/{adCount}</span>
-          <span className="text-gray-400 text-sm flex items-center gap-1">
-            ⏱️ {Math.ceil(timeLeft)}s remaining
-          </span>
-        </div>
-        <button
-          onClick={handleClose}
-          disabled={!canClose}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
-            canClose 
-              ? 'bg-gray-800 hover:bg-gray-700 text-white cursor-pointer' 
-              : 'bg-gray-800/50 text-gray-600 cursor-not-allowed'
-          }`}
-        >
-          <FaTimes className="text-xl" />
-        </button>
-      </div>
+/**
+ * Get duration for ad tier
+ */
+function getDurationForTier(tier: string): number {
+  const durations: Record<string, number> = {
+    'display': 75,  // 3 ads × 25s
+    'video': 60     // 2 ads × 30s
+  }
+  return durations[tier] || 10
+}
 
-      {/* Ad Content */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-blue-900/50 to-purple-900/50 p-8">
-        <div className="text-8xl mb-6">📺</div>
-        <h2 className="text-3xl font-bold text-white mb-2">
-          {isComplete ? '✅ Complete!' : `Ad ${currentAd} of ${adCount}`}
-        </h2>
-        <p className="text-gray-400 text-lg mb-4">
-          {isComplete 
-            ? 'Click the X button to claim your reward!' 
-            : `Watch for ${Math.ceil(timeLeft)} more seconds...`
-          }
-        </p>
+/**
+ * Update user streak
+ */
+async function updateStreak(userId: string) {
+  const supabase = createClient()
+  
+  const today = new Date().toISOString().split('T')[0]
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  
+  try {
+    // Check if user watched today
+    const { data: todayWatch } = await supabase
+      .from('ad_watches')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', today)
+      .limit(1)
+    
+    if (todayWatch && todayWatch.length > 0) {
+      // Check if watched yesterday
+      const { data: yesterdayWatch } = await supabase
+        .from('ad_watches')
+        .select('id')
+        .eq('user_id', userId)
+        .gte('created_at', yesterday)
+        .lt('created_at', today)
+        .limit(1)
+      
+      if (yesterdayWatch && yesterdayWatch.length > 0) {
+        // Streak continues - increment
+        const { error } = await supabase.rpc('increment_streak', { user_id: userId })
+        if (error) console.error('Streak increment error:', error)
+      } else {
+        // Check if streak is 0, then set to 1
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('daily_bonus_streak')
+          .eq('id', userId)
+          .single()
         
-        {/* Adsterra container */}
-        <div className="w-full max-w-2xl bg-gray-800/50 rounded-xl p-4 min-h-[200px] flex items-center justify-center">
-          <div id="container-478289f3c17549c6c042b9e58c05b749" className="w-full">
-            <script 
-              async 
-              data-cfasync="false" 
-              src="https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js"
-            />
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="w-full max-w-2xl mt-4">
-          <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-accent-500 to-purple-500 transition-all duration-1000"
-              style={{ width: `${((totalDuration - timeLeft) / totalDuration) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>Progress</span>
-            <span>{Math.round(((totalDuration - timeLeft) / totalDuration) * 100)}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="bg-black/80 border-t border-gray-800 p-2 flex justify-between items-center">
-        <span className="text-xs text-gray-500">Powered by Adsterra</span>
-        <span className="text-xs text-gray-500">
-          {canClose ? (
-            <span className="text-green-400">✅ Click ✕ to claim reward</span>
-          ) : (
-            <span>Watch all ads to earn</span>
-          )}
-        </span>
-      </div>
-    </div>
-  )
+        if (profile?.daily_bonus_streak === 0 || profile?.daily_bonus_streak === null) {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ daily_bonus_streak: 1 })
+            .eq('id', userId)
+          if (error) console.error('Streak set error:', error)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Streak update error:', error)
+  }
 }
