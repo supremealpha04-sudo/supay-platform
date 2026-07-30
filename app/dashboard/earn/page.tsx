@@ -12,7 +12,9 @@ import {
 } from 'react-icons/fa'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import './page.module.css
+
+// Import CSS
+import './page.css'
 
 const supabase = createClient()
 
@@ -344,10 +346,10 @@ export default function EarnPage() {
   // Show auth loading
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 mt-4">Loading...</p>
+      <div className="earn-loading-center">
+        <div className="earn-loading-content">
+          <div className="earn-loading-spinner" />
+          <p className="earn-loading-text">Loading...</p>
         </div>
       </div>
     )
@@ -356,10 +358,10 @@ export default function EarnPage() {
   // Show login prompt if no user
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <p className="text-gray-400">Please log in to earn rewards</p>
-          <Link href="/login" className="text-accent-500 hover:text-accent-400 mt-2 inline-block">
+      <div className="earn-login-prompt">
+        <div className="earn-login-content">
+          <p className="earn-login-text">Please log in to earn rewards</p>
+          <Link href="/login" className="earn-login-link">
             Go to Login
           </Link>
         </div>
@@ -370,10 +372,10 @@ export default function EarnPage() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 mt-4">Loading your earnings...</p>
+      <div className="earn-loading-center">
+        <div className="earn-loading-content">
+          <div className="earn-loading-spinner" />
+          <p className="earn-loading-text">Loading your earnings...</p>
         </div>
       </div>
     )
@@ -382,13 +384,16 @@ export default function EarnPage() {
   // Show error state
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md">
-          <p className="text-red-400 font-medium">Something went wrong</p>
-          <p className="text-gray-400 text-sm mt-2">{error}</p>
+      <div className="earn-error-container">
+        <div className="earn-error-box">
+          <svg className="earn-error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 className="earn-error-title">Something went wrong</h3>
+          <p className="earn-error-message">{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-accent-500 rounded-lg text-white text-sm hover:bg-accent-600 transition"
+            className="earn-retry-btn"
           >
             Refresh Page
           </button>
@@ -399,7 +404,7 @@ export default function EarnPage() {
 
   // ===== RENDER =====
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="earn-container">
       <AnimatePresence>
         {showAd && selectedAd && selectedPlatform && (
           <AdViewer
@@ -417,27 +422,25 @@ export default function EarnPage() {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-accent-500/20 to-purple-500/20 rounded-2xl p-6 mb-6 border border-accent-500/30"
+        className="earn-header"
       >
-        <div className="flex items-start justify-between">
+        <div className="earn-header-top">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-2">Earn SPY</h1>
-            <p className="text-gray-400">Watch ads from Adsterra & Monetag</p>
+            <h1 className="earn-header-title">Earn SPY</h1>
+            <p className="earn-header-subtitle">Watch ads from Adsterra & Monetag</p>
             {profile?.is_premium && (
-              <div className="mt-3 inline-flex items-center gap-2 bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm">
+              <div className="earn-premium-badge">
                 <FaStar /> Premium: 2x Rewards Active
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="earn-header-badges">
             {AD_PLATFORMS.map(p => {
               const status = platformStatus[p.id]
               return (
                 <div 
                   key={p.id} 
-                  className={`text-xs bg-gray-800/50 px-3 py-1 rounded-full border ${
-                    status?.available ? 'border-green-500/30' : 'border-red-500/30'
-                  }`}
+                  className={status?.available ? 'earn-platform-badge available' : 'earn-platform-badge unavailable'}
                 >
                   <span className="mr-1">{p.icon}</span>
                   {p.name}
@@ -452,36 +455,36 @@ export default function EarnPage() {
       </motion.div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="earn-stats-grid">
         {[
-          { label: 'Today', value: `${stats.todayEarnings.toFixed(2)} SPY`, icon: FaCoins, color: 'text-accent-500' },
-          { label: 'Remaining', value: `${stats.dailyRemaining} ads`, icon: FaStopwatch, color: 'text-blue-400' },
-          { label: 'Streak', value: `${stats.streak} days 🔥`, icon: FaFire, color: 'text-orange-400' },
-          { label: 'Total Views', value: `${stats.totalAds}`, icon: FaChartLine, color: 'text-green-400' },
+          { label: 'Today', value: `${stats.todayEarnings.toFixed(2)} SPY`, icon: FaCoins, iconClass: 'earn-stat-icon-accent' },
+          { label: 'Remaining', value: `${stats.dailyRemaining} ads`, icon: FaStopwatch, iconClass: 'earn-stat-icon-blue' },
+          { label: 'Streak', value: `${stats.streak} days 🔥`, icon: FaFire, iconClass: 'earn-stat-icon-orange' },
+          { label: 'Total Views', value: `${stats.totalAds}`, icon: FaChartLine, iconClass: 'earn-stat-icon-green' },
         ].map((s, i) => (
           <motion.div 
             key={i} 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition"
+            className="earn-stat-card"
           >
-            <s.icon className={`${s.color} mb-2 text-xl`} />
-            <p className="text-gray-400 text-xs">{s.label}</p>
-            <p className="text-white font-bold text-lg">{s.value}</p>
+            <s.icon className={s.iconClass} />
+            <p className="earn-stat-label">{s.label}</p>
+            <p className="earn-stat-value">{s.value}</p>
           </motion.div>
         ))}
       </div>
 
       {/* Platform Earnings Breakdown */}
       {Object.keys(stats.platformEarnings).length > 0 && (
-        <div className="bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-700">
-          <h3 className="text-sm font-medium text-gray-400 mb-2">Earnings by Platform</h3>
-          <div className="flex flex-wrap gap-3">
+        <div className="earn-earnings-breakdown">
+          <h3 className="earn-earnings-breakdown-title">Earnings by Platform</h3>
+          <div>
             {Object.entries(stats.platformEarnings).map(([platform, amount]) => {
               const platformInfo = AD_PLATFORMS.find(p => p.id === platform)
               return (
-                <span key={platform} className="text-xs bg-gray-700 px-3 py-1 rounded-full">
+                <span key={platform} className="earn-earnings-breakdown-item">
                   {platformInfo?.icon || '📊'} {platform}: {amount.toFixed(2)} SPY
                 </span>
               )
@@ -491,16 +494,12 @@ export default function EarnPage() {
       )}
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700">
+      <div className="earn-filter-tabs">
         {['all', 'display', 'video', 'popunder'].map((tier) => (
           <button
             key={tier}
             onClick={() => setSelectedTier(tier)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-              selectedTier === tier
-                ? 'bg-accent-500 text-white'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
+            className={selectedTier === tier ? 'earn-filter-tab active' : 'earn-filter-tab'}
           >
             {tier.charAt(0).toUpperCase() + tier.slice(1)}
           </button>
@@ -508,7 +507,7 @@ export default function EarnPage() {
       </div>
 
       {/* Ad Options */}
-      <h2 className="text-lg font-bold text-white mb-4">Available Ads</h2>
+      <h2 className="earn-section-title">Available Ads</h2>
       <div className="grid gap-4 mb-6">
         {filteredAds.map((option, index) => {
           const Icon = option.icon
@@ -520,6 +519,14 @@ export default function EarnPage() {
             platformStatus[pid]?.available
           )
 
+          // Map color to class
+          const iconWrapperClass = {
+            'bg-blue-500': 'earn-icon-wrapper-blue',
+            'bg-purple-500': 'earn-icon-wrapper-purple',
+            'bg-orange-500': 'earn-icon-wrapper-orange',
+            'bg-green-500': 'earn-icon-wrapper-green',
+          }[option.color] || 'earn-icon-wrapper-blue'
+
           return (
             <motion.button
               key={option.tier}
@@ -530,32 +537,28 @@ export default function EarnPage() {
               whileTap={{ scale: hasAvailablePlatform ? 0.98 : 1 }}
               onClick={() => hasAvailablePlatform && startAd(option)}
               disabled={!hasAvailablePlatform || isChecking}
-              className={`flex items-center gap-4 bg-gray-800 rounded-xl p-4 border transition text-left w-full ${
-                hasAvailablePlatform 
-                  ? 'border-gray-700 hover:border-accent-500/50 cursor-pointer hover:shadow-lg hover:shadow-accent-500/10' 
-                  : 'border-gray-700/50 opacity-50 cursor-not-allowed'
-              }`}
+              className={hasAvailablePlatform ? 'earn-ad-option' : 'earn-ad-option disabled'}
             >
-              <div className={`w-14 h-14 ${option.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <div className={iconWrapperClass}>
                 <Icon className="text-white text-2xl" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 className="font-bold text-white">{option.title}</h3>
+              <div className="earn-ad-content">
+                <div className="earn-ad-title">
+                  {option.title}
                   {option.tier === 'video' && (
-                    <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">BEST VALUE</span>
+                    <span className="earn-ad-badge-best-value">BEST VALUE</span>
                   )}
                 </div>
-                <p className="text-gray-400 text-sm">{option.description}</p>
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
-                  <span className="text-gray-500 flex items-center gap-1">
+                <p className="earn-ad-description">{option.description}</p>
+                <div className="earn-ad-meta">
+                  <span className="earn-ad-meta-item">
                     <FaClock className="inline" /> {option.duration}s
                   </span>
-                  <span className="text-gray-500">Limit: {option.dailyLimit}/day</span>
-                  <span className="text-green-400 font-medium">
+                  <span className="earn-ad-meta-item">Limit: {option.dailyLimit}/day</span>
+                  <span className="earn-ad-reward-estimate">
                     {option.estimatedReward}
                   </span>
-                  <span className="text-blue-400">
+                  <span className="earn-ad-platform-icons">
                     {availablePlatforms.map(pid => {
                       const platform = AD_PLATFORMS.find(p => p.id === pid)
                       return platform?.icon
@@ -565,13 +568,11 @@ export default function EarnPage() {
               </div>
               <div className="flex-shrink-0">
                 {hasAvailablePlatform ? (
-                  <div className="w-10 h-10 bg-accent-500/20 rounded-full flex items-center justify-center">
-                    <FaPlay className="text-accent-500" />
+                  <div className="earn-ad-action-button">
+                    <FaPlay />
                   </div>
                 ) : (
-                  <span className="text-gray-500 text-xs px-2 py-1 bg-gray-700 rounded-full">
-                    No inventory
-                  </span>
+                  <span className="earn-ad-no-inventory">No inventory</span>
                 )}
               </div>
             </motion.button>
@@ -584,26 +585,26 @@ export default function EarnPage() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-gray-800 rounded-xl p-4 border border-gray-700"
+          className="earn-recent-activity"
         >
-          <h3 className="font-bold text-white mb-3 flex items-center gap-2">
+          <h3 className="earn-recent-activity-title">
             <FaHistory /> Today's Activity
           </h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
+          <div className="earn-activity-list">
             {recentActivity.map((watch, i) => (
-              <div key={i} className="flex items-center justify-between text-sm py-1 border-b border-gray-700/50 last:border-0">
+              <div key={i} className="earn-activity-item">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-xs">
+                  <span className="earn-activity-time">
                     {new Date(watch.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  <span className="text-xs bg-gray-700 px-2 py-0.5 rounded">{watch.ad_tier}</span>
+                  <span className="earn-activity-tier">{watch.ad_tier}</span>
                   {watch.platform_used && (
-                    <span className="text-xs">
+                    <span className="earn-activity-platform">
                       {watch.platform_used === 'adsterra' ? '🎯' : '📊'}
                     </span>
                   )}
                 </div>
-                <span className="text-green-400 font-medium">+{watch.reward_spy.toFixed(2)} SPY</span>
+                <span className="earn-activity-reward">+{watch.reward_spy.toFixed(2)} SPY</span>
               </div>
             ))}
           </div>
@@ -615,17 +616,17 @@ export default function EarnPage() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl p-4 border border-yellow-500/30"
+          className="earn-premium-banner"
         >
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="earn-premium-banner-content">
             <div>
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <FaStar className="text-yellow-400" /> Go Premium
+              <h3 className="earn-premium-banner-title">
+                <FaStar className="earn-star" /> Go Premium
               </h3>
-              <p className="text-gray-400 text-sm">2x rewards on everything + exclusive ad types</p>
+              <p className="earn-premium-banner-description">2x rewards on everything + exclusive ad types</p>
             </div>
             <Link href="/dashboard/premium">
-              <button className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-black font-bold text-sm transition">
+              <button className="earn-upgrade-btn">
                 Upgrade Now
               </button>
             </Link>
@@ -635,10 +636,10 @@ export default function EarnPage() {
 
       {/* Ad Loading Overlay */}
       {isChecking && (
-        <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center">
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
-            <p className="text-gray-400 text-sm">Checking ad availability...</p>
+        <div className="earn-loading-overlay">
+          <div className="earn-loading-content">
+            <div className="earn-loading-spinner" />
+            <p className="earn-loading-text">Checking ad availability...</p>
           </div>
         </div>
       )}
