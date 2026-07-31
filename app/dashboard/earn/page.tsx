@@ -80,13 +80,36 @@ export default function EarnPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [sessionUser, setSessionUser] = useState<any>(null)
+
+  // 🔥 FIX: Direct session check as fallback
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('🔍 Direct session check:', session?.user?.id || 'No session')
+        if (session?.user) {
+          setSessionUser(session.user)
+        }
+      } catch (err) {
+        console.error('Session check error:', err)
+      }
+    }
+    
+    checkSession()
+  }, [])
 
   const fetchStats = useCallback(async () => {
-    if (!profile?.id) {
+    // 🔥 FIX: Try both profile and direct session
+    const userId = profile?.id || sessionUser?.id
+    
+    if (!userId) {
+      console.log('⚠️ No user ID found, skipping fetchStats')
       setIsLoading(false)
       return
     }
     
+    console.log('📊 Fetching stats for user:', userId)
     setIsLoading(true)
     setError(null)
 
@@ -96,7 +119,7 @@ export default function EarnPage() {
       const { data: todayWatches, error: watchError } = await supabase
         .from('ad_watches')
         .select('reward_spy, ad_tier, created_at')
-        .eq('user_id', profile.id)
+        .eq('user_id', userId)
         .gte('created_at', today)
         .order('created_at', { ascending: false })
 
@@ -111,7 +134,7 @@ export default function EarnPage() {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('daily_bonus_streak')
-        .eq('id', profile.id)
+        .eq('id', userId)
         .single()
 
       if (profileError) {
@@ -132,17 +155,27 @@ export default function EarnPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [profile])
+  }, [profile, sessionUser])
 
+  // 🔥 FIX: Effect to load stats when user is available
   useEffect(() => {
-    if (profile) {
+    const userId = profile?.id || sessionUser?.id
+    
+    if (userId) {
       fetchStats()
     } else if (!authLoading) {
       setIsLoading(false)
     }
-  }, [profile, authLoading, fetchStats])
+  }, [profile, sessionUser, authLoading, fetchStats])
 
   const startAd = (option: AdOption) => {
+    // 🔥 FIX: Use the available user ID
+    const userId = profile?.id || sessionUser?.id
+    if (!userId) {
+      toast.error('Please log in to watch ads')
+      router.push('/login?redirect=/dashboard/earn')
+      return
+    }
     setSelectedAd(option)
     setShowAd(true)
   }
@@ -176,7 +209,6 @@ export default function EarnPage() {
         console.error('❌ API error:', data.message)
         toast.error(data.message || 'Failed to process')
         
-        // If unauthorized, redirect to login
         if (data.message?.includes('Unauthorized') || data.message?.includes('log in')) {
           router.push('/login?redirect=/dashboard/earn')
         }
@@ -187,7 +219,6 @@ export default function EarnPage() {
     }
   }
 
-  // NEW: Handle auth required from AdViewer
   const handleAuthRequired = () => {
     console.log('🔴 Auth required, redirecting to login...')
     toast.error('Please log in to claim your reward')
@@ -202,6 +233,9 @@ export default function EarnPage() {
     toast('Ad cancelled', { icon: '⚠️' })
   }
 
+  // 🔥 FIX: Check if user is logged in using multiple sources
+  const isLoggedIn = !!(user || profile || sessionUser)
+
   // Early returns
   if (authLoading) {
     return (
@@ -214,7 +248,7 @@ export default function EarnPage() {
     )
   }
 
-  if (!user) {
+  if (!isLoggedIn) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -261,7 +295,7 @@ export default function EarnPage() {
       <AnimatePresence>
         {showAd && selectedAd && (
           <AdViewer
-            userId={user?.id || ''}
+            userId={profile?.id || sessionUser?.id || ''}
             platform="adsterra"
             adTier={selectedAd.tier}
             totalDuration={selectedAd.totalDuration}
