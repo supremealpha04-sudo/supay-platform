@@ -21,7 +21,7 @@ const supabase = createClient()
 const AdViewer = dynamic(() => import('@/components/ads/AdViewer'), {
   ssr: false,
   loading: () => (
-    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+    <div className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
     </div>
   )
@@ -33,7 +33,6 @@ interface AdOption {
   description: string
   totalDuration: number
   adCount: number
-  adDuration: number
   icon: any
   color: string
   dailyLimit: number
@@ -45,9 +44,8 @@ const AD_OPTIONS: AdOption[] = [
     tier: 'display',
     title: 'Display Ads',
     description: 'Watch 3 display ads (25s each)',
-    totalDuration: 75, // 3 ads × 25 seconds
+    totalDuration: 75,
     adCount: 3,
-    adDuration: 25,
     icon: FaAd,
     color: 'bg-blue-500',
     dailyLimit: 20,
@@ -57,9 +55,8 @@ const AD_OPTIONS: AdOption[] = [
     tier: 'video',
     title: 'Video Ads',
     description: 'Watch 2 video ads (30s each)',
-    totalDuration: 60, // 2 ads × 30 seconds
+    totalDuration: 60,
     adCount: 2,
-    adDuration: 30,
     icon: FaVideo,
     color: 'bg-purple-500',
     dailyLimit: 10,
@@ -149,6 +146,8 @@ export default function EarnPage() {
   }
 
   const handleAdComplete = async (reward: number, tier: string, fraudScore: any) => {
+    console.log('🎯 handleAdComplete called with:', { reward, tier })
+    
     setShowAd(false)
     setSelectedAd(null)
 
@@ -165,15 +164,18 @@ export default function EarnPage() {
       })
 
       const data = await res.json()
+      console.log('📡 API Response:', data)
+      
       if (data.success) {
         toast.success(`+${data.reward} SPY! 🎉`)
         await refreshProfile()
         fetchStats()
       } else {
+        console.error('❌ API error:', data.message)
         toast.error(data.message || 'Failed to process')
       }
     } catch (error) {
-      console.error('Error completing ad:', error)
+      console.error('❌ Error completing ad:', error)
       toast.error('Failed to process ad completion')
     }
   }
@@ -184,8 +186,7 @@ export default function EarnPage() {
     toast('Ad cancelled', { icon: '⚠️' })
   }
 
-  // ===== EARLY RETURNS =====
-  
+  // Early returns
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -238,7 +239,7 @@ export default function EarnPage() {
     )
   }
 
-  // ===== RENDER =====
+  // Render
   return (
     <div className="earn-container">
       <AnimatePresence>
