@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import { 
   FaPlay, FaClock, FaCoins, FaStopwatch, FaFire, 
   FaAd, FaHistory, FaStar, FaChartLine,
-  FaVideo, FaDatabase, FaRefresh
+  FaVideo, FaDatabase, FaRefresh, FaExclamationCircle
 } from 'react-icons/fa'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -79,17 +79,15 @@ export default function EarnPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [statsError, setStatsError] = useState<string | null>(null)
   const [sessionUser, setSessionUser] = useState<any>(null)
   const [retryCount, setRetryCount] = useState(0)
-  const [connectionTest, setConnectionTest] = useState<any>(null)
 
   // Direct session check
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        console.log('🔍 Direct session check:', session?.user?.id || 'No session')
         if (session?.user) {
           setSessionUser(session.user)
         }
@@ -97,107 +95,84 @@ export default function EarnPage() {
         console.error('Session check error:', err)
       }
     }
-    
     checkSession()
   }, [])
 
-  // Test Supabase connection
-  const testConnection = async () => {
-    try {
-      console.log('🔍 Testing Supabase connection...')
-      
-      // Test 1: Check session
-      const { data: { session } } = await supabase.auth.getSession()
-      console.log('✅ Session:', session?.user?.id || 'No session')
-      
-      // Test 2: Try to query profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1)
-      console.log('✅ Profiles query:', profilesError ? 'Error: ' + profilesError.message : 'Success')
-      
-      // Test 3: Try to query ad_watches
-      const { data: watches, error: watchesError } = await supabase
-        .from('ad_watches')
-        .select('id')
-        .limit(1)
-      console.log('✅ Ad_watches query:', watchesError ? 'Error: ' + watchesError.message : 'Success')
-      
-      setConnectionTest({ profiles: !!profiles, watches: !!watches })
-      return true
-    } catch (error) {
-      console.error('❌ Connection test failed:', error)
-      setConnectionTest({ error: error instanceof Error ? error.message : 'Unknown error' })
-      return false
-    }
-  }
-
+  // Robust stats fetcher - NEVER crashes the page
   const fetchStats = useCallback(async () => {
     const userId = profile?.id || sessionUser?.id
     
     if (!userId) {
-      console.log('⚠️ No user ID found, skipping fetchStats')
       setIsLoading(false)
       return
     }
     
-    console.log('📊 Fetching stats for user:', userId)
     setIsLoading(true)
-    setError(null)
+    setStatsError(null)
 
     try {
-      // First, test connection
-      await testConnection()
-
       const today = new Date().toISOString().split('T')[0]
-      console.log('📅 Today:', today)
 
-      // Get today's watches
-      const { data: todayWatches, error: watchError } = await supabase
-        .from('ad_watches')
-        .select('reward_spy, ad_tier, created_at')
-        .eq('user_id', userId)
-        .gte('created_at', today)
-        .order('created_at', { ascending: false })
+      // Try to get today's watches - gracefully handle missing table/RLS
+      let todayWatches: any[] = []
+      let totalAds = 0
+      let earnings = 0
 
-      if (watchError) {
-        console.error('❌ Watch error:', watchError)
-        throw watchError
+      try {
+        const { data, error } = await supabase
+          .from('ad_watches')
+          .select('reward_spy, ad_tier, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', today)
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.warn('⚠️ ad_watches query failed (table missing or RLS):', error.message)
+          setStatsError('Stats temporarily unavailable')
+        } else {
+          todayWatches = data || []
+          totalAds = todayWatches.length
+          earnings = todayWatches.reduce((sum, w) => sum + (w.reward_spy || 0), 0)
+        }
+      } catch (e) {
+        console.warn('⚠️ ad_watches table may not exist yet')
+        setStatsError('Stats temporarily unavailable')
       }
 
-      console.log('📊 Today watches:', todayWatches?.length || 0)
+      // Try to get streak from profile - gracefully handle missing column
+      let streak = 0
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('daily_bonus_streak')
+          .eq('id', userId)
+          .maybeSingle()
 
-      const earnings = todayWatches?.reduce((sum, w) => sum + (w.reward_spy || 0), 0) || 0
-      const totalAds = todayWatches?.length || 0
-
-      // Get profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('daily_bonus_streak')
-        .eq('id', userId)
-        .maybeSingle()
-
-      if (profileError) {
-        console.error('❌ Profile fetch error:', profileError)
+        if (!profileError && profileData) {
+          streak = profileData.daily_bonus_streak || 0
+        }
+      } catch (e) {
+        console.warn('⚠️ Could not load streak')
       }
-
-      console.log('📊 Profile data:', profileData)
 
       setStats({
         todayEarnings: earnings,
         dailyRemaining: Math.max(0, 20 - totalAds),
-        streak: profileData?.daily_bonus_streak || 0,
+        streak,
         totalAds
       })
-      setRecentActivity(todayWatches?.slice(0, 5) || [])
-      
-      console.log('✅ Stats updated:', { earnings, totalAds })
+      setRecentActivity(todayWatches.slice(0, 5))
 
     } catch (error) {
-      console.error('❌ Error fetching stats:', error)
-      setError(error instanceof Error ? error.message : 'Failed to load stats')
-      toast.error('Failed to load stats')
+      console.error('❌ Unexpected error in fetchStats:', error)
+      setStatsError('Failed to load stats')
+      // Keep default zero stats so page still works
+      setStats({
+        todayEarnings: 0,
+        dailyRemaining: 20,
+        streak: 0,
+        totalAds: 0
+      })
     } finally {
       setIsLoading(false)
     }
@@ -206,7 +181,6 @@ export default function EarnPage() {
   // Load stats when user is available
   useEffect(() => {
     const userId = profile?.id || sessionUser?.id
-    
     if (userId) {
       fetchStats()
     } else if (!authLoading) {
@@ -216,7 +190,6 @@ export default function EarnPage() {
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1)
-    fetchStats()
   }
 
   const startAd = (option: AdOption) => {
@@ -231,8 +204,6 @@ export default function EarnPage() {
   }
 
   const handleAdComplete = async (reward: number, tier: string, fraudScore: any) => {
-    console.log('🎯 handleAdComplete called with:', { reward, tier })
-    
     setShowAd(false)
     setSelectedAd(null)
 
@@ -249,16 +220,13 @@ export default function EarnPage() {
       })
 
       const data = await res.json()
-      console.log('📡 API Response:', data)
       
       if (data.success) {
         toast.success(`+${data.reward} SPY! 🎉`)
         await refreshProfile()
         fetchStats()
       } else {
-        console.error('❌ API error:', data.message)
         toast.error(data.message || 'Failed to process')
-        
         if (data.message?.includes('Unauthorized') || data.message?.includes('log in')) {
           router.push('/login?redirect=/dashboard/earn')
         }
@@ -270,7 +238,6 @@ export default function EarnPage() {
   }
 
   const handleAuthRequired = () => {
-    console.log('🔴 Auth required, redirecting to login...')
     toast.error('Please log in to claim your reward')
     setTimeout(() => {
       router.push('/login?redirect=/dashboard/earn')
@@ -285,7 +252,7 @@ export default function EarnPage() {
 
   const isLoggedIn = !!(user || profile || sessionUser)
 
-  // Early returns
+  // Auth loading
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -297,6 +264,7 @@ export default function EarnPage() {
     )
   }
 
+  // Not logged in
   if (!isLoggedIn) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -310,54 +278,7 @@ export default function EarnPage() {
     )
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 mt-4">Loading your earnings...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Error state with retry button
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md">
-          <FaDatabase className="text-red-400 text-4xl mx-auto mb-3" />
-          <p className="text-red-400 font-medium">Something went wrong</p>
-          <p className="text-gray-400 text-sm mt-2">{error}</p>
-          {connectionTest && (
-            <div className="mt-2 text-xs text-gray-500">
-              {connectionTest.error ? (
-                <p>Connection error: {connectionTest.error}</p>
-              ) : (
-                <p>✅ Database connected</p>
-              )}
-            </div>
-          )}
-          <div className="flex gap-3 justify-center mt-4">
-            <button 
-              onClick={handleRetry}
-              className="px-4 py-2 bg-accent-500 rounded-lg text-white text-sm hover:bg-accent-600 transition flex items-center gap-2"
-            >
-              <FaRefresh className="text-xs" /> Retry
-            </button>
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-gray-700 rounded-lg text-white text-sm hover:bg-gray-600 transition"
-            >
-              Refresh Page
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Render
+  // MAIN RENDER - Always show ad options, even if stats fail
   return (
     <div className="earn-container">
       <AnimatePresence>
@@ -401,6 +322,27 @@ export default function EarnPage() {
         </div>
       </motion.div>
 
+      {/* Stats Error Banner (non-blocking) */}
+      {statsError && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="mx-4 mb-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 flex items-center gap-3"
+        >
+          <FaExclamationCircle className="text-yellow-400 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-yellow-400 text-sm font-medium">{statsError}</p>
+            <p className="text-yellow-400/60 text-xs">You can still watch ads and earn rewards</p>
+          </div>
+          <button 
+            onClick={handleRetry}
+            className="p-2 hover:bg-yellow-500/20 rounded-lg transition"
+          >
+            <FaRefresh className="text-yellow-400 text-sm" />
+          </button>
+        </motion.div>
+      )}
+
       {/* Stats Cards */}
       <div className="earn-stats-grid">
         {[
@@ -418,7 +360,7 @@ export default function EarnPage() {
           >
             <s.icon className={s.iconClass} />
             <p className="earn-stat-label">{s.label}</p>
-            <p className="earn-stat-value">{s.value}</p>
+            <p className="earn-stat-value">{isLoading ? '...' : s.value}</p>
           </motion.div>
         ))}
       </div>
