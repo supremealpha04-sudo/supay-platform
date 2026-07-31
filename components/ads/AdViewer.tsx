@@ -51,33 +51,27 @@ export default function AdViewer({
     setReward(totalReward)
   }, [adTier, adCount])
 
-  // Load Adsterra ad - FIXED: Cleaner implementation
+  // Load Adsterra ad
   useEffect(() => {
     if (!containerRef.current || scriptLoadedRef.current) return
     
     scriptLoadedRef.current = true
     const container = containerRef.current
     
-    // Clear container
     container.innerHTML = ''
     
-    // Create wrapper
     const wrapper = document.createElement('div')
     wrapper.className = 'adsterra-ad-wrapper w-full h-full flex items-center justify-center'
     wrapper.id = `adsterra-wrapper-${currentAd}`
     
-    // Create container div for Adsterra
     const adDiv = document.createElement('div')
     adDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
     adDiv.className = 'adsterra-ad-container w-full max-w-3xl mx-auto'
     
     wrapper.appendChild(adDiv)
     container.appendChild(wrapper)
-    
-    // Store reference for cleanup
     adContainerRef.current = wrapper
 
-    // Load script - only once
     const scriptId = 'adsterra-script'
     if (!document.getElementById(scriptId)) {
       const script = document.createElement('script')
@@ -97,13 +91,15 @@ export default function AdViewer({
       document.head.appendChild(script)
     }
 
-    // Cleanup function
     return () => {
-      // Only cleanup if we're unmounting completely
-      if (container) {
-        const wrapper = container.querySelector('.adsterra-ad-wrapper')
-        if (wrapper) {
-          container.removeChild(wrapper)
+      if (container && container.querySelector('.adsterra-ad-wrapper')) {
+        try {
+          const wrapperEl = container.querySelector('.adsterra-ad-wrapper')
+          if (wrapperEl && wrapperEl.parentNode === container) {
+            container.removeChild(wrapperEl)
+          }
+        } catch (e) {
+          console.warn('Cleanup error:', e)
         }
       }
     }
@@ -123,7 +119,6 @@ export default function AdViewer({
       const newAd = Math.min(Math.floor(elapsed / adDuration) + 1, adCount)
       if (newAd !== currentAd && newAd <= adCount) {
         setCurrentAd(newAd)
-        // Refresh ad container for new ad
         if (containerRef.current) {
           const wrapper = containerRef.current.querySelector('.adsterra-ad-wrapper')
           if (wrapper) {
@@ -147,16 +142,18 @@ export default function AdViewer({
     }
   }, [totalDuration, adCount])
 
-  // NEW: Check auth before claiming reward
+  // Check auth before claiming reward
   const checkAuthAndClaim = async () => {
     setIsAuthChecking(true)
     
     try {
+      console.log('🔍 Checking auth for userId:', userId)
+      
       // Check if user is still authenticated
       const { data: { session }, error } = await supabase.auth.getSession()
       
       if (error || !session) {
-        console.log('🔴 User not authenticated, redirecting to login...')
+        console.log('🔴 No session found')
         setShowWarning(true)
         setTimeout(() => {
           setShowWarning(false)
@@ -169,8 +166,9 @@ export default function AdViewer({
         return
       }
       
+      console.log('✅ Session found for user:', session.user.id)
+      
       // User is authenticated, claim reward
-      console.log('✅ User authenticated, claiming reward...')
       const fraudScore = {
         avgViewTime: totalDuration,
         tabSwitches: 0,
@@ -266,9 +264,7 @@ export default function AdViewer({
             <div 
               ref={containerRef}
               className="ad-viewer-container w-full bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 min-h-[300px] md:min-h-[400px] flex items-center justify-center"
-            >
-              {/* Ad will be injected here */}
-            </div>
+            />
           </div>
         )}
 
