@@ -1,8 +1,12 @@
 // components/ads/AdViewer.tsx
 'use client'
 
+import './ad-viewer.css'
+
 import { useState, useEffect, useRef } from 'react'
-import { FaTimes, FaClock, FaCheck } from 'react-icons/fa'
+import { FaTimes, FaClock, FaCheck, FaExclamationTriangle } from 'react-icons/fa'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 interface AdViewerProps {
   userId: string
@@ -12,6 +16,7 @@ interface AdViewerProps {
   adCount: number
   onComplete: (reward: number, tier: string, fraudScore: any) => void
   onCancel: () => void
+  onAuthRequired?: () => void // NEW: Callback for auth required
 }
 
 export default function AdViewer({
@@ -21,15 +26,23 @@ export default function AdViewer({
   totalDuration,
   adCount = 3,
   onComplete,
-  onCancel
+  onCancel,
+  onAuthRequired
 }: AdViewerProps) {
+  const router = useRouter()
+  const supabase = createClient()
+  
   const [currentAd, setCurrentAd] = useState(1)
   const [timeLeft, setTimeLeft] = useState(totalDuration)
   const [isComplete, setIsComplete] = useState(false)
   const [canClose, setCanClose] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
   const [reward, setReward] = useState(0)
+  const [adLoaded, setAdLoaded] = useState(false)
+  const [isAuthChecking, setIsAuthChecking] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const scriptLoadedRef = useRef(false)
 
   // Calculate reward
   useEffect(() => {
@@ -37,6 +50,43 @@ export default function AdViewer({
     const totalReward = baseReward * adCount
     setReward(totalReward)
   }, [adTier, adCount])
+
+  // Load Adsterra ad
+  useEffect(() => {
+    if (containerRef.current && !scriptLoadedRef.current) {
+      scriptLoadedRef.current = true
+      
+      containerRef.current.innerHTML = ''
+      
+      const adContainer = document.createElement('div')
+      adContainer.className = 'adsterra-ad-wrapper w-full h-full flex items-center justify-center'
+      adContainer.id = `adsterra-wrapper-${currentAd}`
+      
+      const containerDiv = document.createElement('div')
+      containerDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
+      containerDiv.className = 'adsterra-ad-container w-full max-w-3xl mx-auto'
+      
+      adContainer.appendChild(containerDiv)
+      containerRef.current.appendChild(adContainer)
+
+      const script = document.createElement('script')
+      script.async = true
+      script.setAttribute('data-cfasync', 'false')
+      script.src = 'https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js'
+      
+      script.onload = () => {
+        console.log('✅ Adsterra ad loaded')
+        setAdLoaded(true)
+      }
+      
+      script.onerror = () => {
+        console.error('❌ Failed to load ad')
+        setAdLoaded(true)
+      }
+      
+      document.head.appendChild(script)
+    }
+  }, [currentAd])
 
   // Start timer
   useEffect(() => {
@@ -52,6 +102,12 @@ export default function AdViewer({
       const newAd = Math.min(Math.floor(elapsed / adDuration) + 1, adCount)
       if (newAd !== currentAd) {
         setCurrentAd(newAd)
+        if (containerRef.current) {
+          const wrapper = containerRef.current.querySelector('.adsterra-ad-wrapper')
+          if (wrapper) {
+            wrapper.id = `adsterra-wrapper-${newAd}`
+          }
+        }
       }
       
       if (elapsed >= totalDuration) {
@@ -69,6 +125,55 @@ export default function AdViewer({
     }
   }, [totalDuration, adCount])
 
+  // NEW: Check auth before claiming reward
+  const checkAuthAndClaim = async () => {
+    setIsAuthChecking(true)
+    
+    try {
+      // Check if user is still authenticated
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error || !session) {
+        console.log('🔴 User not authenticated, redirecting to login...')
+        // Show message before redirect
+        setShowWarning(true)
+        setTimeout(() => {
+          setShowWarning(false)
+          // Call the auth required callback
+          if (onAuthRequired) {
+            onAuthRequired()
+          } else {
+            // Fallback: redirect to login
+            router.push('/login?redirect=/dashboard/earn')
+          }
+        }, 2000)
+        return
+      }
+      
+      // User is authenticated, claim reward
+      console.log('✅ User authenticated, claiming reward...')
+      const fraudScore = {
+        avgViewTime: totalDuration,
+        tabSwitches: 0,
+        isHeadlessBrowser: false,
+        isProxy: false,
+        fraudScore: 0.1
+      }
+      onComplete(reward, adTier, fraudScore)
+      
+    } catch (error) {
+      console.error('❌ Auth check error:', error)
+      // Redirect to login on error
+      if (onAuthRequired) {
+        onAuthRequired()
+      } else {
+        router.push('/login?redirect=/dashboard/earn')
+      }
+    } finally {
+      setIsAuthChecking(false)
+    }
+  }
+
   const handleClose = () => {
     console.log('🔴 Close button clicked, canClose:', canClose)
     
@@ -79,14 +184,8 @@ export default function AdViewer({
     }
     
     if (isComplete) {
-      const fraudScore = {
-        avgViewTime: totalDuration,
-        tabSwitches: 0,
-        isHeadlessBrowser: false,
-        isProxy: false,
-        fraudScore: 0.1
-      }
-      onComplete(reward, adTier, fraudScore)
+      // Check auth before claiming reward
+      checkAuthAndClaim()
     } else {
       onCancel()
     }
@@ -95,10 +194,9 @@ export default function AdViewer({
   const progress = Math.min(((totalDuration - timeLeft) / totalDuration) * 100, 100)
 
   return (
-    // FIX: Full screen overlay with highest z-index
-    <div className="fixed inset-0 z-[99999] bg-black flex flex-col">
+    <div className="fixed inset-0 z-[99999] bg-black flex flex-col ad-viewer-overlay">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/90 border-b border-gray-800">
+      <div className="flex items-center justify-between px-4 py-3 bg-black/90 border-b border-gray-800 ad-viewer-header">
         <div className="flex items-center gap-3">
           <span className="text-accent-500 font-bold text-sm">Ad {currentAd}/{adCount}</span>
           <span className="text-gray-600 text-sm">•</span>
@@ -109,56 +207,63 @@ export default function AdViewer({
         </div>
         <button
           onClick={handleClose}
+          disabled={!canClose || isAuthChecking}
           className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-            canClose 
+            canClose && !isAuthChecking
               ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400 cursor-pointer' 
               : 'bg-gray-800/50 text-gray-600 cursor-not-allowed opacity-50'
           }`}
-          disabled={!canClose}
         >
-          <FaTimes className="text-lg" />
+          {isAuthChecking ? (
+            <div className="w-4 h-4 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
+          ) : (
+            <FaTimes className="text-lg" />
+          )}
         </button>
       </div>
 
-      {/* Main Content - Full screen ad container */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-        {/* Ad Content - Takes full available space */}
-        <div className="w-full max-w-4xl mx-auto text-center flex-1 flex items-center justify-center">
-          {isComplete ? (
-            <div className="animate-bounce">
-              <div className="text-7xl mb-4">🎉</div>
-              <h2 className="text-3xl font-bold text-white mb-2">All Ads Complete!</h2>
-              <p className="text-gray-400 text-lg">Click the green ✕ button to claim your reward</p>
-              <div className="mt-4 inline-block bg-green-500/20 text-green-400 px-6 py-2 rounded-full text-sm font-medium">
-                +{reward.toFixed(2)} SPY
-              </div>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden ad-viewer-content">
+        {isComplete ? (
+          <div className="text-center ad-viewer-complete">
+            <div className="text-7xl mb-4 animate-bounce">🎉</div>
+            <h2 className="text-3xl font-bold text-white mb-2">All Ads Complete!</h2>
+            <p className="text-gray-400 text-lg mb-2">Click the green ✕ button to claim your reward</p>
+            <div className="mt-4 inline-block bg-green-500/20 text-green-400 px-6 py-2 rounded-full text-sm font-medium">
+              +{reward.toFixed(2)} SPY
             </div>
-          ) : (
-            <>
-              <div className="flex flex-col items-center w-full">
-                <div className="text-6xl mb-4">📺</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Ad {currentAd} of {adCount}</h2>
-                <p className="text-gray-400 text-sm mb-6">Watch for {Math.ceil(timeLeft)} more seconds...</p>
-                
-                {/* Ad Container - Full width */}
-                <div className="w-full bg-gray-800/50 rounded-xl p-4 min-h-[300px] flex items-center justify-center border border-gray-700">
-                  <div id="container-478289f3c17549c6c042b9e58c05b749" className="w-full">
-                    <script 
-                      async 
-                      data-cfasync="false" 
-                      src="https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js"
-                    />
-                  </div>
-                </div>
+            {isAuthChecking && (
+              <div className="mt-4 flex items-center justify-center gap-2 text-gray-400">
+                <div className="w-4 h-4 border-2 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+                <span className="text-sm">Verifying your account...</span>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="w-full max-w-4xl mx-auto">
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-bold text-white">Ad {currentAd} of {adCount}</h2>
+              <p className="text-gray-400 text-sm">{Math.ceil(timeLeft)} seconds remaining</p>
+            </div>
+            
+            <div 
+              ref={containerRef}
+              className="ad-viewer-container w-full bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 min-h-[300px] md:min-h-[400px] flex items-center justify-center"
+            >
+              {!adLoaded && (
+                <div className="flex flex-col items-center justify-center p-8">
+                  <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
+                  <p className="text-gray-400 mt-4 text-sm">Loading ad...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Countdown Circle */}
-        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2">
-          <div className="relative w-16 h-16">
-            <svg className="w-16 h-16 transform -rotate-90">
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
+          <div className="relative w-14 h-14 md:w-16 md:h-16">
+            <svg className="w-full h-full transform -rotate-90">
               <circle
                 cx="32"
                 cy="32"
@@ -207,7 +312,7 @@ export default function AdViewer({
       </div>
 
       {/* Footer */}
-      <div className="bg-black/90 border-t border-gray-800 px-4 py-2 flex justify-between items-center">
+      <div className="bg-black/90 border-t border-gray-800 px-4 py-2 flex justify-between items-center ad-viewer-footer">
         <span className="text-xs text-gray-600">Powered by Adsterra</span>
         <span className="text-xs text-gray-600">
           {canClose ? (
@@ -220,10 +325,18 @@ export default function AdViewer({
         </span>
       </div>
 
-      {/* Warning Popup */}
+      {/* Warning Popup - Auth Required */}
       {showWarning && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[99999] bg-red-500/95 rounded-xl px-6 py-4 max-w-sm text-center shadow-2xl">
-          <p className="text-white font-medium">⏳ Please watch the full ad to earn rewards!</p>
+          <div className="flex items-center justify-center mb-2">
+            <FaExclamationTriangle className="text-white text-2xl" />
+          </div>
+          <p className="text-white font-medium">
+            {isComplete ? 
+              'Please log in to claim your reward! Redirecting...' : 
+              '⏳ Please watch the full ad to earn rewards!'
+            }
+          </p>
         </div>
       )}
     </div>
