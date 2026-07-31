@@ -19,8 +19,12 @@ export default function AdsterraAd({
   onError
 }: AdsterraAdProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const loadedRef = useRef(false)
 
   useEffect(() => {
+    if (loadedRef.current) return
+    loadedRef.current = true
+
     console.log(`🎬 Loading Adsterra ad ${adIndex}...`)
 
     if (containerRef.current) {
@@ -29,13 +33,12 @@ export default function AdsterraAd({
       
       // Create container for Adsterra
       const adContainer = document.createElement('div')
-      adContainer.id = `adsterra-container-${adIndex}`
       adContainer.className = 'w-full h-full flex items-center justify-center'
       
       // Add Adsterra container div
       const containerDiv = document.createElement('div')
       containerDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
-      containerDiv.className = 'w-full h-full'
+      containerDiv.className = 'w-full h-full min-h-[200px] flex items-center justify-center'
       
       adContainer.appendChild(containerDiv)
       containerRef.current.appendChild(adContainer)
@@ -60,13 +63,14 @@ export default function AdsterraAd({
     }
 
     return () => {
-      // Cleanup
       const script = document.querySelector('script[src*="pl30607520"]')
-      if (script) script.remove()
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script)
+      }
     }
   }, [adIndex, onLoad, onError])
 
   return (
-    <div ref={containerRef} className="w-full h-full min-h-[250px] flex items-center justify-center" />
+    <div ref={containerRef} className="w-full h-full min-h-[200px] flex items-center justify-center" />
   )
 }
