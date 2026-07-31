@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { FaTimes, FaClock, FaCheck, FaPlay } from 'react-icons/fa'
+import { FaTimes, FaClock, FaCheck } from 'react-icons/fa'
 
 interface AdViewerProps {
   userId: string
@@ -48,7 +48,6 @@ export default function AdViewer({
       const remaining = Math.max(0, totalDuration - elapsed)
       setTimeLeft(remaining)
       
-      // Update current ad number
       const adDuration = totalDuration / adCount
       const newAd = Math.min(Math.floor(elapsed / adDuration) + 1, adCount)
       if (newAd !== currentAd) {
@@ -71,7 +70,7 @@ export default function AdViewer({
   }, [totalDuration, adCount])
 
   const handleClose = () => {
-    console.log('🔴 Close button clicked, canClose:', canClose, 'isComplete:', isComplete)
+    console.log('🔴 Close button clicked, canClose:', canClose)
     
     if (!canClose) {
       setShowWarning(true)
@@ -96,7 +95,8 @@ export default function AdViewer({
   const progress = Math.min(((totalDuration - timeLeft) / totalDuration) * 100, 100)
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
+    // FIX: Full screen overlay with highest z-index
+    <div className="fixed inset-0 z-[99999] bg-black flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-black/90 border-b border-gray-800">
         <div className="flex items-center gap-3">
@@ -115,16 +115,15 @@ export default function AdViewer({
               : 'bg-gray-800/50 text-gray-600 cursor-not-allowed opacity-50'
           }`}
           disabled={!canClose}
-          title={canClose ? 'Close and claim reward' : 'Watch all ads to close'}
         >
           <FaTimes className="text-lg" />
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {/* Ad Content */}
-        <div className="w-full max-w-2xl mx-auto text-center">
+      {/* Main Content - Full screen ad container */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
+        {/* Ad Content - Takes full available space */}
+        <div className="w-full max-w-4xl mx-auto text-center flex-1 flex items-center justify-center">
           {isComplete ? (
             <div className="animate-bounce">
               <div className="text-7xl mb-4">🎉</div>
@@ -136,18 +135,20 @@ export default function AdViewer({
             </div>
           ) : (
             <>
-              <div className="text-6xl mb-4">📺</div>
-              <h2 className="text-2xl font-bold text-white mb-2">Ad {currentAd} of {adCount}</h2>
-              <p className="text-gray-400 text-sm mb-6">Watch for {Math.ceil(timeLeft)} more seconds...</p>
-              
-              {/* Ad Container */}
-              <div className="w-full bg-gray-800/50 rounded-xl p-4 min-h-[200px] flex items-center justify-center border border-gray-700">
-                <div id="container-478289f3c17549c6c042b9e58c05b749" className="w-full">
-                  <script 
-                    async 
-                    data-cfasync="false" 
-                    src="https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js"
-                  />
+              <div className="flex flex-col items-center w-full">
+                <div className="text-6xl mb-4">📺</div>
+                <h2 className="text-2xl font-bold text-white mb-2">Ad {currentAd} of {adCount}</h2>
+                <p className="text-gray-400 text-sm mb-6">Watch for {Math.ceil(timeLeft)} more seconds...</p>
+                
+                {/* Ad Container - Full width */}
+                <div className="w-full bg-gray-800/50 rounded-xl p-4 min-h-[300px] flex items-center justify-center border border-gray-700">
+                  <div id="container-478289f3c17549c6c042b9e58c05b749" className="w-full">
+                    <script 
+                      async 
+                      data-cfasync="false" 
+                      src="https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js"
+                    />
+                  </div>
                 </div>
               </div>
             </>
@@ -188,7 +189,7 @@ export default function AdViewer({
 
         {/* Progress Bar */}
         <div className="absolute bottom-0 left-0 right-0 bg-black/80 border-t border-gray-800 p-3">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-500 min-w-[36px]">{Math.round(progress)}%</span>
               <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -221,7 +222,7 @@ export default function AdViewer({
 
       {/* Warning Popup */}
       {showWarning && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-red-500/95 rounded-xl px-6 py-4 max-w-sm text-center shadow-2xl">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[99999] bg-red-500/95 rounded-xl px-6 py-4 max-w-sm text-center shadow-2xl">
           <p className="text-white font-medium">⏳ Please watch the full ad to earn rewards!</p>
         </div>
       )}
