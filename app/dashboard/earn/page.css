@@ -1,7 +1,5 @@
-/* app/dashboard/earn/page.css */
-
 /* ============================================
-   EARN PAGE STYLES
+   EARN PAGE - PREMIUM DARK THEME
    ============================================ */
 
 /* --------------------------------------------
@@ -12,41 +10,59 @@
   max-width: 56rem;
   margin: 0 auto;
   min-height: 100vh;
+  position: relative;
 }
 
 /* --------------------------------------------
    2. HEADER
    -------------------------------------------- */
 .earn-header {
-  background: linear-gradient(135deg, 
-    rgba(99, 102, 241, 0.15) 0%, 
-    rgba(139, 92, 246, 0.15) 50%,
-    rgba(99, 102, 241, 0.05) 100%
-  );
-  border-radius: 1rem;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  backdrop-filter: blur(10px);
   position: relative;
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.12) 0%, 
+    rgba(139, 92, 246, 0.08) 50%,
+    rgba(168, 85, 247, 0.04) 100%
+  );
+  border-radius: 1.25rem;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   overflow: hidden;
 }
 
 .earn-header::before {
   content: '';
   position: absolute;
-  top: -50%;
-  right: -50%;
-  width: 100%;
+  top: -60%;
+  right: -30%;
+  width: 80%;
+  height: 120%;
+  background: radial-gradient(circle, 
+    rgba(99, 102, 241, 0.08) 0%, 
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.earn-header::after {
+  content: '';
+  position: absolute;
+  bottom: -40%;
+  left: -20%;
+  width: 60%;
   height: 100%;
   background: radial-gradient(circle, 
-    rgba(99, 102, 241, 0.05) 0%, 
-    transparent 70%
+    rgba(168, 85, 247, 0.06) 0%, 
+    transparent 60%
   );
   pointer-events: none;
 }
 
 .earn-header-top {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -55,15 +71,17 @@
 }
 
 .earn-header-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.625rem;
+  font-weight: 800;
   color: #ffffff;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.375rem;
+  letter-spacing: -0.02em;
 }
 
 .earn-header-subtitle {
   color: #9ca3af;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 400;
 }
 
 .earn-header-badges {
@@ -73,15 +91,20 @@
 }
 
 .earn-premium-badge {
+  position: relative;
+  z-index: 1;
   margin-top: 0.75rem;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(234, 179, 8, 0.2);
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(251, 146, 60, 0.1));
   color: #fbbf24;
-  padding: 0.25rem 0.75rem;
+  padding: 0.375rem 0.875rem;
   border-radius: 9999px;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.1);
 }
 
 /* --------------------------------------------
@@ -90,26 +113,63 @@
 .earn-platform-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.375rem;
   font-size: 0.75rem;
-  background: rgba(31, 41, 55, 0.5);
-  padding: 0.25rem 0.75rem;
+  font-weight: 500;
+  background: rgba(17, 24, 39, 0.6);
+  padding: 0.375rem 0.875rem;
   border-radius: 9999px;
-  border: 1px solid rgba(55, 65, 81, 0.5);
-  transition: all 0.2s ease;
+  border: 1px solid rgba(55, 65, 81, 0.4);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
 .earn-platform-badge.available {
-  border-color: rgba(52, 211, 153, 0.3);
+  border-color: rgba(52, 211, 153, 0.25);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.earn-platform-badge.available:hover {
+  border-color: rgba(52, 211, 153, 0.5);
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.15);
 }
 
 .earn-platform-badge.unavailable {
-  border-color: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.25);
   opacity: 0.6;
 }
 
 /* --------------------------------------------
-   4. STATS CARDS
+   4. STATS ERROR BANNER
+   -------------------------------------------- */
+.stats-error-banner {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 0.875rem;
+  padding: 0.875rem 1rem;
+  margin: 0 0 1.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  backdrop-filter: blur(10px);
+}
+
+.stats-error-banner button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.stats-error-banner button:hover {
+  background: rgba(234, 179, 8, 0.15);
+  transform: rotate(180deg);
+}
+
+/* --------------------------------------------
+   5. STATS CARDS
    -------------------------------------------- */
 .earn-stats-grid {
   display: grid;
@@ -121,79 +181,180 @@
 @media (min-width: 768px) {
   .earn-stats-grid {
     grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
   }
 }
 
 .earn-stat-card {
-  background: rgba(31, 41, 55, 0.8);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  border: 1px solid rgba(55, 65, 81, 0.8);
-  transition: all 0.3s ease;
   position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
+.earn-stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  padding: 1px;
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.2), 
+    rgba(168, 85, 247, 0.1), 
+    transparent 60%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
 .earn-stat-card:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.earn-stat-card:hover::before {
+  opacity: 1;
 }
 
 .earn-stat-icon-accent {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgba(99, 102, 241, 0.12);
   color: #818cf8;
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  display: inline-block;
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.earn-stat-card:hover .earn-stat-icon-accent {
+  background: rgba(99, 102, 241, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
 }
 
 .earn-stat-icon-blue {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgba(59, 130, 246, 0.12);
   color: #60a5fa;
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  display: inline-block;
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.earn-stat-card:hover .earn-stat-icon-blue {
+  background: rgba(59, 130, 246, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
 }
 
 .earn-stat-icon-orange {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgba(249, 115, 22, 0.12);
   color: #fb923c;
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  display: inline-block;
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.earn-stat-card:hover .earn-stat-icon-orange {
+  background: rgba(249, 115, 22, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.2);
 }
 
 .earn-stat-icon-green {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgba(34, 197, 94, 0.12);
   color: #34d399;
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-  display: inline-block;
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.earn-stat-card:hover .earn-stat-icon-green {
+  background: rgba(34, 197, 94, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
 }
 
 .earn-stat-label {
-  color: #9ca3af;
-  font-size: 0.75rem;
+  color: #6b7280;
+  font-size: 0.6875rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .earn-stat-value {
   color: #ffffff;
   font-weight: 700;
-  font-size: 1.25rem;
-  margin-top: 0.25rem;
+  font-size: 1.375rem;
+  margin-top: 0.375rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --------------------------------------------
-   5. AD OPTION CARDS
+   6. SECTION TITLE
+   -------------------------------------------- */
+.earn-section-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.earn-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.3), transparent);
+  margin-left: 0.75rem;
+}
+
+/* --------------------------------------------
+   7. AD OPTION CARDS
    -------------------------------------------- */
 .earn-ad-option {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  background: rgba(31, 41, 55, 0.8);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  border: 1px solid rgba(55, 65, 81, 0.8);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
   width: 100%;
   position: relative;
@@ -201,58 +362,136 @@
   cursor: pointer;
 }
 
+.earn-ad-option::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  padding: 1px;
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.15), 
+    rgba(168, 85, 247, 0.08), 
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
 .earn-ad-option:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  transform: scale(1.02);
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(99, 102, 241, 0.15);
+}
+
+.earn-ad-option:hover::before {
+  opacity: 1;
 }
 
 .earn-ad-option:active {
-  transform: scale(0.98);
+  transform: translateY(0) scale(0.99);
 }
 
+/* Icon wrappers with gradients */
 .earn-icon-wrapper-blue {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.75rem;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-icon-wrapper-blue::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.15) 100%);
 }
 
 .earn-icon-wrapper-purple {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.75rem;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #8b5cf6;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-icon-wrapper-purple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.15) 100%);
 }
 
 .earn-icon-wrapper-orange {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.75rem;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #f97316;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  box-shadow: 0 8px 25px rgba(249, 115, 22, 0.3);
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-icon-wrapper-orange::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.15) 100%);
 }
 
 .earn-icon-wrapper-green {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.75rem;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #22c55e;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 8px 25px rgba(34, 197, 94, 0.3);
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-icon-wrapper-green::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.15) 100%);
+}
+
+.earn-ad-option:hover .earn-icon-wrapper-blue,
+.earn-ad-option:hover .earn-icon-wrapper-purple,
+.earn-ad-option:hover .earn-icon-wrapper-orange,
+.earn-ad-option:hover .earn-icon-wrapper-green {
+  transform: scale(1.08) rotate(-3deg);
 }
 
 .earn-icon-wrapper-blue svg,
@@ -260,7 +499,10 @@
 .earn-icon-wrapper-orange svg,
 .earn-icon-wrapper-green svg {
   color: #ffffff;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
 }
 
 .earn-ad-content {
@@ -273,31 +515,35 @@
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
   flex-wrap: wrap;
+  font-size: 1.0625rem;
 }
 
 .earn-ad-badge-best-value {
   font-size: 0.625rem;
-  padding: 0.125rem 0.5rem;
+  padding: 0.25rem 0.625rem;
   border-radius: 9999px;
-  font-weight: 500;
-  background: rgba(139, 92, 246, 0.2);
-  color: #a78bfa;
+  font-weight: 700;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.15));
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  letter-spacing: 0.03em;
 }
 
 .earn-ad-description {
   color: #9ca3af;
   font-size: 0.875rem;
-  margin-top: 0.25rem;
+  margin-top: 0.375rem;
+  line-height: 1.5;
 }
 
 .earn-ad-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 0.875rem;
+  margin-top: 0.625rem;
   font-size: 0.75rem;
 }
 
@@ -305,63 +551,99 @@
   color: #6b7280;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.375rem;
+  font-weight: 500;
 }
 
 .earn-ad-reward-estimate {
   color: #34d399;
-  font-weight: 500;
-}
-
-.earn-ad-platform-icons {
-  color: #60a5fa;
+  font-weight: 700;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  font-size: 0.8125rem;
 }
 
 .earn-ad-action-button {
   flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  background: rgba(99, 102, 241, 0.15);
+  width: 3rem;
+  height: 3rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
   border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
 .earn-ad-option:hover .earn-ad-action-button {
-  background: rgba(99, 102, 241, 0.3);
-  transform: scale(1.1);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.2));
+  transform: scale(1.15);
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 .earn-ad-action-button svg {
   color: #818cf8;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+.earn-ad-option:hover .earn-ad-action-button svg {
+  color: #a5b4fc;
+  transform: translateX(1px);
 }
 
 /* --------------------------------------------
-   6. RECENT ACTIVITY
+   8. RECENT ACTIVITY
    -------------------------------------------- */
 .earn-recent-activity {
-  background: rgba(31, 41, 55, 0.8);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  border: 1px solid rgba(55, 65, 81, 0.8);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.earn-recent-activity::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  padding: 1px;
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.1), 
+    transparent 60%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .earn-recent-activity-title {
   font-weight: 700;
   color: #ffffff;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 1rem;
+}
+
+.earn-recent-activity-title svg {
+  color: #818cf8;
 }
 
 .earn-activity-list {
-  max-height: 12rem;
+  max-height: 14rem;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(55, 65, 81, 0.5) transparent;
+  scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
 }
 
 .earn-activity-list::-webkit-scrollbar {
@@ -373,7 +655,7 @@
 }
 
 .earn-activity-list::-webkit-scrollbar-thumb {
-  background: rgba(55, 65, 81, 0.5);
+  background: rgba(99, 102, 241, 0.3);
   border-radius: 9999px;
 }
 
@@ -381,9 +663,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0;
+  padding: 0.75rem 0;
   font-size: 0.875rem;
-  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
+}
+
+.earn-activity-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+  margin: 0 -0.75rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  border-radius: 0.5rem;
+  border-bottom-color: transparent;
 }
 
 .earn-activity-item:last-child {
@@ -391,130 +683,203 @@
 }
 
 .earn-activity-time {
-  color: #9ca3af;
+  color: #6b7280;
   font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .earn-activity-tier {
-  font-size: 0.75rem;
-  background: rgba(55, 65, 81, 0.5);
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-}
-
-.earn-activity-platform {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(99, 102, 241, 0.1);
+  color: #a5b4fc;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
 }
 
 .earn-activity-reward {
   color: #34d399;
-  font-weight: 500;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --------------------------------------------
-   7. PREMIUM BANNER
+   9. PREMIUM BANNER
    -------------------------------------------- */
 .earn-premium-banner {
   margin-top: 1.5rem;
+  position: relative;
   background: linear-gradient(135deg, 
-    rgba(234, 179, 8, 0.15) 0%, 
-    rgba(251, 146, 60, 0.15) 100%
+    rgba(234, 179, 8, 0.1) 0%, 
+    rgba(251, 146, 60, 0.08) 50%,
+    rgba(236, 72, 153, 0.05) 100%
   );
-  border-radius: 0.75rem;
-  padding: 1rem;
-  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(234, 179, 8, 0.15);
+  overflow: hidden;
+}
+
+.earn-premium-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 60%;
+  height: 150%;
+  background: radial-gradient(circle, 
+    rgba(234, 179, 8, 0.08) 0%, 
+    transparent 60%
+  );
+  pointer-events: none;
 }
 
 .earn-premium-banner-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .earn-premium-banner-title {
-  font-weight: 700;
+  font-weight: 800;
   color: #ffffff;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 1.0625rem;
 }
 
 .earn-star {
   color: #fbbf24;
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.4));
 }
 
 .earn-premium-banner-description {
   color: #9ca3af;
   font-size: 0.875rem;
+  margin-top: 0.25rem;
 }
 
 .earn-upgrade-btn {
-  padding: 0.5rem 1.5rem;
-  background: #fbbf24;
+  padding: 0.625rem 1.75rem;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
   color: #000000;
   font-weight: 700;
   font-size: 0.875rem;
-  border-radius: 0.5rem;
-  transition: all 0.3s ease;
+  border-radius: 0.625rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+}
+
+.earn-upgrade-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2) 100%);
 }
 
 .earn-upgrade-btn:hover {
-  background: #f59e0b;
-  transform: scale(1.05);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4);
+}
+
+.earn-upgrade-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 /* --------------------------------------------
-   8. SECTION TITLE
+   10. LOADING & EMPTY STATES
    -------------------------------------------- */
-.earn-section-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 1rem;
+.earn-loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.earn-loading-inner {
+  text-align: center;
+}
+
+.earn-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid rgba(99, 102, 241, 0.15);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: earn-spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes earn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.earn-loading-text {
+  color: #6b7280;
+  margin-top: 1rem;
+  font-size: 0.9375rem;
 }
 
 /* --------------------------------------------
-   9. RESPONSIVE ADJUSTMENTS
+   11. RESPONSIVE
    -------------------------------------------- */
 @media (max-width: 640px) {
+  .earn-container {
+    padding: 0.875rem;
+  }
+  
   .earn-header {
-    padding: 1rem;
+    padding: 1.25rem;
+    border-radius: 1rem;
   }
   
   .earn-header-title {
-    font-size: 1.25rem;
+    font-size: 1.375rem;
   }
   
   .earn-stat-value {
-    font-size: 1rem;
+    font-size: 1.125rem;
   }
   
   .earn-ad-option {
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 1rem;
+    padding: 1rem;
   }
   
   .earn-icon-wrapper-blue,
   .earn-icon-wrapper-purple,
   .earn-icon-wrapper-orange,
   .earn-icon-wrapper-green {
-    width: 3rem;
-    height: 3rem;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 0.875rem;
   }
   
   .earn-icon-wrapper-blue svg,
   .earn-icon-wrapper-purple svg,
   .earn-icon-wrapper-orange svg,
   .earn-icon-wrapper-green svg {
-    font-size: 1rem;
+    font-size: 1.25rem;
   }
   
   .earn-ad-meta {
-    gap: 0.5rem;
+    gap: 0.625rem;
   }
   
   .earn-premium-banner-content {
@@ -527,33 +892,53 @@
     width: 100%;
     text-align: center;
   }
+  
+  .earn-stats-grid {
+    gap: 0.75rem;
+  }
+  
+  .earn-stat-card {
+    padding: 1rem;
+  }
 }
 
 @media (max-width: 480px) {
   .earn-stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+    gap: 0.625rem;
   }
   
   .earn-stat-card {
-    padding: 0.75rem;
+    padding: 0.875rem;
+  }
+  
+  .earn-stat-icon-accent,
+  .earn-stat-icon-blue,
+  .earn-stat-icon-orange,
+  .earn-stat-icon-green {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.875rem;
+  }
+  
+  .earn-ad-title {
+    font-size: 0.9375rem;
+  }
+  
+  .earn-section-title {
+    font-size: 1rem;
   }
 }
 
 /* --------------------------------------------
-   10. LOADING SPINNER UTILITY
+   12. REDUCED MOTION
    -------------------------------------------- */
-.earn-spinner {
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 4px solid rgba(99, 102, 241, 0.2);
-  border-top-color: #818cf8;
-  border-radius: 50%;
-  animation: earn-spin 0.8s linear infinite;
-}
-
-@keyframes earn-spin {
-  to {
-    transform: rotate(360deg);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
