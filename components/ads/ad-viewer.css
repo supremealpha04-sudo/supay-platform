@@ -1,12 +1,5 @@
 /* components/ads/ad-viewer.css */
 
-/* ============================================
-   AD VIEWER STYLES - Full Screen
-   ============================================ */
-
-/* --------------------------------------------
-   1. OVERLAY
-   -------------------------------------------- */
 .ad-viewer-overlay {
   position: fixed;
   inset: 0;
@@ -16,9 +9,6 @@
   flex-direction: column;
 }
 
-/* --------------------------------------------
-   2. HEADER
-   -------------------------------------------- */
 .ad-viewer-header {
   background: rgba(0, 0, 0, 0.9);
   border-bottom: 1px solid rgba(55, 65, 81, 0.5);
@@ -29,9 +19,6 @@
   flex-shrink: 0;
 }
 
-/* --------------------------------------------
-   3. MAIN CONTENT
-   -------------------------------------------- */
 .ad-viewer-content {
   flex: 1;
   display: flex;
@@ -44,9 +31,6 @@
   position: relative;
 }
 
-/* --------------------------------------------
-   4. AD CONTAINER
-   -------------------------------------------- */
 .ad-viewer-container {
   width: 100%;
   max-width: 56rem;
@@ -101,86 +85,6 @@
   }
 }
 
-/* Hide extra ad containers */
-.ad-viewer-container [id*="container-"]:not(:first-child) {
-  display: none !important;
-}
-
-.adsterra-ad-wrapper > div:not(:first-child) {
-  display: none !important;
-}
-
-/* --------------------------------------------
-   5. COUNTDOWN CIRCLE
-   -------------------------------------------- */
-.ad-viewer-countdown {
-  position: absolute;
-  bottom: 5rem;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.ad-viewer-countdown-circle {
-  width: 3.5rem;
-  height: 3.5rem;
-  position: relative;
-}
-
-@media (min-width: 768px) {
-  .ad-viewer-countdown-circle {
-    width: 4rem;
-    height: 4rem;
-  }
-}
-
-.ad-viewer-countdown-circle svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.ad-viewer-countdown-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-/* --------------------------------------------
-   6. PROGRESS BAR
-   -------------------------------------------- */
-.ad-viewer-progress {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.8);
-  border-top: 1px solid rgba(55, 65, 81, 0.5);
-  padding: 0.75rem;
-}
-
-.ad-viewer-progress-bar {
-  width: 100%;
-  height: 0.375rem;
-  background: rgba(55, 65, 81, 0.5);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.ad-viewer-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #818cf8, #8b5cf6);
-  transition: width 1s ease;
-  border-radius: 9999px;
-}
-
-/* --------------------------------------------
-   7. FOOTER
-   -------------------------------------------- */
 .ad-viewer-footer {
   background: rgba(0, 0, 0, 0.9);
   border-top: 1px solid rgba(55, 65, 81, 0.5);
@@ -191,92 +95,20 @@
   flex-shrink: 0;
 }
 
-/* --------------------------------------------
-   8. WARNING POPUP
-   -------------------------------------------- */
-.ad-viewer-warning {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 99999;
-  background: rgba(239, 68, 68, 0.95);
-  border-radius: 0.75rem;
-  padding: 1rem 1.5rem;
-  max-width: 20rem;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: ad-warning-pulse 0.5s ease-in-out;
-}
-
-.ad-viewer-warning p {
-  color: #ffffff;
-  font-weight: 500;
-}
-
-/* --------------------------------------------
-   9. COMPLETE STATE
-   -------------------------------------------- */
 .ad-viewer-complete {
   text-align: center;
 }
 
-.ad-viewer-complete .icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-}
-
-.ad-viewer-complete .title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 0.5rem;
-}
-
-.ad-viewer-complete .subtitle {
-  color: #9ca3af;
-  font-size: 1.125rem;
-}
-
-.ad-viewer-complete .reward {
-  display: inline-block;
-  margin-top: 1rem;
-  background: rgba(52, 211, 153, 0.2);
-  color: #34d399;
-  padding: 0.5rem 1.5rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-/* --------------------------------------------
-   10. ANIMATIONS
-   -------------------------------------------- */
-@keyframes ad-warning-pulse {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.05);
-  }
-}
-
 @keyframes ad-bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
-.ad-bounce {
+.animate-bounce {
   animation: ad-bounce 1s ease-in-out infinite;
 }
 
-/* --------------------------------------------
-   11. RESPONSIVE
-   -------------------------------------------- */
+/* Responsive */
 @media (max-width: 640px) {
   .ad-viewer-content {
     padding: 0.75rem;
@@ -288,15 +120,6 @@
   
   .adsterra-ad-wrapper .adsterra-ad-container > * {
     max-height: 250px;
-  }
-  
-  .ad-viewer-countdown-circle {
-    width: 3rem;
-    height: 3rem;
-  }
-  
-  .ad-viewer-countdown-text {
-    font-size: 1rem;
   }
 }
 
