@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import { 
   FaPlay, FaClock, FaCoins, FaStopwatch, FaFire, 
   FaAd, FaHistory, FaStar, FaChartLine,
-  FaVideo, FaDatabase, FaRefresh, FaExclamationCircle
+  FaVideo, FaDatabase, FaSync, FaExclamationCircle
 } from 'react-icons/fa'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -327,7 +327,7 @@ export default function EarnPage() {
         <motion.div 
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="mx-4 mb-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 flex items-center gap-3"
+          className="stats-error-banner"
         >
           <FaExclamationCircle className="text-yellow-400 flex-shrink-0" />
           <div className="flex-1">
@@ -338,7 +338,7 @@ export default function EarnPage() {
             onClick={handleRetry}
             className="p-2 hover:bg-yellow-500/20 rounded-lg transition"
           >
-            <FaRefresh className="text-yellow-400 text-sm" />
+            <FaSync className="text-yellow-400 text-sm" />
           </button>
         </motion.div>
       )}
