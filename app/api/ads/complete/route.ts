@@ -1,10 +1,10 @@
 // app/api/ads/complete/route.ts
-import { createClient } from '@/lib/supabase/client'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient()
+    const supabase = createServerSupabaseClient()
     const body = await request.json()
     const { adTier, platform, fraudSignals, fraudScore } = body
     
@@ -88,11 +88,11 @@ export async function POST(request: Request) {
       console.error('❌ Error recording ad watch:', insertError)
       return NextResponse.json({ 
         success: false, 
-        message: 'Failed to record ad watch' 
+        message: 'Failed to record ad watch: ' + insertError.message
       }, { status: 500 })
     }
 
-    // Update user balance directly
+    // Update user balance
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ 
@@ -102,19 +102,8 @@ export async function POST(request: Request) {
 
     if (updateError) {
       console.error('❌ Error updating balance:', updateError)
-      
-      // Try RPC as fallback
-      try {
-        await supabase.rpc('increment_spy_balance', {
-          user_id: userId,
-          amount: reward
-        })
-        console.log('✅ Balance updated via RPC')
-      } catch (rpcError) {
-        console.error('❌ RPC also failed:', rpcError)
-      }
     } else {
-      console.log('✅ Balance updated directly')
+      console.log('✅ Balance updated')
     }
 
     // Update streak
@@ -159,7 +148,7 @@ function getDurationForTier(tier: string): number {
 }
 
 async function updateStreak(userId: string) {
-  const supabase = createClient()
+  const supabase = createServerSupabaseClient()
   
   const today = new Date().toISOString().split('T')[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
