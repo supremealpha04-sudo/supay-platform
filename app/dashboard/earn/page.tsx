@@ -12,6 +12,7 @@ import {
   FaVideo
 } from 'react-icons/fa'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 
 import './page.css'
@@ -65,6 +66,7 @@ const AD_OPTIONS: AdOption[] = [
 ]
 
 export default function EarnPage() {
+  const router = useRouter()
   const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
   
   const [showAd, setShowAd] = useState(false)
@@ -173,11 +175,25 @@ export default function EarnPage() {
       } else {
         console.error('❌ API error:', data.message)
         toast.error(data.message || 'Failed to process')
+        
+        // If unauthorized, redirect to login
+        if (data.message?.includes('Unauthorized') || data.message?.includes('log in')) {
+          router.push('/login?redirect=/dashboard/earn')
+        }
       }
     } catch (error) {
       console.error('❌ Error completing ad:', error)
       toast.error('Failed to process ad completion')
     }
+  }
+
+  // NEW: Handle auth required from AdViewer
+  const handleAuthRequired = () => {
+    console.log('🔴 Auth required, redirecting to login...')
+    toast.error('Please log in to claim your reward')
+    setTimeout(() => {
+      router.push('/login?redirect=/dashboard/earn')
+    }, 1000)
   }
 
   const handleCancelAd = () => {
@@ -203,7 +219,7 @@ export default function EarnPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-gray-400">Please log in to earn rewards</p>
-          <Link href="/login" className="text-accent-500 hover:text-accent-400 mt-2 inline-block">
+          <Link href="/login?redirect=/dashboard/earn" className="text-accent-500 hover:text-accent-400 mt-2 inline-block">
             Go to Login
           </Link>
         </div>
@@ -252,6 +268,7 @@ export default function EarnPage() {
             adCount={selectedAd.adCount}
             onComplete={handleAdComplete}
             onCancel={handleCancelAd}
+            onAuthRequired={handleAuthRequired}
           />
         )}
       </AnimatePresence>
