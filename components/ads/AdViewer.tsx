@@ -16,7 +16,7 @@ interface AdViewerProps {
   adCount: number
   onComplete: (reward: number, tier: string, fraudScore: any) => void
   onCancel: () => void
-  onAuthRequired?: () => void // NEW: Callback for auth required
+  onAuthRequired?: () => void
 }
 
 export default function AdViewer({
@@ -38,11 +38,11 @@ export default function AdViewer({
   const [canClose, setCanClose] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
   const [reward, setReward] = useState(0)
-  const [adLoaded, setAdLoaded] = useState(false)
   const [isAuthChecking, setIsAuthChecking] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const scriptLoadedRef = useRef(false)
+  const adContainerRef = useRef<HTMLDivElement | null>(null)
 
   // Calculate reward
   useEffect(() => {
@@ -51,40 +51,61 @@ export default function AdViewer({
     setReward(totalReward)
   }, [adTier, adCount])
 
-  // Load Adsterra ad
+  // Load Adsterra ad - FIXED: Cleaner implementation
   useEffect(() => {
-    if (containerRef.current && !scriptLoadedRef.current) {
-      scriptLoadedRef.current = true
-      
-      containerRef.current.innerHTML = ''
-      
-      const adContainer = document.createElement('div')
-      adContainer.className = 'adsterra-ad-wrapper w-full h-full flex items-center justify-center'
-      adContainer.id = `adsterra-wrapper-${currentAd}`
-      
-      const containerDiv = document.createElement('div')
-      containerDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
-      containerDiv.className = 'adsterra-ad-container w-full max-w-3xl mx-auto'
-      
-      adContainer.appendChild(containerDiv)
-      containerRef.current.appendChild(adContainer)
+    if (!containerRef.current || scriptLoadedRef.current) return
+    
+    scriptLoadedRef.current = true
+    const container = containerRef.current
+    
+    // Clear container
+    container.innerHTML = ''
+    
+    // Create wrapper
+    const wrapper = document.createElement('div')
+    wrapper.className = 'adsterra-ad-wrapper w-full h-full flex items-center justify-center'
+    wrapper.id = `adsterra-wrapper-${currentAd}`
+    
+    // Create container div for Adsterra
+    const adDiv = document.createElement('div')
+    adDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
+    adDiv.className = 'adsterra-ad-container w-full max-w-3xl mx-auto'
+    
+    wrapper.appendChild(adDiv)
+    container.appendChild(wrapper)
+    
+    // Store reference for cleanup
+    adContainerRef.current = wrapper
 
+    // Load script - only once
+    const scriptId = 'adsterra-script'
+    if (!document.getElementById(scriptId)) {
       const script = document.createElement('script')
+      script.id = scriptId
       script.async = true
       script.setAttribute('data-cfasync', 'false')
       script.src = 'https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js'
       
       script.onload = () => {
         console.log('✅ Adsterra ad loaded')
-        setAdLoaded(true)
       }
       
       script.onerror = () => {
         console.error('❌ Failed to load ad')
-        setAdLoaded(true)
       }
       
       document.head.appendChild(script)
+    }
+
+    // Cleanup function
+    return () => {
+      // Only cleanup if we're unmounting completely
+      if (container) {
+        const wrapper = container.querySelector('.adsterra-ad-wrapper')
+        if (wrapper) {
+          container.removeChild(wrapper)
+        }
+      }
     }
   }, [currentAd])
 
@@ -100,8 +121,9 @@ export default function AdViewer({
       
       const adDuration = totalDuration / adCount
       const newAd = Math.min(Math.floor(elapsed / adDuration) + 1, adCount)
-      if (newAd !== currentAd) {
+      if (newAd !== currentAd && newAd <= adCount) {
         setCurrentAd(newAd)
+        // Refresh ad container for new ad
         if (containerRef.current) {
           const wrapper = containerRef.current.querySelector('.adsterra-ad-wrapper')
           if (wrapper) {
@@ -135,18 +157,15 @@ export default function AdViewer({
       
       if (error || !session) {
         console.log('🔴 User not authenticated, redirecting to login...')
-        // Show message before redirect
         setShowWarning(true)
         setTimeout(() => {
           setShowWarning(false)
-          // Call the auth required callback
           if (onAuthRequired) {
             onAuthRequired()
           } else {
-            // Fallback: redirect to login
             router.push('/login?redirect=/dashboard/earn')
           }
-        }, 2000)
+        }, 1500)
         return
       }
       
@@ -163,7 +182,6 @@ export default function AdViewer({
       
     } catch (error) {
       console.error('❌ Auth check error:', error)
-      // Redirect to login on error
       if (onAuthRequired) {
         onAuthRequired()
       } else {
@@ -184,7 +202,6 @@ export default function AdViewer({
     }
     
     if (isComplete) {
-      // Check auth before claiming reward
       checkAuthAndClaim()
     } else {
       onCancel()
@@ -250,12 +267,7 @@ export default function AdViewer({
               ref={containerRef}
               className="ad-viewer-container w-full bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 min-h-[300px] md:min-h-[400px] flex items-center justify-center"
             >
-              {!adLoaded && (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
-                  <p className="text-gray-400 mt-4 text-sm">Loading ad...</p>
-                </div>
-              )}
+              {/* Ad will be injected here */}
             </div>
           </div>
         )}
@@ -325,7 +337,7 @@ export default function AdViewer({
         </span>
       </div>
 
-      {/* Warning Popup - Auth Required */}
+      {/* Warning Popup */}
       {showWarning && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[99999] bg-red-500/95 rounded-xl px-6 py-4 max-w-sm text-center shadow-2xl">
           <div className="flex items-center justify-center mb-2">
