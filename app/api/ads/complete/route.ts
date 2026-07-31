@@ -10,16 +10,27 @@ export async function POST(request: Request) {
     
     console.log('📝 Ad completion request:', { adTier, platform })
 
-    // Get user session
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    // Get session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError) {
+      console.error('❌ Session error:', sessionError)
       return NextResponse.json({ 
         success: false, 
-        message: 'Unauthorized' 
+        message: 'Session error: ' + sessionError.message 
+      }, { status: 401 })
+    }
+    
+    if (!session) {
+      console.error('❌ No session found')
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Please log in to earn rewards' 
       }, { status: 401 })
     }
     
     const userId = session.user.id
+    console.log('✅ User authenticated:', userId)
 
     // Get user profile
     const { data: profile, error: profileError } = await supabase
@@ -32,7 +43,7 @@ export async function POST(request: Request) {
       console.error('❌ Profile fetch error:', profileError)
       return NextResponse.json({ 
         success: false, 
-        message: 'User not found' 
+        message: 'User profile not found' 
       }, { status: 404 })
     }
 
@@ -56,7 +67,7 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    // Calculate reward based on ad tier and premium status
+    // Calculate reward
     const reward = calculateReward(adTier, profile.is_premium)
     console.log('💰 Calculated reward:', reward)
 
@@ -81,23 +92,29 @@ export async function POST(request: Request) {
       }, { status: 500 })
     }
 
-    // Update user balance using the increment function
-    const { error: updateError } = await supabase.rpc('increment_spy_balance', {
-      user_id: userId,
-      amount: reward
-    })
+    // Update user balance directly
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ 
+        spy_balance: (profile.spy_balance || 0) + reward 
+      })
+      .eq('id', userId)
 
     if (updateError) {
       console.error('❌ Error updating balance:', updateError)
-      // Try direct update as fallback
-      const { error: directUpdateError } = await supabase
-        .from('profiles')
-        .update({ spy_balance: supabase.rpc('increment_spy_balance', { user_id: userId, amount: reward }) })
-        .eq('id', userId)
       
-      if (directUpdateError) {
-        console.error('❌ Direct update error:', directUpdateError)
+      // Try RPC as fallback
+      try {
+        await supabase.rpc('increment_spy_balance', {
+          user_id: userId,
+          amount: reward
+        })
+        console.log('✅ Balance updated via RPC')
+      } catch (rpcError) {
+        console.error('❌ RPC also failed:', rpcError)
       }
+    } else {
+      console.log('✅ Balance updated directly')
     }
 
     // Update streak
@@ -108,48 +125,39 @@ export async function POST(request: Request) {
       reward: reward,
       platform: platform || 'adsterra',
       userTier: profile.is_premium ? 'premium' : 'standard',
-      message: `+${reward} SPY earned!`
+      message: `+${reward} SPY earned!`,
+      newBalance: (profile.spy_balance || 0) + reward
     })
 
   } catch (error) {
     console.error('❌ Complete API error:', error)
     return NextResponse.json({
       success: false,
-      message: 'Failed to process ad completion'
+      message: error instanceof Error ? error.message : 'Failed to process ad completion'
     }, { status: 500 })
   }
 }
 
-/**
- * Calculate reward based on ad tier and premium status
- */
 function calculateReward(tier: string, isPremium: boolean): number {
   const baseRates: Record<string, number> = {
-    'display': 0.45, // 3 ads × 0.15
-    'video': 1.00    // 2 ads × 0.50
+    'display': 0.45,
+    'video': 1.00
   }
   
   const baseRate = baseRates[tier] || 0.10
   const premiumMultiplier = isPremium ? 2.0 : 1.0
   
-  // Round to 2 decimal places
   return Math.round((baseRate * premiumMultiplier) * 100) / 100
 }
 
-/**
- * Get duration for ad tier
- */
 function getDurationForTier(tier: string): number {
   const durations: Record<string, number> = {
-    'display': 75,  // 3 ads × 25s
-    'video': 60     // 2 ads × 30s
+    'display': 75,
+    'video': 60
   }
   return durations[tier] || 10
 }
 
-/**
- * Update user streak
- */
 async function updateStreak(userId: string) {
   const supabase = createClient()
   
@@ -157,7 +165,6 @@ async function updateStreak(userId: string) {
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
   
   try {
-    // Check if user watched today
     const { data: todayWatch } = await supabase
       .from('ad_watches')
       .select('id')
@@ -166,7 +173,6 @@ async function updateStreak(userId: string) {
       .limit(1)
     
     if (todayWatch && todayWatch.length > 0) {
-      // Check if watched yesterday
       const { data: yesterdayWatch } = await supabase
         .from('ad_watches')
         .select('id')
@@ -176,11 +182,8 @@ async function updateStreak(userId: string) {
         .limit(1)
       
       if (yesterdayWatch && yesterdayWatch.length > 0) {
-        // Streak continues - increment
-        const { error } = await supabase.rpc('increment_streak', { user_id: userId })
-        if (error) console.error('Streak increment error:', error)
+        await supabase.rpc('increment_streak', { user_id: userId })
       } else {
-        // Check if streak is 0, then set to 1
         const { data: profile } = await supabase
           .from('profiles')
           .select('daily_bonus_streak')
@@ -188,11 +191,10 @@ async function updateStreak(userId: string) {
           .single()
         
         if (profile?.daily_bonus_streak === 0 || profile?.daily_bonus_streak === null) {
-          const { error } = await supabase
+          await supabase
             .from('profiles')
             .update({ daily_bonus_streak: 1 })
             .eq('id', userId)
-          if (error) console.error('Streak set error:', error)
         }
       }
     }
