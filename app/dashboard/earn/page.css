@@ -146,18 +146,21 @@
   margin-bottom: 0.5rem;
   display: inline-block;
 }
+
 .earn-stat-icon-blue {
   color: #60a5fa;
   font-size: 1.25rem;
   margin-bottom: 0.5rem;
   display: inline-block;
 }
+
 .earn-stat-icon-orange {
   color: #fb923c;
   font-size: 1.25rem;
   margin-bottom: 0.5rem;
   display: inline-block;
 }
+
 .earn-stat-icon-green {
   color: #34d399;
   font-size: 1.25rem;
@@ -180,91 +183,7 @@
 }
 
 /* --------------------------------------------
-   5. EARNINGS BREAKDOWN
-   -------------------------------------------- */
-.earn-earnings-breakdown {
-  background: rgba(31, 41, 55, 0.5);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  border: 1px solid rgba(55, 65, 81, 0.5);
-}
-
-.earn-earnings-breakdown-title {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #9ca3af;
-  margin-bottom: 0.5rem;
-}
-
-.earn-earnings-breakdown-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  background: rgba(55, 65, 81, 0.5);
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  margin-right: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-/* --------------------------------------------
-   6. FILTER TABS
-   -------------------------------------------- */
-.earn-filter-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(55, 65, 81, 0.5) transparent;
-}
-
-.earn-filter-tabs::-webkit-scrollbar {
-  height: 4px;
-}
-
-.earn-filter-tabs::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.earn-filter-tabs::-webkit-scrollbar-thumb {
-  background: rgba(55, 65, 81, 0.5);
-  border-radius: 9999px;
-}
-
-.earn-filter-tab {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  background: rgba(31, 41, 55, 0.8);
-  color: #9ca3af;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.earn-filter-tab:hover {
-  background: rgba(55, 65, 81, 0.8);
-  color: #e5e7eb;
-}
-
-.earn-filter-tab.active {
-  background: #818cf8;
-  color: #ffffff;
-  border-color: #818cf8;
-}
-
-.earn-filter-tab.active:hover {
-  background: #6366f1;
-}
-
-/* --------------------------------------------
-   7. AD OPTION CARDS
+   5. AD OPTION CARDS
    -------------------------------------------- */
 .earn-ad-option {
   display: flex;
@@ -279,21 +198,17 @@
   width: 100%;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
 }
 
-.earn-ad-option:hover:not(.disabled) {
+.earn-ad-option:hover {
   border-color: rgba(99, 102, 241, 0.4);
   transform: scale(1.02);
   box-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
 }
 
-.earn-ad-option:active:not(.disabled) {
+.earn-ad-option:active {
   transform: scale(0.98);
-}
-
-.earn-ad-option.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .earn-icon-wrapper-blue {
@@ -306,6 +221,7 @@
   flex-shrink: 0;
   background: #3b82f6;
 }
+
 .earn-icon-wrapper-purple {
   width: 3.5rem;
   height: 3.5rem;
@@ -316,6 +232,7 @@
   flex-shrink: 0;
   background: #8b5cf6;
 }
+
 .earn-icon-wrapper-orange {
   width: 3.5rem;
   height: 3.5rem;
@@ -326,6 +243,7 @@
   flex-shrink: 0;
   background: #f97316;
 }
+
 .earn-icon-wrapper-green {
   width: 3.5rem;
   height: 3.5rem;
@@ -411,7 +329,7 @@
   transition: all 0.3s ease;
 }
 
-.earn-ad-option:hover:not(.disabled) .earn-ad-action-button {
+.earn-ad-option:hover .earn-ad-action-button {
   background: rgba(99, 102, 241, 0.3);
   transform: scale(1.1);
 }
@@ -420,16 +338,8 @@
   color: #818cf8;
 }
 
-.earn-ad-no-inventory {
-  font-size: 0.625rem;
-  color: #6b7280;
-  padding: 0.25rem 0.75rem;
-  background: rgba(55, 65, 81, 0.5);
-  border-radius: 9999px;
-}
-
 /* --------------------------------------------
-   8. RECENT ACTIVITY
+   6. RECENT ACTIVITY
    -------------------------------------------- */
 .earn-recent-activity {
   background: rgba(31, 41, 55, 0.8);
@@ -502,7 +412,7 @@
 }
 
 /* --------------------------------------------
-   9. PREMIUM BANNER
+   7. PREMIUM BANNER
    -------------------------------------------- */
 .earn-premium-banner {
   margin-top: 1.5rem;
@@ -558,125 +468,7 @@
 }
 
 /* --------------------------------------------
-   10. LOADING & ERROR STATES
-   -------------------------------------------- */
-.earn-loading-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 16rem;
-}
-
-.earn-loading-content {
-  text-align: center;
-}
-
-.earn-loading-spinner {
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 4px solid rgba(99, 102, 241, 0.2);
-  border-top-color: #818cf8;
-  border-radius: 50%;
-  animation: earn-spin 0.8s linear infinite;
-  margin: 0 auto;
-}
-
-.earn-loading-text {
-  color: #9ca3af;
-  margin-top: 1rem;
-}
-
-.earn-login-prompt {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 16rem;
-}
-
-.earn-login-content {
-  text-align: center;
-}
-
-.earn-login-text {
-  color: #9ca3af;
-}
-
-.earn-login-link {
-  color: #818cf8;
-  margin-top: 0.5rem;
-  display: inline-block;
-}
-
-.earn-login-link:hover {
-  color: #a5b4fc;
-}
-
-.earn-error-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 16rem;
-}
-
-.earn-error-box {
-  text-align: center;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  max-width: 28rem;
-}
-
-.earn-error-icon {
-  width: 3rem;
-  height: 3rem;
-  color: #ef4444;
-  margin: 0 auto 0.75rem;
-}
-
-.earn-error-title {
-  color: #ef4444;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.earn-error-message {
-  color: #9ca3af;
-  font-size: 0.875rem;
-}
-
-.earn-retry-btn {
-  margin-top: 0.75rem;
-  padding: 0.5rem 1.5rem;
-  background: #818cf8;
-  color: #ffffff;
-  font-size: 0.875rem;
-  border-radius: 0.5rem;
-  border: none;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.earn-retry-btn:hover {
-  background: #6366f1;
-}
-
-/* --------------------------------------------
-   11. LOADING OVERLAY
-   -------------------------------------------- */
-.earn-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
-}
-
-/* --------------------------------------------
-   12. SECTION TITLE
+   8. SECTION TITLE
    -------------------------------------------- */
 .earn-section-title {
   font-size: 1.125rem;
@@ -686,16 +478,7 @@
 }
 
 /* --------------------------------------------
-   13. ANIMATIONS
-   -------------------------------------------- */
-@keyframes earn-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* --------------------------------------------
-   14. RESPONSIVE ADJUSTMENTS
+   9. RESPONSIVE ADJUSTMENTS
    -------------------------------------------- */
 @media (max-width: 640px) {
   .earn-header {
@@ -755,13 +538,22 @@
   .earn-stat-card {
     padding: 0.75rem;
   }
-  
-  .earn-filter-tabs {
-    gap: 0.375rem;
-  }
-  
-  .earn-filter-tab {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.75rem;
+}
+
+/* --------------------------------------------
+   10. LOADING SPINNER UTILITY
+   -------------------------------------------- */
+.earn-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: earn-spin 0.8s linear infinite;
+}
+
+@keyframes earn-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
