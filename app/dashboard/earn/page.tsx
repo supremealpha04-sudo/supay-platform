@@ -203,6 +203,7 @@ export default function EarnPage() {
     setShowAd(true)
   }
 
+  // Resilient ad completion handler
   const handleAdComplete = async (reward: number, tier: string, fraudScore: any) => {
     setShowAd(false)
     setSelectedAd(null)
@@ -219,6 +220,15 @@ export default function EarnPage() {
         }),
       })
 
+      // Handle non-JSON responses
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        const text = await res.text()
+        console.error('Non-JSON response:', text)
+        toast.error('Server error. Please try again.')
+        return
+      }
+
       const data = await res.json()
       
       if (data.success) {
@@ -233,7 +243,7 @@ export default function EarnPage() {
       }
     } catch (error) {
       console.error('❌ Error completing ad:', error)
-      toast.error('Failed to process ad completion')
+      toast.error('Network error. Reward may still be processed.')
     }
   }
 
