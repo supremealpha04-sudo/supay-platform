@@ -34,13 +34,14 @@ interface RecentUser {
   created_at: string
 }
 
+// FIX: profiles is returned as an ARRAY from the join
 interface RecentActivity {
   id: string
   user_id: string
   type: string
   amount_spy: number
   created_at: string
-  profiles?: { username: string }
+  profiles?: { username: string }[]
 }
 
 export default function AdminPage() {
@@ -143,6 +144,11 @@ export default function AdminPage() {
     u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // Helper to get username from joined array
+  const getUsername = (act: RecentActivity) => {
+    return act.profiles?.[0]?.username || 'Unknown'
+  }
 
   if (isLoading) {
     return (
@@ -358,7 +364,7 @@ export default function AdminPage() {
                 </div>
                 <div className="admin-activity-content">
                   <p className="admin-activity-title">
-                    <span className="admin-activity-user">{act.profiles?.username || 'Unknown'}</span>
+                    <span className="admin-activity-user">{getUsername(act)}</span>
                     {' '}{act.type.replace(/_/g, ' ')}
                   </p>
                   <p className="admin-activity-time">
