@@ -9,7 +9,7 @@ import {
   FaUsers, FaEye, FaCoins, FaWallet, FaSearch,
   FaUserShield, FaExclamationTriangle, FaCheck,
   FaTimes, FaArrowUp, FaArrowDown, FaClock,
-  FaFilter, FaDownload, FaRefresh
+  FaFilter, FaDownload, FaSync
 } from 'react-icons/fa'
 import './admin.css'
 
@@ -163,7 +163,7 @@ export default function AdminPage() {
         </div>
         <div className="admin-header-actions">
           <button onClick={fetchDashboardData} className="admin-btn-refresh">
-            <FaRefresh /> Refresh
+            <FaSync /> Refresh
           </button>
         </div>
       </div>
