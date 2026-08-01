@@ -1,314 +1,378 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
-import { Users, Wallet, ArrowUpDown, Gem, TrendingUp, Clock, AlertTriangle, ChevronRight, ClipboardList, Activity, UserCheck } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import toast from 'react-hot-toast'
+import {
+  FaUsers, FaEye, FaCoins, FaWallet, FaSearch,
+  FaUserShield, FaExclamationTriangle, FaCheck,
+  FaTimes, FaArrowUp, FaArrowDown, FaClock,
+  FaFilter, FaDownload, FaRefresh
+} from 'react-icons/fa'
+import './admin.css'
 
 const supabase = createClient()
 
 interface DashboardStats {
   totalUsers: number
-  activeUsers: number
-  premiumUsers: number
-  totalDeposits: number
-  totalWithdrawals: number
+  totalAdsWatched: number
+  totalSpyDistributed: number
   pendingWithdrawals: number
-  totalNFTsMinted: number
-  totalTasksCompleted: number
-  fraudAlerts: number
-  dailyRevenue: number
-  monthlyRevenue: number
-  totalSPYDISTRIBUTED: number
+  todayNewUsers: number
+  todayAdsWatched: number
+}
+
+interface RecentUser {
+  id: string
+  username: string
+  email: string
+  spy_balance: number
+  is_premium: boolean
+  is_banned: boolean
+  created_at: string
 }
 
 interface RecentActivity {
   id: string
+  user_id: string
   type: string
-  user: string
-  amount: number
-  status: string
+  amount_spy: number
   created_at: string
+  profiles?: { username: string }
 }
 
-export default function AdminDashboard() {
+export default function AdminPage() {
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    activeUsers: 0,
-    premiumUsers: 0,
-    totalDeposits: 0,
-    totalWithdrawals: 0,
-    pendingWithdrawals: 0,
-    totalNFTsMinted: 0,
-    totalTasksCompleted: 0,
-    fraudAlerts: 0,
-    dailyRevenue: 0,
-    monthlyRevenue: 0,
-    totalSPYDISTRIBUTED: 0
+    totalUsers: 0, totalAdsWatched: 0,
+    totalSpyDistributed: 0, pendingWithdrawals: 0,
+    todayNewUsers: 0, todayAdsWatched: 0
   })
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [users, setUsers] = useState<RecentUser[]>([])
+  const [activities, setActivities] = useState<RecentActivity[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity'>('overview')
 
   useEffect(() => {
-    fetchStats()
-    fetchRecentActivity()
+    fetchDashboardData()
   }, [])
 
-  async function fetchStats() {
+  const fetchDashboardData = async () => {
+    setIsLoading(true)
     try {
-      // Total users
-      const { count: totalUsers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-
-      // Active users (last 7 days)
-      const weekAgo = new Date()
-      weekAgo.setDate(weekAgo.getDate() - 7)
-      const { count: activeUsers } = await supabase
-        .from('user_activity_logs')
-        .select('user_id', { count: 'exact', head: true })
-        .gte('created_at', weekAgo.toISOString())
-        .limit(1)
-
-      // Premium users
-      const { count: premiumUsers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_premium', true)
-
-      // Deposits
-      const { data: deposits } = await supabase
-        .from('deposits')
-        .select('amount_usd, status')
-      const totalDeposits = deposits?.reduce((sum, d) => sum + (d.status === 'completed' ? d.amount_usd : 0), 0) || 0
-
-      // Withdrawals
-      const { data: withdrawals } = await supabase
-        .from('withdrawals')
-        .select('amount_usd, status')
-      const totalWithdrawals = withdrawals?.reduce((sum, w) => sum + (w.status === 'completed' ? w.amount_usd : 0), 0) || 0
-      const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending').length || 0
-
-      // NFTs
-      const { count: totalNFTsMinted } = await supabase
-        .from('user_nfts')
-        .select('*', { count: 'exact', head: true })
-
-      // Tasks
-      const { data: tasks } = await supabase
-        .from('tasks')
-        .select('total_completions')
-      const totalTasksCompleted = tasks?.reduce((sum, t) => sum + (t.total_completions || 0), 0) || 0
-
-      // Fraud alerts
-      const { count: fraudAlerts } = await supabase
-        .from('fraud_alerts')
-        .select('*', { count: 'exact', head: true })
-        .eq('resolved', false)
-
-      // Daily revenue (today)
       const today = new Date().toISOString().split('T')[0]
-      const { data: todayDeposits } = await supabase
-        .from('deposits')
-        .select('amount_usd')
-        .eq('status', 'completed')
+
+      // Stats
+      const { count: totalUsers } = await supabase
+        .from('profiles').select('*', { count: 'exact', head: true })
+
+      const { count: totalAds } = await supabase
+        .from('ad_watches').select('*', { count: 'exact', head: true })
+
+      const { data: spyData } = await supabase
+        .from('ad_watches').select('reward_spy')
+
+      const totalSpy = spyData?.reduce((s, r) => s + (r.reward_spy || 0), 0) || 0
+
+      const { count: pendingWithdrawals } = await supabase
+        .from('withdrawals').select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+
+      const { count: todayUsers } = await supabase
+        .from('profiles').select('*', { count: 'exact', head: true })
         .gte('created_at', today)
-      const dailyRevenue = todayDeposits?.reduce((sum, d) => sum + d.amount_usd, 0) || 0
 
-      // Monthly revenue
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      const { data: monthDeposits } = await supabase
-        .from('deposits')
-        .select('amount_usd')
-        .eq('status', 'completed')
-        .gte('created_at', startOfMonth.toISOString())
-      const monthlyRevenue = monthDeposits?.reduce((sum, d) => sum + d.amount_usd, 0) || 0
-
-      // Total SPY distributed
-      const { data: transactions } = await supabase
-        .from('transactions')
-        .select('amount_spy')
-        .in('type', ['task_reward', 'ad_reward', 'referral_bonus', 'staking_reward'])
-      const totalSPYDISTRIBUTED = transactions?.reduce((sum, t) => sum + Math.abs(t.amount_spy), 0) || 0
+      const { count: todayAds } = await supabase
+        .from('ad_watches').select('*', { count: 'exact', head: true })
+        .gte('created_at', today)
 
       setStats({
         totalUsers: totalUsers || 0,
-        activeUsers: activeUsers || 0,
-        premiumUsers: premiumUsers || 0,
-        totalDeposits,
-        totalWithdrawals,
-        pendingWithdrawals,
-        totalNFTsMinted: totalNFTsMinted || 0,
-        totalTasksCompleted,
-        fraudAlerts: fraudAlerts || 0,
-        dailyRevenue,
-        monthlyRevenue,
-        totalSPYDISTRIBUTED
+        totalAdsWatched: totalAds || 0,
+        totalSpyDistributed: totalSpy,
+        pendingWithdrawals: pendingWithdrawals || 0,
+        todayNewUsers: todayUsers || 0,
+        todayAdsWatched: todayAds || 0
       })
-    } catch (error) {
-      console.error('Error fetching stats:', error)
+
+      // Recent users
+      const { data: recentUsers } = await supabase
+        .from('profiles')
+        .select('id, username, email, spy_balance, is_premium, is_banned, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      setUsers(recentUsers || [])
+
+      // Recent activity
+      const { data: recentActivity } = await supabase
+        .from('transactions')
+        .select('id, user_id, type, amount_spy, created_at, profiles(username)')
+        .order('created_at', { ascending: false })
+        .limit(15)
+
+      setActivities(recentActivity || [])
+
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load admin data')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  async function fetchRecentActivity() {
-    const { data: withdrawals } = await supabase
-      .from('withdrawals')
-      .select('id, amount_usd, status, created_at, profiles(username)')
-      .order('created_at', { ascending: false })
-      .limit(5)
+  const toggleBan = async (userId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_banned: !currentStatus })
+        .eq('id', userId)
 
-    const { data: deposits } = await supabase
-      .from('deposits')
-      .select('id, amount_usd, status, created_at, profiles(username)')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(5)
-
-    const activities: RecentActivity[] = [
-      ...(withdrawals?.map(w => ({
-        id: w.id,
-        type: 'withdrawal',
-       user: w.profiles?.[0]?.username || 'Unknown',
-        amount: w.amount_usd,
-        status: w.status,
-        created_at: w.created_at
-      })) || []),
-      ...(deposits?.map(d => ({
-        id: d.id,
-        type: 'deposit',
-        user: d.profiles?.[0]?.username || 'Unknown',
-        amount: d.amount_usd,
-        status: d.status,
-        created_at: d.created_at
-      })) || [])
-    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 10)
-
-    setRecentActivity(activities)
-    setIsLoading(false)
+      if (error) throw error
+      toast.success(`User ${currentStatus ? 'unbanned' : 'banned'}`)
+      fetchDashboardData()
+    } catch {
+      toast.error('Action failed')
+    }
   }
 
-  const statCards = [
-    { label: 'Total Users', value: stats.totalUsers.toLocaleString(), icon: Users, color: 'from-blue-500 to-cyan-500', change: '+12%' },
-    { label: 'Active Users (7d)', value: stats.activeUsers.toLocaleString(), icon: Activity, color: 'from-green-500 to-emerald-500', change: '+5%' },
-    { label: 'Premium Users', value: stats.premiumUsers.toLocaleString(), icon: UserCheck, color: 'from-purple-500 to-pink-500', change: `${((stats.premiumUsers / stats.totalUsers) * 100).toFixed(1)}%` },
-    { label: 'Total Deposits', value: `$${stats.totalDeposits.toLocaleString()}`, icon: Wallet, color: 'from-accent-500 to-orange-600', change: '+18%' },
-    { label: 'Total Withdrawn', value: `$${stats.totalWithdrawals.toLocaleString()}`, icon: ArrowUpDown, color: 'from-red-500 to-rose-600', change: '+7%' },
-    { label: 'Pending Withdrawals', value: stats.pendingWithdrawals.toString(), icon: Clock, color: 'from-yellow-500 to-amber-600', change: 'Needs Review' },
-    { label: 'NFTs Minted', value: stats.totalNFTsMinted.toLocaleString(), icon: Gem, color: 'from-indigo-500 to-purple-600', change: '+23%' },
-    { label: 'Tasks Completed', value: stats.totalTasksCompleted.toLocaleString(), icon: ClipboardList, color: 'from-teal-500 to-green-600', change: '+31%' },
-  ]
+  const filteredUsers = users.filter(u =>
+    u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="w-12 h-12 border-4 border-primary-500 border-t-accent-500 rounded-full animate-spin" />
+      <div className="admin-loading">
+        <div className="admin-spinner" />
+        <p>Loading admin dashboard...</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-container">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="admin-header">
         <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-          <p className="text-gray-400 mt-1">Overview of platform performance</p>
+          <h1 className="admin-header-title">Admin Dashboard</h1>
+          <p className="admin-header-subtitle">Manage your platform</p>
         </div>
-        <div className="flex gap-3">
-          <div className="glass rounded-xl px-4 py-2">
-            <p className="text-xs text-gray-400">Daily Revenue</p>
-            <p className="text-xl font-bold text-green-400">${stats.dailyRevenue.toLocaleString()}</p>
-          </div>
-          <div className="glass rounded-xl px-4 py-2">
-            <p className="text-xs text-gray-400">Monthly Revenue</p>
-            <p className="text-xl font-bold text-accent-500">${stats.monthlyRevenue.toLocaleString()}</p>
-          </div>
+        <div className="admin-header-actions">
+          <button onClick={fetchDashboardData} className="admin-btn-refresh">
+            <FaRefresh /> Refresh
+          </button>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, i) => {
-          const Icon = stat.icon
-          return (
-            <div key={i} className="glass rounded-xl p-4 border border-primary-500/20">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center`}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xs text-green-400">{stat.change}</span>
-              </div>
-              <p className="text-2xl font-bold text-white">{stat.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+      <div className="admin-stats-grid">
+        {[
+          { label: 'Total Users', value: stats.totalUsers, icon: FaUsers, color: 'blue', change: `+${stats.todayNewUsers} today` },
+          { label: 'Ads Watched', value: stats.totalAdsWatched, icon: FaEye, color: 'purple', change: `+${stats.todayAdsWatched} today` },
+          { label: 'SPY Distributed', value: `${stats.totalSpyDistributed.toFixed(2)}`, icon: FaCoins, color: 'green', change: 'All time' },
+          { label: 'Pending Withdrawals', value: stats.pendingWithdrawals, icon: FaWallet, color: 'orange', change: 'Needs action' },
+        ].map((s, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="admin-stat-card"
+          >
+            <div className={`admin-stat-icon admin-stat-icon-${s.color}`}>
+              <s.icon />
             </div>
-          )
-        })}
+            <div className="admin-stat-content">
+              <p className="admin-stat-label">{s.label}</p>
+              <p className="admin-stat-value">{s.value}</p>
+              <p className="admin-stat-change">{s.change}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Alert Banner */}
-      {stats.fraudAlerts > 0 && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-400" />
-            <div>
-              <p className="text-white font-medium">{stats.fraudAlerts} Fraud Alerts</p>
-              <p className="text-sm text-gray-400">Suspicious activity detected</p>
+      {/* Tabs */}
+      <div className="admin-tabs">
+        {[
+          { id: 'overview', label: 'Overview', icon: FaUserShield },
+          { id: 'users', label: 'Users', icon: FaUsers },
+          { id: 'activity', label: 'Activity', icon: FaClock },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`admin-tab ${activeTab === tab.id ? 'active' : ''}`}
+          >
+            <tab.icon /> {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="admin-sections">
+          {/* Quick Actions */}
+          <div className="admin-section">
+            <h3 className="admin-section-title">Quick Actions</h3>
+            <div className="admin-actions-grid">
+              <button className="admin-action-btn" onClick={() => router.push('/admin/users')}>
+                <FaUsers /> Manage Users
+              </button>
+              <button className="admin-action-btn" onClick={() => router.push('/admin/withdrawals')}>
+                <FaWallet /> Withdrawals
+              </button>
+              <button className="admin-action-btn" onClick={() => router.push('/admin/ads')}>
+                <FaEye /> Ad Analytics
+              </button>
+              <button className="admin-action-btn" onClick={() => router.push('/admin/settings')}>
+                <FaCheck /> System Settings
+              </button>
             </div>
           </div>
-          <button className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition">
-            Review Alerts
-          </button>
+
+          {/* Recent Users Preview */}
+          <div className="admin-section">
+            <div className="admin-section-header">
+              <h3 className="admin-section-title">Recent Users</h3>
+              <button onClick={() => setActiveTab('users')} className="admin-link">View All</button>
+            </div>
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Balance</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.slice(0, 5).map(user => (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="admin-user-cell">
+                          <div className="admin-user-avatar">{user.username?.[0]?.toUpperCase() || 'U'}</div>
+                          <div>
+                            <p className="admin-user-name">{user.username}</p>
+                            <p className="admin-user-email">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="admin-balance">{user.spy_balance?.toFixed(2)} SPY</td>
+                      <td>
+                        <span className={`admin-badge ${user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'}`}>
+                          {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
+                        </span>
+                      </td>
+                      <td className="admin-date">
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Recent Activity */}
-      <div className="glass rounded-xl p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Recent Activity</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-gray-400 border-b border-primary-500/20">
-              <tr>
-                <th className="text-left py-3 px-4">Type</th>
-                <th className="text-left py-3 px-4">User</th>
-                <th className="text-left py-3 px-4">Amount</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-left py-3 px-4">Time</th>
-                <th className="text-left py-3 px-4">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentActivity.map((activity) => (
-                <tr key={activity.id} className="border-b border-primary-500/10 hover:bg-white/5">
-                  <td className="py-3 px-4">
-                    <span className={`capitalize ${activity.type === 'withdrawal' ? 'text-red-400' : 'text-green-400'}`}>
-                      {activity.type}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-white">{activity.user}</td>
-                  <td className="py-3 px-4 text-white">${activity.amount.toLocaleString()}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      activity.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                      activity.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-red-500/20 text-red-400'
-                    }`}>
-                      {activity.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-400">{new Date(activity.created_at).toLocaleString()}</td>
-                  <td className="py-3 px-4">
-                    <button className="text-accent-500 hover:text-accent-400">
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </td>
+      {/* Users Tab */}
+      {activeTab === 'users' && (
+        <div className="admin-section">
+          <div className="admin-section-header">
+            <h3 className="admin-section-title">All Users</h3>
+            <div className="admin-search">
+              <FaSearch className="admin-search-icon" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="admin-search-input"
+              />
+            </div>
+          </div>
+          <div className="admin-table-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Balance</th>
+                  <th>Status</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredUsers.map(user => (
+                  <tr key={user.id}>
+                    <td>
+                      <div className="admin-user-cell">
+                        <div className="admin-user-avatar">{user.username?.[0]?.toUpperCase() || 'U'}</div>
+                        <div>
+                          <p className="admin-user-name">{user.username}</p>
+                          <p className="admin-user-email">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="admin-balance">{user.spy_balance?.toFixed(2)} SPY</td>
+                    <td>
+                      <span className={`admin-badge ${user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'}`}>
+                        {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
+                      </span>
+                    </td>
+                    <td className="admin-date">{new Date(user.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <button
+                        onClick={() => toggleBan(user.id, user.is_banned)}
+                        className={`admin-action-icon ${user.is_banned ? 'unban' : 'ban'}`}
+                        title={user.is_banned ? 'Unban user' : 'Ban user'}
+                      >
+                        {user.is_banned ? <FaCheck /> : <FaTimes />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Activity Tab */}
+      {activeTab === 'activity' && (
+        <div className="admin-section">
+          <h3 className="admin-section-title">Recent Activity</h3>
+          <div className="admin-activity-list">
+            {activities.map(act => (
+              <div key={act.id} className="admin-activity-item">
+                <div className="admin-activity-icon">
+                  {act.type === 'ad_watch' ? <FaEye /> :
+                   act.type === 'withdrawal' ? <FaArrowUp /> :
+                   act.type === 'deposit' ? <FaArrowDown /> :
+                   <FaCoins />}
+                </div>
+                <div className="admin-activity-content">
+                  <p className="admin-activity-title">
+                    <span className="admin-activity-user">{act.profiles?.username || 'Unknown'}</span>
+                    {' '}{act.type.replace(/_/g, ' ')}
+                  </p>
+                  <p className="admin-activity-time">
+                    {new Date(act.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <span className={`admin-activity-amount ${act.amount_spy >= 0 ? 'positive' : 'negative'}`}>
+                  {act.amount_spy >= 0 ? '+' : ''}{act.amount_spy} SPY
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
