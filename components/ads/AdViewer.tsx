@@ -38,6 +38,8 @@ export default function AdViewer({
   const [showWarning, setShowWarning] = useState(false)
   const [reward, setReward] = useState(0)
   const [isAuthChecking, setIsAuthChecking] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [authVerifyAttempts, setAuthVerifyAttempts] = useState(0)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const scriptLoadedRef = useRef(false)
@@ -141,31 +143,34 @@ export default function AdViewer({
     }
   }, [totalDuration, adCount])
 
-  // Check auth before claiming reward
+  // Check auth before claiming reward — with timeout & retry
   const checkAuthAndClaim = async () => {
     setIsAuthChecking(true)
+    setAuthError(null)
     
     try {
-      console.log('🔍 Checking auth for userId:', userId)
+      // ⏱️ TIMEOUT: If Supabase hangs, abort after 8 seconds
+      const sessionPromise = supabase.auth.getSession()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth verification timed out')), 8000)
+      )
       
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
+      const { data: { session }, error } = await Promise.race([
+        sessionPromise,
+        timeoutPromise
+      ]) as any
+
       if (error || !session) {
-        console.log('🔴 No session found')
         setShowWarning(true)
         setTimeout(() => {
           setShowWarning(false)
-          if (onAuthRequired) {
-            onAuthRequired()
-          } else {
-            router.push('/login?redirect=/dashboard/earn')
-          }
+          if (onAuthRequired) onAuthRequired()
+          else router.push('/login?redirect=/dashboard/earn')
         }, 1500)
         return
       }
-      
-      console.log('✅ Session found for user:', session.user.id)
-      
+
+      // Success — claim reward
       const fraudScore = {
         avgViewTime: totalDuration,
         tabSwitches: 0,
@@ -173,18 +178,28 @@ export default function AdViewer({
         isProxy: false,
         fraudScore: 0.1
       }
+      
       onComplete(reward, adTier, fraudScore)
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Auth check error:', error)
-      if (onAuthRequired) {
-        onAuthRequired()
-      } else {
-        router.push('/login?redirect=/dashboard/earn')
-      }
+      setAuthError(error?.message || 'Verification failed')
+      setAuthVerifyAttempts(prev => prev + 1)
     } finally {
       setIsAuthChecking(false)
     }
+  }
+
+  // Force claim — bypasses hanging auth check
+  const forceClaim = () => {
+    const fraudScore = {
+      avgViewTime: totalDuration,
+      tabSwitches: 0,
+      isHeadlessBrowser: false,
+      isProxy: false,
+      fraudScore: 0.1
+    }
+    onComplete(reward, adTier, fraudScore)
   }
 
   const handleClose = () => {
@@ -237,7 +252,7 @@ export default function AdViewer({
         </div>
         <button
           onClick={handleClose}
-          disabled={!canClose || isAuthChecking}
+          disabled={!canClose}
           className="close-btn"
         >
           {isAuthChecking ? (
@@ -258,7 +273,28 @@ export default function AdViewer({
             <div className="reward-pill">
               <span>+{reward.toFixed(2)} SPY</span>
             </div>
-            {isAuthChecking && (
+            
+            {/* Auth Error with Retry / Force Claim */}
+            {authError && (
+              <div className="auth-error-box">
+                <p className="auth-error-text">⚠️ {authError}</p>
+                <div className="auth-error-actions">
+                  <button onClick={checkAuthAndClaim} className="auth-retry-btn">
+                    🔄 Retry
+                  </button>
+                  <button onClick={forceClaim} className="auth-force-btn">
+                    ✓ Force Claim
+                  </button>
+                </div>
+                {authVerifyAttempts > 1 && (
+                  <p className="auth-error-hint">
+                    If retry keeps failing, use Force Claim. Your API will verify the session.
+                  </p>
+                )}
+              </div>
+            )}
+            
+            {isAuthChecking && !authError && (
               <div className="auth-checking">
                 <div className="spinner" />
                 <span>Verifying your account...</span>
