@@ -247,13 +247,6 @@ export default function EarnPage() {
     }
   }
 
-  const handleAuthRequired = () => {
-    toast.error('Please log in to claim your reward')
-    setTimeout(() => {
-      router.push('/login?redirect=/dashboard/earn')
-    }, 1000)
-  }
-
   const handleCancelAd = () => {
     setShowAd(false)
     setSelectedAd(null)
@@ -301,7 +294,6 @@ export default function EarnPage() {
             adCount={selectedAd.adCount}
             onComplete={handleAdComplete}
             onCancel={handleCancelAd}
-            onAuthRequired={handleAuthRequired}
           />
         )}
       </AnimatePresence>
