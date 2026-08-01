@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   FaUsers, FaEye, FaCoins, FaWallet, FaSearch,
-  FaUserShield, FaExclamationTriangle, FaCheck,
-  FaTimes, FaArrowUp, FaArrowDown, FaClock,
-  FaFilter, FaDownload, FaSync
+  FaUserShield, FaCheck, FaTimes, FaArrowUp, FaArrowDown,
+  FaClock, FaSync, FaChartLine, FaBullhorn, FaShieldAlt,
+  FaCog, FaClipboardList, FaHome
 } from 'react-icons/fa'
+import Link from 'next/link'
 import './admin.css'
 
 const supabase = createClient()
@@ -34,7 +35,6 @@ interface RecentUser {
   created_at: string
 }
 
-// FIX: profiles is returned as an ARRAY from the join
 interface RecentActivity {
   id: string
   user_id: string
@@ -44,8 +44,23 @@ interface RecentActivity {
   profiles?: { username: string }[]
 }
 
+const ADMIN_NAV = [
+  { id: '', label: 'Dashboard', icon: FaHome, href: '/admin' },
+  { id: 'analytics', label: 'Analytics', icon: FaChartLine, href: '/admin/analytics' },
+  { id: 'users', label: 'Users', icon: FaUsers, href: '/admin/users' },
+  { id: 'deposits', label: 'Deposits', icon: FaArrowDown, href: '/admin/deposits' },
+  { id: 'withdrawals', label: 'Withdrawals', icon: FaArrowUp, href: '/admin/withdrawals' },
+  { id: 'tasks', label: 'Tasks', icon: FaClipboardList, href: '/admin/tasks' },
+  { id: 'broadcast', label: 'Broadcast', icon: FaBullhorn, href: '/admin/broadcast' },
+  { id: 'fraud', label: 'Fraud', icon: FaShieldAlt, href: '/admin/fraud' },
+  { id: 'settings', label: 'Settings', icon: FaCog, href: '/admin/settings' },
+]
+
 export default function AdminPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
+  
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0, totalAdsWatched: 0,
     totalSpyDistributed: 0, pendingWithdrawals: 0,
@@ -57,16 +72,22 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity'>('overview')
 
+  // Admin guard
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    if (!authLoading && (!user || !profile?.is_admin)) {
+      router.push('/dashboard')
+    }
+  }, [authLoading, user, profile, router])
+
+  useEffect(() => {
+    if (profile?.is_admin) fetchDashboardData()
+  }, [profile])
 
   const fetchDashboardData = async () => {
     setIsLoading(true)
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      // Stats
       const { count: totalUsers } = await supabase
         .from('profiles').select('*', { count: 'exact', head: true })
 
@@ -99,7 +120,6 @@ export default function AdminPage() {
         todayAdsWatched: todayAds || 0
       })
 
-      // Recent users
       const { data: recentUsers } = await supabase
         .from('profiles')
         .select('id, username, email, spy_balance, is_premium, is_banned, created_at')
@@ -108,7 +128,6 @@ export default function AdminPage() {
 
       setUsers(recentUsers || [])
 
-      // Recent activity
       const { data: recentActivity } = await supabase
         .from('transactions')
         .select('id, user_id, type, amount_spy, created_at, profiles(username)')
@@ -145,12 +164,11 @@ export default function AdminPage() {
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Helper to get username from joined array
   const getUsername = (act: RecentActivity) => {
     return act.profiles?.[0]?.username || 'Unknown'
   }
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="admin-loading">
         <div className="admin-spinner" />
@@ -158,6 +176,8 @@ export default function AdminPage() {
       </div>
     )
   }
+
+  if (!profile?.is_admin) return null
 
   return (
     <div className="admin-container">
@@ -221,26 +241,17 @@ export default function AdminPage() {
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div className="admin-sections">
-          {/* Quick Actions */}
           <div className="admin-section">
             <h3 className="admin-section-title">Quick Actions</h3>
             <div className="admin-actions-grid">
-              <button className="admin-action-btn" onClick={() => router.push('/admin/users')}>
-                <FaUsers /> Manage Users
-              </button>
-              <button className="admin-action-btn" onClick={() => router.push('/admin/withdrawals')}>
-                <FaWallet /> Withdrawals
-              </button>
-              <button className="admin-action-btn" onClick={() => router.push('/admin/ads')}>
-                <FaEye /> Ad Analytics
-              </button>
-              <button className="admin-action-btn" onClick={() => router.push('/admin/settings')}>
-                <FaCheck /> System Settings
-              </button>
+              {ADMIN_NAV.slice(1).map((nav) => (
+                <Link key={nav.id} href={nav.href} className="admin-action-btn">
+                  <nav.icon /> {nav.label}
+                </Link>
+              ))}
             </div>
           </div>
 
-          {/* Recent Users Preview */}
           <div className="admin-section">
             <div className="admin-section-header">
               <h3 className="admin-section-title">Recent Users</h3>
@@ -249,12 +260,7 @@ export default function AdminPage() {
             <div className="admin-table-wrapper">
               <table className="admin-table">
                 <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Balance</th>
-                    <th>Status</th>
-                    <th>Joined</th>
-                  </tr>
+                  <tr><th>User</th><th>Balance</th><th>Status</th><th>Joined</th></tr>
                 </thead>
                 <tbody>
                   {users.slice(0, 5).map(user => (
@@ -274,9 +280,7 @@ export default function AdminPage() {
                           {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
                         </span>
                       </td>
-                      <td className="admin-date">
-                        {new Date(user.created_at).toLocaleDateString()}
-                      </td>
+                      <td className="admin-date">{new Date(user.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -305,13 +309,7 @@ export default function AdminPage() {
           <div className="admin-table-wrapper">
             <table className="admin-table">
               <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Balance</th>
-                  <th>Status</th>
-                  <th>Joined</th>
-                  <th>Actions</th>
-                </tr>
+                <tr><th>User</th><th>Balance</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {filteredUsers.map(user => (
@@ -367,9 +365,7 @@ export default function AdminPage() {
                     <span className="admin-activity-user">{getUsername(act)}</span>
                     {' '}{act.type.replace(/_/g, ' ')}
                   </p>
-                  <p className="admin-activity-time">
-                    {new Date(act.created_at).toLocaleString()}
-                  </p>
+                  <p className="admin-activity-time">{new Date(act.created_at).toLocaleString()}</p>
                 </div>
                 <span className={`admin-activity-amount ${act.amount_spy >= 0 ? 'positive' : 'negative'}`}>
                   {act.amount_spy >= 0 ? '+' : ''}{act.amount_spy} SPY
@@ -379,6 +375,27 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* BOTTOM NAVIGATION */}
+      <div className="admin-bottom-nav">
+        <div className="admin-bottom-nav-scroll">
+          {ADMIN_NAV.map((nav) => {
+            const isActive = pathname === nav.href
+            return (
+              <Link
+                key={nav.id}
+                href={nav.href}
+                className={`admin-bottom-nav-item ${isActive ? 'active' : ''}`}
+              >
+                <div className="admin-bottom-nav-icon">
+                  <nav.icon />
+                </div>
+                <span className="admin-bottom-nav-label">{nav.label}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
