@@ -6,6 +6,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
+import { useAuth } from '@/contexts/AuthContext'
+
   FaUsers, FaEye, FaCoins, FaWallet, FaSearch,
   FaUserShield, FaCheck, FaTimes, FaArrowUp, FaArrowDown,
   FaClock, FaSync, FaChartLine, FaBullhorn, FaShieldAlt,
