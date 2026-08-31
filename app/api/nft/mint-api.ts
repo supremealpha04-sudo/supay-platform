@@ -1,66 +1,83 @@
 // app/api/nft/mint/route.ts
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { publicClient, NFT_CONTRACT, encodeMintRegular, encodeMintLegacy, NFT_ABI } from '@/lib/contracts/server'
-import { parseEther, formatEther } from 'viem'
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json()
-    const { type, tier, country, era, tokenURI, userAddress } = body
+    const supabase = createClient()
+    const body = await request.json()
+    const { userId, badgeId } = body
 
-    if (!userAddress || !tokenURI) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
+    // Get user
+    const { data: user, error: userError } = await supabase
+      .from('profiles')
+      .select('id, spy_balance')
+      .eq('id', userId)
+      .single()
+
+    if (userError || !user) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
     }
 
-    let data: `0x${string}`
-    let value: bigint
-    let priceLabel: string
+    // Get badge
+    const { data: badge, error: badgeError } = await supabase
+      .from('nft_badges')
+      .select('*')
+      .eq('id', badgeId)
+      .single()
 
-    if (type === 'regular') {
-      const tierIndex = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'].indexOf(tier)
-      if (tierIndex === -1) return NextResponse.json({ error: 'Invalid tier' }, { status: 400 })
+    if (badgeError || !badge) {
+      return NextResponse.json({ success: false, error: 'Badge not found' }, { status: 404 })
+    }
 
-      // Read price from contract
-      const price = await publicClient.readContract({
-        address: NFT_CONTRACT,
-        abi: NFT_ABI,
-        functionName: ['BRONZE_PRICE', 'SILVER_PRICE', 'GOLD_PRICE', 'PLATINUM_PRICE', 'DIAMOND_PRICE'][tierIndex],
+    // Check supply
+    if (badge.current_supply >= badge.max_supply) {
+      return NextResponse.json({ success: false, error: 'Sold out' }, { status: 400 })
+    }
+
+    // Check balance
+    if (user.spy_balance < badge.price_spy) {
+      return NextResponse.json({ success: false, error: 'Insufficient SPY' }, { status: 400 })
+    }
+
+    // Generate token ID
+    const tokenId = `SPY-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+
+    // Deduct SPY
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ spy_balance: user.spy_balance - badge.price_spy })
+      .eq('id', userId)
+
+    if (updateError) {
+      return NextResponse.json({ success: false, error: 'Failed to update balance' }, { status: 500 })
+    }
+
+    // Create NFT
+    const { data: nft, error: nftError } = await supabase
+      .from('user_nfts')
+      .insert({
+        user_id: userId,
+        badge_id: badgeId,
+        token_id: tokenId,
+        is_staked: false
       })
+      .select()
+      .single()
 
-      data = encodeMintRegular(tierIndex, tokenURI)
-      value = price as bigint
-      priceLabel = `${formatEther(value)} BNB`
-    } 
-    else if (type === 'legacy') {
-      const eraIndex = ['Bronze', 'Silver', 'Gold'].indexOf(era)
-      if (eraIndex === -1) return NextResponse.json({ error: 'Invalid era' }, { status: 400 })
-
-      const price = await publicClient.readContract({
-        address: NFT_CONTRACT,
-        abi: NFT_ABI,
-        functionName: ['LEGACY_BRONZE_PRICE', 'LEGACY_SILVER_PRICE', 'LEGACY_GOLD_PRICE'][eraIndex],
-      })
-
-      data = encodeMintLegacy(country, eraIndex, tokenURI)
-      value = price as bigint
-      priceLabel = `${formatEther(value)} BNB`
-    }
-    else {
-      return NextResponse.json({ error: 'Invalid mint type' }, { status: 400 })
+    if (nftError) {
+      return NextResponse.json({ success: false, error: nftError.message }, { status: 500 })
     }
 
-    return NextResponse.json({
-      success: true,
-      tx: {
-        to: NFT_CONTRACT,
-        data,
-        value: value.toString(),
-        priceLabel,
-        chainId: 56,
-      }
-    })
-  } catch (err: any) {
-    console.error('Mint prep error:', err)
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 })
+    // Update supply
+    await supabase
+      .from('nft_badges')
+      .update({ current_supply: badge.current_supply + 1 })
+      .eq('id', badgeId)
+
+    return NextResponse.json({ success: true, nft, tokenId })
+  } catch (error) {
+    console.error('Mint error:', error)
+    return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500 })
   }
 }
