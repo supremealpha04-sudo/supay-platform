@@ -1,10 +1,10 @@
 // app/api/nft/mint/route.ts
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient()
+    const supabase = createServerSupabaseClient()
     const body = await request.json()
     const { userId, badgeId } = body
 
