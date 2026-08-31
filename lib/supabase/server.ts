@@ -2,7 +2,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export function createClient() {
+// ✅ Export as createServerSupabaseClient (for backward compatibility)
+export function createServerSupabaseClient() {
   const cookieStore = cookies()
   
   return createServerClient(
@@ -31,3 +32,6 @@ export function createClient() {
     }
   )
 }
+
+// ✅ Also export as createClient for consistency
+export const createClient = createServerSupabaseClient
