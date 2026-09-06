@@ -5,6 +5,14 @@ import { createPublicClient, createWalletClient, http, parseEther, formatEther, 
 import { bsc } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 
+// ==================== EXTEND WINDOW INTERFACE ====================
+
+declare global {
+  interface Window {
+    ethereum?: any
+  }
+}
+
 // ==================== ENV VALIDATION ====================
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS as `0x${string}`
