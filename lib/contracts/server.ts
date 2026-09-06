@@ -1,7 +1,7 @@
 // lib/contracts/server.ts
 // Server-side blockchain interactions
 
-import { createPublicClient, createWalletClient, http, parseEther, formatEther, getContract } from 'viem'
+import { createPublicClient, createWalletClient, http, parseEther, formatEther, getContract as viemGetContract } from 'viem'
 import { bsc } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 
@@ -27,14 +27,13 @@ export const publicClient = createPublicClient({
 
 // ==================== NFT CONTRACT ====================
 
-// Parse ABI from environment
 export const NFT_ABI = CONTRACT_ABI ? JSON.parse(CONTRACT_ABI) : []
 export const NFT_CONTRACT_ADDRESS = CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000'
 
 // ==================== CONTRACT INSTANCES ====================
 
 export const getContract = () => {
-  return getContract({
+  return viemGetContract({
     address: NFT_CONTRACT_ADDRESS,
     abi: NFT_ABI,
     client: publicClient,
