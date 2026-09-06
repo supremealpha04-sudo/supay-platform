@@ -4,6 +4,14 @@
 import { createPublicClient, createWalletClient, http, formatEther, getContract as viemGetContract } from 'viem'
 import { bsc } from 'viem/chains'
 
+// ==================== EXTEND WINDOW INTERFACE ====================
+
+declare global {
+  interface Window {
+    ethereum?: any
+  }
+}
+
 // ==================== ENV VALIDATION ====================
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS as `0x${string}`
@@ -61,7 +69,11 @@ export const getWalletClient = async () => {
 // ==================== UTILITY FUNCTIONS ====================
 
 export const connectWallet = async () => {
-  if (typeof window === 'undefined' || !window.ethereum) {
+  if (typeof window === 'undefined') {
+    throw new Error('Window is undefined')
+  }
+  
+  if (!window.ethereum) {
     throw new Error('No wallet found. Install MetaMask or Trust Wallet.')
   }
   
