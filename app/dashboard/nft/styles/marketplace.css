@@ -1,10 +1,16 @@
 /* app/dashboard/nft/styles/marketplace.css */
 
+/* ============================================
+   NFT MARKETPLACE - Premium Design
+   ============================================ */
+
 .nft-marketplace {
   max-width: 1280px;
   margin: 0 auto;
   padding: 1.5rem;
 }
+
+/* ===== HEADER ===== */
 
 .nft-marketplace-header {
   display: flex;
@@ -26,6 +32,7 @@
 
 .nft-marketplace-header p {
   color: #9ca3af;
+  margin-top: 0.25rem;
 }
 
 .nft-marketplace-stats {
@@ -36,8 +43,8 @@
 .nft-stat-box {
   background: rgba(31, 41, 55, 0.8);
   border: 1px solid rgba(55, 65, 81, 0.5);
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
   text-align: center;
 }
 
@@ -58,6 +65,8 @@
   color: #818cf8;
 }
 
+/* ===== FILTERS ===== */
+
 .nft-marketplace-filters {
   display: flex;
   flex-wrap: wrap;
@@ -66,23 +75,33 @@
   border-radius: 0.75rem;
   padding: 1rem;
   border: 1px solid rgba(55, 65, 81, 0.5);
-  margin-bottom: 2rem;
+  margin-bottom: 0.75rem;
   align-items: center;
   justify-content: space-between;
 }
 
+.nft-filter-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .nft-filter-group {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.375rem;
   flex-wrap: wrap;
 }
 
 .nft-filter-btn {
-  padding: 0.375rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.875rem;
   border-radius: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.813rem;
   font-weight: 500;
-  background: rgba(31, 41, 55, 0.8);
+  background: rgba(31, 41, 55, 0.6);
   color: #9ca3af;
   border: 1px solid transparent;
   cursor: pointer;
@@ -90,7 +109,7 @@
 }
 
 .nft-filter-btn:hover {
-  background: rgba(55, 65, 81, 0.8);
+  background: rgba(55, 65, 81, 0.6);
   color: #e5e7eb;
 }
 
@@ -100,11 +119,43 @@
   border-color: #818cf8;
 }
 
-.nft-filter-controls {
+.nft-filter-icon {
+  font-size: 0.75rem;
+}
+
+.nft-view-toggle {
   display: flex;
+  gap: 0.25rem;
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+}
+
+.nft-view-toggle button {
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.375rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nft-view-toggle button:hover {
+  color: #9ca3af;
+}
+
+.nft-view-toggle button.active {
+  background: #818cf8;
+  color: #fff;
+}
+
+.nft-filter-right {
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
-  align-items: center;
 }
 
 .nft-search {
@@ -121,12 +172,13 @@
 
 .nft-search input {
   padding: 0.375rem 0.75rem 0.375rem 2.25rem;
-  background: rgba(31, 41, 55, 0.8);
+  background: rgba(31, 41, 55, 0.6);
   border: 1px solid rgba(55, 65, 81, 0.5);
   border-radius: 0.5rem;
   color: #fff;
   font-size: 0.875rem;
-  width: 180px;
+  width: 200px;
+  transition: all 0.3s ease;
 }
 
 .nft-search input:focus {
@@ -134,24 +186,51 @@
   border-color: #818cf8;
 }
 
+.nft-search-clear {
+  position: absolute;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+}
+
 .nft-sort-select {
-  padding: 0.375rem 1rem;
-  background: rgba(31, 41, 55, 0.8);
+  padding: 0.375rem 0.75rem;
+  background: rgba(31, 41, 55, 0.6);
   border: 1px solid rgba(55, 65, 81, 0.5);
   border-radius: 0.5rem;
   color: #fff;
   font-size: 0.875rem;
   cursor: pointer;
+  min-width: 140px;
 }
+
+.nft-sort-select:focus {
+  outline: none;
+  border-color: #818cf8;
+}
+
+/* ===== RESULTS ===== */
+
+.nft-results-count {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  padding: 0 0.5rem;
+}
+
+/* ===== GRID VIEW ===== */
 
 .nft-marketplace-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
   margin-bottom: 3rem;
 }
 
-/* Listing Card */
+/* ===== LISTING CARD ===== */
+
 .nft-listing-card {
   background: rgba(31, 41, 55, 0.8);
   border-radius: 0.75rem;
@@ -161,21 +240,36 @@
 }
 
 .nft-listing-card:hover {
-  border-color: rgba(99, 102, 241, 0.4);
   transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.4);
   box-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
+}
+
+.nft-listing-card.premium {
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.nft-listing-card.premium:hover {
+  border-color: rgba(234, 179, 8, 0.6);
+  box-shadow: 0 8px 30px rgba(234, 179, 8, 0.1);
 }
 
 .nft-listing-image {
   position: relative;
   aspect-ratio: 1;
   background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(31, 41, 55, 0.9));
+  overflow: hidden;
 }
 
 .nft-listing-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.nft-listing-card:hover .nft-listing-img {
+  transform: scale(1.05);
 }
 
 .nft-listing-placeholder {
@@ -195,23 +289,50 @@
   border-radius: 0.5rem;
   font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.6);
   color: #fff;
 }
 
-.nft-listing-badge {
+.nft-listing-tier.genesis {
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+}
+
+.nft-listing-tier.legendary {
+  background: linear-gradient(135deg, #0891b2, #3b82f6);
+}
+
+.nft-listing-tier.rare {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+}
+
+.nft-listing-tier.collector {
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+
+.nft-listing-premium-badge {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
   padding: 0.25rem 0.75rem;
   border-radius: 0.5rem;
+  background: rgba(234, 179, 8, 0.9);
+  color: #000;
   font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(139, 92, 246, 0.8);
-  color: #fff;
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.nft-listing-id {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 0.25rem;
+  color: #6b7280;
+  font-size: 0.625rem;
+  font-family: monospace;
 }
 
 .nft-listing-info {
@@ -222,7 +343,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  gap: 0.5rem;
 }
 
 .nft-listing-name {
@@ -232,8 +353,26 @@
 }
 
 .nft-listing-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   color: #9ca3af;
   font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.nft-listing-tier-label {
+  text-transform: capitalize;
+}
+
+.nft-listing-divider {
+  color: #4b5563;
+}
+
+.nft-listing-date {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .nft-listing-price {
@@ -242,33 +381,25 @@
   gap: 0.25rem;
   color: #34d399;
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
+  white-space: nowrap;
 }
 
 .nft-listing-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(55, 65, 81, 0.3);
-}
-
-.nft-listing-date {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: #6b7280;
-  font-size: 0.75rem;
+  margin-top: 0.75rem;
 }
 
 .nft-buy-btn {
-  padding: 0.375rem 1rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
   background: #818cf8;
   color: #fff;
   border: none;
   border-radius: 0.5rem;
-  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -278,16 +409,144 @@
   background: #6366f1;
 }
 
-/* My Listings */
-.nft-my-listings {
-  margin-top: 2rem;
+/* ===== LIST VIEW ===== */
+
+.nft-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 3rem;
 }
 
-.nft-my-listings h2 {
-  font-size: 1.25rem;
+.nft-listing-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(31, 41, 55, 0.8);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.nft-listing-row:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.nft-listing-row-image {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: rgba(31, 41, 55, 0.8);
+}
+
+.nft-listing-row-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nft-listing-row-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.nft-listing-row-tier {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem 0 0.25rem 0;
+  font-size: 0.5rem;
   font-weight: 700;
   color: #fff;
+}
+
+.nft-listing-row-tier.genesis {
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+}
+
+.nft-listing-row-tier.legendary {
+  background: linear-gradient(135deg, #0891b2, #3b82f6);
+}
+
+.nft-listing-row-tier.rare {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+}
+
+.nft-listing-row-tier.collector {
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+
+.nft-listing-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nft-listing-row-name {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.nft-listing-row-meta {
+  color: #6b7280;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nft-listing-row-price {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #34d399;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.nft-listing-row-buy {
+  padding: 0.375rem 1rem;
+  background: #818cf8;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nft-listing-row-buy:hover {
+  background: #6366f1;
+}
+
+/* ===== MY LISTINGS ===== */
+
+.nft-my-listings {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(55, 65, 81, 0.3);
+}
+
+.nft-my-listings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 1rem;
+}
+
+.nft-my-listings-header h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #fff;
 }
 
 .nft-my-listings-grid {
@@ -301,6 +560,11 @@
   border-radius: 0.75rem;
   padding: 0.75rem;
   border: 1px solid rgba(55, 65, 81, 0.5);
+  transition: all 0.3s ease;
+}
+
+.nft-my-listing-card:hover {
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .nft-my-listing-content {
@@ -311,6 +575,8 @@
 
 .nft-my-listing-icon {
   font-size: 2rem;
+  width: 3rem;
+  text-align: center;
 }
 
 .nft-my-listing-info {
@@ -322,6 +588,9 @@
   color: #fff;
   font-weight: 600;
   font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nft-my-listing-info p {
@@ -339,37 +608,4 @@
   transition: all 0.3s ease;
 }
 
-.nft-cancel-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-@media (max-width: 768px) {
-  .nft-marketplace-header {
-    flex-direction: column;
-  }
-
-  .nft-marketplace-stats {
-    width: 100%;
-  }
-
-  .nft-stat-box {
-    flex: 1;
-  }
-
-  .nft-marketplace-filters {
-    flex-direction: column;
-  }
-
-  .nft-filter-controls {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .nft-search input {
-    width: 100%;
-  }
-
-  .nft-marketplace-grid {
-    grid-template-columns: 1fr;
-  }
-}
+.nft-cancel-btn
