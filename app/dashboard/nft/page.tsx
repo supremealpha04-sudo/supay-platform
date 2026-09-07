@@ -4,12 +4,11 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { NFTService } from '@/lib/services/nft-service'
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { 
   FaCoins, FaFire, FaGem, FaShoppingCart, FaClock,
-  FaCrown, FaStar, FaMedal, FaTag,  // ✅ Removed FaDiamond
+  FaCrown, FaStar, FaMedal, FaTag,
   FaWallet, FaRocket, FaArrowRight
 } from 'react-icons/fa'
 import { TIER_ICONS } from '@/types/nft'
@@ -78,20 +77,6 @@ export default function NFTShowroom() {
     } catch (error) {
       toast.error('Purchase failed', { id: loading })
     }
-  }
-
-  const getTierIcon = (tier: string) => {
-    const icons: Record<string, string> = {
-      Genesis: '👑',
-      Legendary: '💎',
-      Rare: '⭐',
-      Collector: '🟢'
-    }
-    return icons[tier] || '🏅'
-  }
-
-  const getTierClass = (tier: string) => {
-    return tier.toLowerCase()
   }
 
   if (isLoading) {
@@ -389,6 +374,6 @@ function UserNFTCard({ nft, onRefresh }: { nft: any; onRefresh: () => void }) {
           </Link>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
