@@ -1,10 +1,8 @@
-// app/dashboard/nft/marketplace/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { NFTService } from '@/lib/services/nft-service'
-import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -12,11 +10,12 @@ import {
   FaCoins, FaShoppingCart, FaSearch, FaTimes, 
   FaClock, FaUser, FaArrowUp, FaArrowDown,
   FaFilter, FaTag, FaGem, FaFire, FaStar,
-  FaCrown, FaDiamond, FaMedal, FaRocket,
+  FaCrown, FaMedal, FaRocket,
   FaShieldAlt, FaCheck, FaExclamationCircle,
-  FaListUl, FaThLarge, FaSlidersH
+  FaListUl, FaThLarge, FaSlidersH,
+  FaArrowRight
 } from 'react-icons/fa'
-import { TIER_COLORS, TIER_ICONS } from '@/types/nft'
+import { TIER_ICONS } from '@/types/nft'
 import '../styles/marketplace.css'
 
 export default function Marketplace() {
@@ -30,7 +29,6 @@ export default function Marketplace() {
   const [viewMode, setViewMode] = useState('grid')
   const [selectedListing, setSelectedListing] = useState<any>(null)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     fetchListings()
