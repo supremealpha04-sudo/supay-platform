@@ -8,12 +8,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { 
   FaCoins, FaShoppingCart, FaSearch, FaTimes, 
-  FaClock, FaUser, FaArrowUp, FaArrowDown,
-  FaFilter, FaTag, FaGem, FaFire, FaStar,
-  FaCrown, FaMedal, FaRocket,
-  FaShieldAlt, FaCheck, FaExclamationCircle,
-  FaListUl, FaThLarge, FaSlidersH,
-  FaArrowRight
+  FaClock, FaGem, FaFire, FaStar, FaCrown, 
+  FaMedal, FaRocket, FaArrowRight, FaFilter,
+  FaThLarge, FaListUl, FaSlidersH, FaChevronDown,
+  FaHeart, FaShare, FaEye
 } from 'react-icons/fa'
 import { TIER_ICONS } from '@/types/nft'
 import '../styles/marketplace.css'
@@ -29,6 +27,7 @@ export default function Marketplace() {
   const [viewMode, setViewMode] = useState('grid')
   const [selectedListing, setSelectedListing] = useState<any>(null)
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     fetchListings()
@@ -120,93 +119,97 @@ export default function Marketplace() {
 
   if (isLoading) {
     return (
-      <div className="nft-loading">
-        <div className="nft-loading-spinner" />
+      <div className="marketplace-loading">
+        <div className="marketplace-loading-spinner" />
         <p>Loading marketplace...</p>
       </div>
     )
   }
 
   return (
-    <div className="nft-marketplace">
-      {/* Header */}
-      <div className="nft-marketplace-header">
-        <div>
-          <h1>
-            <FaShoppingCart className="text-accent-500" />
-            NFT Marketplace
-          </h1>
-          <p>Buy and sell NFTs securely</p>
-        </div>
-        <div className="nft-marketplace-stats">
-          <div className="nft-stat-box">
-            <span className="nft-stat-label">Listings</span>
-            <span className="nft-stat-value">{listings.length}</span>
+    <div className="marketplace-container">
+      {/* ====== HERO HEADER ====== */}
+      <div className="marketplace-hero">
+        <div className="marketplace-hero-content">
+          <div>
+            <h1 className="marketplace-hero-title">
+              <FaShoppingCart className="marketplace-hero-icon" />
+              NFT Marketplace
+            </h1>
+            <p className="marketplace-hero-subtitle">Buy and sell premium NFTs securely</p>
           </div>
-          <div className="nft-stat-box">
-            <span className="nft-stat-label">Balance</span>
-            <span className="nft-stat-value accent">
-              {profile?.spy_balance?.toLocaleString() || 0} SPY
-            </span>
+          <div className="marketplace-hero-stats">
+            <div className="marketplace-stat">
+              <span className="marketplace-stat-label">Listings</span>
+              <span className="marketplace-stat-value">{listings.length}</span>
+            </div>
+            <div className="marketplace-stat">
+              <span className="marketplace-stat-label">Balance</span>
+              <span className="marketplace-stat-value accent">
+                {profile?.spy_balance?.toLocaleString() || 0} SPY
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="nft-marketplace-filters">
-        <div className="nft-filter-left">
-          <div className="nft-filter-group">
+      {/* ====== FILTERS ====== */}
+      <div className="marketplace-filters">
+        <div className="marketplace-filters-left">
+          <div className="marketplace-tier-tabs">
             <button 
-              className={`nft-filter-btn ${filterTier === 'all' ? 'active' : ''}`}
+              className={`tier-tab ${filterTier === 'all' ? 'active' : ''}`}
               onClick={() => setFilterTier('all')}
             >
               All
             </button>
             <button 
-              className={`nft-filter-btn ${filterTier === 'genesis' ? 'active' : ''}`}
+              className={`tier-tab ${filterTier === 'genesis' ? 'active' : ''}`}
               onClick={() => setFilterTier('genesis')}
             >
-              <span className="nft-filter-icon">👑</span> Genesis
+              👑 Genesis
             </button>
             <button 
-              className={`nft-filter-btn ${filterTier === 'legendary' ? 'active' : ''}`}
+              className={`tier-tab ${filterTier === 'legendary' ? 'active' : ''}`}
               onClick={() => setFilterTier('legendary')}
             >
-              <span className="nft-filter-icon">💎</span> Legendary
+              💎 Legendary
             </button>
             <button 
-              className={`nft-filter-btn ${filterTier === 'rare' ? 'active' : ''}`}
+              className={`tier-tab ${filterTier === 'rare' ? 'active' : ''}`}
               onClick={() => setFilterTier('rare')}
             >
-              <span className="nft-filter-icon">⭐</span> Rare
+              ⭐ Rare
             </button>
             <button 
-              className={`nft-filter-btn ${filterTier === 'collector' ? 'active' : ''}`}
+              className={`tier-tab ${filterTier === 'collector' ? 'active' : ''}`}
               onClick={() => setFilterTier('collector')}
             >
-              <span className="nft-filter-icon">🟢</span> Collector
+              🟢 Collector
             </button>
           </div>
 
-          <div className="nft-view-toggle">
+          <div className="marketplace-view-toggle">
             <button 
-              className={viewMode === 'grid' ? 'active' : ''}
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
               onClick={() => setViewMode('grid')}
+              title="Grid View"
             >
               <FaThLarge />
             </button>
             <button 
-              className={viewMode === 'list' ? 'active' : ''}
+              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
               onClick={() => setViewMode('list')}
+              title="List View"
             >
               <FaListUl />
             </button>
           </div>
         </div>
 
-        <div className="nft-filter-right">
-          <div className="nft-search">
-            <FaSearch className="nft-search-icon" />
+        <div className="marketplace-filters-right">
+          <div className="marketplace-search">
+            <FaSearch className="search-icon" />
             <input
               type="text"
               placeholder="Search NFTs..."
@@ -214,13 +217,13 @@ export default function Marketplace() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             {searchTerm && (
-              <button className="nft-search-clear" onClick={() => setSearchTerm('')}>
+              <button className="search-clear" onClick={() => setSearchTerm('')}>
                 <FaTimes />
               </button>
             )}
           </div>
           <select 
-            className="nft-sort-select"
+            className="marketplace-sort"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
@@ -232,17 +235,17 @@ export default function Marketplace() {
         </div>
       </div>
 
-      {/* Results Count */}
-      <div className="nft-results-count">
+      {/* ====== RESULTS COUNT ====== */}
+      <div className="marketplace-results">
         <span>{sortedListings.length} NFTs found</span>
       </div>
 
-      {/* Listings Grid */}
+      {/* ====== LISTINGS ====== */}
       {viewMode === 'grid' ? (
-        <div className="nft-marketplace-grid">
+        <div className="marketplace-grid">
           {sortedListings.length === 0 ? (
-            <div className="nft-empty-state">
-              <FaShoppingCart className="nft-empty-icon" />
+            <div className="marketplace-empty">
+              <FaShoppingCart className="empty-icon" />
               <h3>No listings available</h3>
               <p>Be the first to list an NFT!</p>
             </div>
@@ -260,7 +263,7 @@ export default function Marketplace() {
           )}
         </div>
       ) : (
-        <div className="nft-list-view">
+        <div className="marketplace-list">
           {sortedListings.map((listing) => (
             <ListingRow
               key={listing.id}
@@ -274,13 +277,13 @@ export default function Marketplace() {
         </div>
       )}
 
-      {/* My Listings */}
+      {/* ====== MY LISTINGS ====== */}
       {myListings.length > 0 && (
-        <div className="nft-my-listings">
-          <div className="nft-my-listings-header">
+        <div className="my-listings">
+          <div className="my-listings-header">
             <h2>Your Listings ({myListings.length})</h2>
           </div>
-          <div className="nft-my-listings-grid">
+          <div className="my-listings-grid">
             {myListings.map((listing) => (
               <MyListingCard 
                 key={listing.id} 
@@ -293,7 +296,7 @@ export default function Marketplace() {
         </div>
       )}
 
-      {/* Purchase Modal */}
+      {/* ====== PURCHASE MODAL ====== */}
       {showPurchaseModal && selectedListing && (
         <PurchaseModal 
           listing={selectedListing}
@@ -306,57 +309,74 @@ export default function Marketplace() {
   )
 }
 
-// ===================== LISTING CARD (Grid View) =====================
+// ===================== LISTING CARD =====================
 
 function ListingCard({ listing, onBuy }: any) {
   const badge = listing.user_nfts?.badge
   const isGenesis = badge?.tier === 'Genesis'
   const tierIcon = TIER_ICONS[badge?.tier as keyof typeof TIER_ICONS] || '🏅'
   const tierClass = badge?.tier?.toLowerCase() || 'collector'
+  const [isHovered, setIsHovered] = useState(false)
+  const [isLiked, setIsLiked] = useState(false)
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      className={`nft-listing-card ${isGenesis ? 'premium' : ''}`}
+      whileHover={{ y: -6 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`listing-card ${isGenesis ? 'premium' : ''}`}
     >
-      <div className="nft-listing-image">
+      <div className="listing-card-image">
         {badge?.image_url ? (
-          <img src={badge.image_url} alt={badge.name} className="nft-listing-img" />
+          <img src={badge.image_url} alt={badge.name} className="listing-card-img" />
         ) : (
-          <div className="nft-listing-placeholder">{tierIcon}</div>
+          <div className="listing-card-placeholder">{tierIcon}</div>
         )}
-        <div className={`nft-listing-tier ${tierClass}`}>{badge?.tier}</div>
+        <div className={`listing-card-tier ${tierClass}`}>{badge?.tier}</div>
         {isGenesis && (
-          <div className="nft-listing-premium-badge">
+          <div className="listing-card-premium">
             <FaCrown /> Premium
           </div>
         )}
-        <div className="nft-listing-id">#{listing.id.slice(0, 6)}</div>
+        <div className="listing-card-id">#{listing.id.slice(0, 6)}</div>
+        
+        {/* Hover Actions */}
+        <div className={`listing-card-hover ${isHovered ? 'visible' : ''}`}>
+          <button className="hover-btn" onClick={() => setIsLiked(!isLiked)}>
+            <FaHeart className={isLiked ? 'liked' : ''} />
+          </button>
+          <button className="hover-btn">
+            <FaShare />
+          </button>
+          <button className="hover-btn">
+            <FaEye />
+          </button>
+        </div>
       </div>
 
-      <div className="nft-listing-info">
-        <div className="nft-listing-header">
+      <div className="listing-card-info">
+        <div className="listing-card-header">
           <div>
-            <h3 className="nft-listing-name">{badge?.name}</h3>
-            <p className="nft-listing-meta">
-              <span className="nft-listing-tier-label">{badge?.tier}</span>
-              <span className="nft-listing-divider">•</span>
-              <span className="nft-listing-date">
+            <h3 className="listing-card-name">{badge?.name}</h3>
+            <p className="listing-card-meta">
+              <span className={`listing-card-tier-label ${tierClass}`}>{badge?.tier}</span>
+              <span className="listing-card-divider">•</span>
+              <span className="listing-card-date">
                 <FaClock /> {new Date(listing.created_at).toLocaleDateString()}
               </span>
             </p>
           </div>
-          <div className="nft-listing-price">
-            <FaCoins className="text-accent-400" />
+          <div className="listing-card-price">
+            <FaCoins className="price-icon" />
             {listing.price_spy.toLocaleString()} SPY
           </div>
         </div>
 
-        <div className="nft-listing-footer">
-          <button onClick={onBuy} className="nft-buy-btn">
-            Buy Now <FaArrowRight />
+        <div className="listing-card-footer">
+          <button onClick={onBuy} className="buy-btn">
+            Buy Now <FaArrowRight className="btn-arrow" />
           </button>
         </div>
       </div>
@@ -364,7 +384,7 @@ function ListingCard({ listing, onBuy }: any) {
   )
 }
 
-// ===================== LISTING ROW (List View) =====================
+// ===================== LISTING ROW =====================
 
 function ListingRow({ listing, onBuy }: any) {
   const badge = listing.user_nfts?.badge
@@ -375,27 +395,27 @@ function ListingRow({ listing, onBuy }: any) {
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="nft-listing-row"
+      className="listing-row"
     >
-      <div className="nft-listing-row-image">
+      <div className="listing-row-image">
         {badge?.image_url ? (
-          <img src={badge.image_url} alt={badge.name} className="nft-listing-row-img" />
+          <img src={badge.image_url} alt={badge.name} className="listing-row-img" />
         ) : (
-          <div className="nft-listing-row-placeholder">{tierIcon}</div>
+          <div className="listing-row-placeholder">{tierIcon}</div>
         )}
-        <div className={`nft-listing-row-tier ${tierClass}`}>{badge?.tier}</div>
+        <div className={`listing-row-tier ${tierClass}`}>{badge?.tier}</div>
       </div>
-      <div className="nft-listing-row-info">
-        <h4 className="nft-listing-row-name">{badge?.name}</h4>
-        <p className="nft-listing-row-meta">
+      <div className="listing-row-info">
+        <h4 className="listing-row-name">{badge?.name}</h4>
+        <p className="listing-row-meta">
           <FaClock /> Listed {new Date(listing.created_at).toLocaleDateString()}
         </p>
       </div>
-      <div className="nft-listing-row-price">
-        <FaCoins className="text-accent-400" />
+      <div className="listing-row-price">
+        <FaCoins className="price-icon" />
         {listing.price_spy.toLocaleString()} SPY
       </div>
-      <button onClick={onBuy} className="nft-listing-row-buy">
+      <button onClick={onBuy} className="listing-row-buy">
         Buy
       </button>
     </motion.div>
@@ -404,19 +424,19 @@ function ListingRow({ listing, onBuy }: any) {
 
 // ===================== MY LISTING CARD =====================
 
-function MyListingCard({ listing, onCancel, onRefresh }: any) {
+function MyListingCard({ listing, onCancel }: any) {
   const badge = listing.user_nfts?.badge
   const tierIcon = TIER_ICONS[badge?.tier as keyof typeof TIER_ICONS] || '🏅'
 
   return (
-    <div className="nft-my-listing-card">
-      <div className="nft-my-listing-content">
-        <div className="nft-my-listing-icon">{tierIcon}</div>
-        <div className="nft-my-listing-info">
+    <div className="my-listing-card">
+      <div className="my-listing-content">
+        <div className="my-listing-icon">{tierIcon}</div>
+        <div className="my-listing-info">
           <h4>{badge?.name}</h4>
           <p>{listing.price_spy.toLocaleString()} SPY</p>
         </div>
-        <button onClick={onCancel} className="nft-cancel-btn">
+        <button onClick={onCancel} className="cancel-btn">
           <FaTimes />
         </button>
       </div>
@@ -431,49 +451,45 @@ function PurchaseModal({ listing, onClose, onConfirm, balance }: any) {
   const tierIcon = TIER_ICONS[badge?.tier as keyof typeof TIER_ICONS] || '🏅'
 
   return (
-    <div className="nft-modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="nft-modal"
+        className="modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="nft-modal-header">
+        <div className="modal-header">
           <h2>Confirm Purchase</h2>
-          <button onClick={onClose}><FaTimes /></button>
+          <button onClick={onClose} className="modal-close"><FaTimes /></button>
         </div>
-        <div className="nft-modal-body">
-          <div className="nft-purchase-summary">
-            <div className="nft-purchase-item">
-              <span className="nft-purchase-label">NFT</span>
-              <span className="nft-purchase-value">{badge?.name}</span>
+        <div className="modal-body">
+          <div className="purchase-summary">
+            <div className="purchase-item">
+              <span className="purchase-label">NFT</span>
+              <span className="purchase-value">{badge?.name}</span>
             </div>
-            <div className="nft-purchase-item">
-              <span className="nft-purchase-label">Tier</span>
-              <span className="nft-purchase-value">{badge?.tier} {tierIcon}</span>
+            <div className="purchase-item">
+              <span className="purchase-label">Tier</span>
+              <span className="purchase-value">{badge?.tier} {tierIcon}</span>
             </div>
-            <div className="nft-purchase-item">
-              <span className="nft-purchase-label">Price</span>
-              <span className="nft-purchase-value price">
-                <FaCoins className="text-accent-400" /> {listing.price_spy.toLocaleString()} SPY
+            <div className="purchase-item">
+              <span className="purchase-label">Price</span>
+              <span className="purchase-value price">
+                <FaCoins className="price-icon" /> {listing.price_spy.toLocaleString()} SPY
               </span>
             </div>
-            <div className="nft-purchase-item">
-              <span className="nft-purchase-label">Your Balance</span>
-              <span className="nft-purchase-value">{balance.toLocaleString()} SPY</span>
+            <div className="purchase-item">
+              <span className="purchase-label">Your Balance</span>
+              <span className="purchase-value">{balance.toLocaleString()} SPY</span>
             </div>
-            <div className="nft-purchase-item total">
-              <span className="nft-purchase-label">After Purchase</span>
-              <span className="nft-purchase-value">{balance - listing.price_spy} SPY</span>
+            <div className="purchase-item total">
+              <span className="purchase-label">After Purchase</span>
+              <span className="purchase-value">{balance - listing.price_spy} SPY</span>
             </div>
           </div>
-          <div className="nft-modal-actions">
-            <button onClick={onClose} className="nft-btn-cancel">
-              Cancel
-            </button>
-            <button onClick={onConfirm} className="nft-btn-confirm">
-              Confirm Purchase
-            </button>
+          <div className="modal-actions">
+            <button onClick={onClose} className="btn-cancel">Cancel</button>
+            <button onClick={onConfirm} className="btn-confirm">Confirm Purchase</button>
           </div>
         </div>
       </motion.div>
