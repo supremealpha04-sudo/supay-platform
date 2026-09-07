@@ -1,4 +1,3 @@
-// app/dashboard/nft/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -10,10 +9,10 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { 
   FaCoins, FaFire, FaGem, FaShoppingCart, FaClock,
-  FaCrown, FaStar, FaDiamond, FaMedal, FaTag,
+  FaCrown, FaStar, FaMedal, FaTag,  // ✅ Removed FaDiamond
   FaWallet, FaRocket, FaArrowRight
 } from 'react-icons/fa'
-import { TIER_ICONS, TIER_PRICES, TIER_SUPPLY, TIER_DAILY_REWARD } from '@/types/nft'
+import { TIER_ICONS } from '@/types/nft'
 import './styles/nft.css'
 
 export default function NFTShowroom() {
@@ -390,6 +389,6 @@ function UserNFTCard({ nft, onRefresh }: { nft: any; onRefresh: () => void }) {
           </Link>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
