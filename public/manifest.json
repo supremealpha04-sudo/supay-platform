@@ -1,112 +1,86 @@
-// public/manifest.json
 {
-  "name": "Supay",
+  "name": "Supay - Earn Rewards",
   "short_name": "Supay",
-  "description": "The Future of Reward Platforms - Earn rewards by watching ads, completing tasks, and referring friends.",
-  "start_url": "/",
+  "description": "Earn SPY rewards by watching ads, completing tasks, and staking NFTs",
+  "start_url": "/dashboard",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
-  "orientation": "portrait",
-  "background_color": "#07153A",
-  "theme_color": "#2342B5",
+  "background_color": "#0a0f1e",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
-  "categories": ["finance", "productivity", "lifestyle"],
+  "categories": ["finance", "productivity", "entertainment"],
   "icons": [
     {
-      "src": "/icon-72.png",
+      "src": "/icons/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-96.png",
+      "src": "/icons/icon-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-128.png",
+      "src": "/icons/icon-128x128.png",
       "sizes": "128x128",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-144.png",
+      "src": "/icons/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-152.png",
+      "src": "/icons/icon-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-384.png",
+      "src": "/icons/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-1.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Dashboard View"
-    },
-    {
-      "src": "/screenshot-2.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Wallet View"
+      "purpose": "maskable any"
     }
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Home",
-      "description": "Go to your dashboard",
-      "url": "/dashboard",
-      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Earn",
+      "name": "Earn SPY",
       "short_name": "Earn",
-      "description": "Watch ads and earn rewards",
+      "description": "Watch ads and earn SPY",
       "url": "/dashboard/earn",
-      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Wallet",
+      "name": "My Wallet",
       "short_name": "Wallet",
-      "description": "View your balance",
+      "description": "View your balance and withdraw",
       "url": "/dashboard/wallet",
-      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Withdraw",
-      "short_name": "Withdraw",
-      "description": "Withdraw your earnings",
-      "url": "/dashboard/withdraw",
-      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+      "name": "NFTs",
+      "short_name": "NFTs",
+      "description": "Browse and stake NFTs",
+      "url": "/dashboard/nft",
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     }
-  ],
-  "prefer_related_applications": false
+  ]
 }
