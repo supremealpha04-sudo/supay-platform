@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   FaWallet, FaArrowDown, FaArrowUp, FaClock, FaLock, FaUnlockAlt, 
   FaCopy, FaCheck, FaBitcoin, FaUniversity, FaCreditCard,
-  FaSpinner, FaExclamationTriangle, FaInfoCircle
+  FaSpinner, FaExclamationTriangle, FaInfoCircle, FaRocket
 } from 'react-icons/fa'
 import { depositRules, withdrawalRules } from '@/lib/constants/depositRules'
 import Link from 'next/link'
@@ -48,12 +48,6 @@ interface BankDetails {
 // ============================================
 // CONSTANTS
 // ============================================
-const DEPOSIT_METHODS = [
-  { id: 'crypto', label: 'USDT (BEP-20)', icon: FaBitcoin, min: '$7', network: 'BEP-20' },
-  { id: 'bank', label: 'Bank Transfer (NGN)', icon: FaUniversity, min: '₦10,500', network: 'NGN' },
-  { id: 'card', label: 'Credit/Debit Card', icon: FaCreditCard, min: '$7', network: 'Card' }
-] as const
-
 const WITHDRAW_METHODS = [
   { id: 'usdt', label: 'USDT (BEP-20)', fee: '2%', time: '1-4 hours', icon: FaBitcoin },
   { id: 'bank', label: 'Bank Transfer (NGN)', fee: '2%', time: '12-24 hours', icon: FaUniversity }
@@ -78,8 +72,6 @@ export default function WalletPage() {
   
   // ===== STATE =====
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit')
-  const [depositMethod, setDepositMethod] = useState<'crypto' | 'bank' | 'card'>('crypto')
-  const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawMethod, setWithdrawMethod] = useState<'usdt' | 'bank'>('usdt')
   const [withdrawAddress, setWithdrawAddress] = useState('')
@@ -93,15 +85,12 @@ export default function WalletPage() {
   const [copied, setCopied] = useState(false)
   const [withdrawableSpy, setWithdrawableSpy] = useState(0)
   const [lockedSpy, setLockedSpy] = useState(0)
-  const [pendingDeposits, setPendingDeposits] = useState<PendingDeposit[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // ===== COMPUTED =====
-  const depositAmountNum = useMemo(() => parseFloat(depositAmount) || 0, [depositAmount])
   const withdrawAmountNum = useMemo(() => parseFloat(withdrawAmount) || 0, [withdrawAmount])
   
-  const depositSpyAmount = useMemo(() => depositAmountNum * 100, [depositAmountNum])
   const withdrawFee = useMemo(() => {
     if (withdrawAmountNum <= 0) return 0
     return Math.max(Math.ceil(withdrawAmountNum * 0.02), 10)
@@ -166,39 +155,20 @@ export default function WalletPage() {
     }
   }, [profile?.id])
 
-  const fetchPendingDeposits = useCallback(async () => {
-    if (!profile?.id) return
-    
-    try {
-      const { data, error } = await supabase
-        .from('deposits')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      setPendingDeposits(data || [])
-    } catch (err) {
-      console.error('Error fetching pending deposits:', err)
-    }
-  }, [profile?.id])
-
   const fetchAllData = useCallback(async () => {
     setRefreshing(true)
     setError(null)
     try {
       await Promise.all([
         fetchBalanceBreakdown(),
-        fetchTransactions(),
-        fetchPendingDeposits()
+        fetchTransactions()
       ])
     } catch (err) {
       setError('Failed to load wallet data')
     } finally {
       setRefreshing(false)
     }
-  }, [fetchBalanceBreakdown, fetchTransactions, fetchPendingDeposits])
+  }, [fetchBalanceBreakdown, fetchTransactions])
 
   // ===== EFFECTS =====
   useEffect(() => {
@@ -208,52 +178,17 @@ export default function WalletPage() {
   }, [profile, fetchAllData])
 
   // ===== HANDLERS =====
-  const handleDeposit = useCallback(async () => {
-    if (depositAmountNum < depositRules.minimum.USD) {
-      toast.error(`Minimum deposit is $${depositRules.minimum.USD}`)
-      return
-    }
-    if (depositAmountNum > depositRules.maximum.USD) {
-      toast.error(`Maximum deposit is $${depositRules.maximum.USD}`)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const response = await fetch('/api/deposit/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: depositAmountNum,
-          method: depositMethod,
-          userId: profile?.id
-        })
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        if (depositMethod === 'crypto') {
-          toast.success(`Send ${depositAmountNum} USDT to the address below`)
-          setCopied(false)
-        } else if (depositMethod === 'card') {
-          window.location.href = data.authorization_url
-        } else {
-          toast.success('Bank transfer details sent to your email')
-        }
-        await fetchPendingDeposits()
-      } else {
-        toast.error(data.error || 'Deposit failed')
-      }
-    } catch (err) {
-      console.error('Deposit error:', err)
-      toast.error('Deposit failed. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [depositAmountNum, depositMethod, profile?.id, fetchPendingDeposits])
+  const handleDepositClick = useCallback(() => {
+    toast('🚀 Deposits are coming soon!', {
+      icon: '⏳',
+      duration: 3000,
+      style: {
+        background: 'linear-gradient(135deg, #818cf8, #6366f1)',
+        color: '#fff',
+        fontWeight: 600,
+      },
+    })
+  }, [])
 
   const handleWithdraw = useCallback(async () => {
     if (!isWithdrawValid) {
@@ -310,13 +245,6 @@ export default function WalletPage() {
     refreshProfile
   ])
 
-  const copyToClipboard = useCallback((text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    toast.success('Copied to clipboard!')
-    setTimeout(() => setCopied(false), 2000)
-  }, [])
-
   const getTransactionIcon = useCallback((type: string) => {
     switch(type) {
       case 'deposit': return FaArrowDown
@@ -349,9 +277,6 @@ export default function WalletPage() {
       return dateString
     }
   }, [])
-
-  // ===== CRYPTO ADDRESS =====
-  const cryptoAddress = "0x1234567890123456789012345678901234567890"
 
   // ===== RENDER =====
   return (
@@ -421,6 +346,7 @@ export default function WalletPage() {
           aria-selected={activeTab === 'deposit'}
         >
           <FaArrowDown className={styles.iconInline} /> Deposit
+          <span className={styles.soonBadge}>Soon</span>
         </button>
         <button
           onClick={() => setActiveTab('withdraw')}
@@ -440,8 +366,9 @@ export default function WalletPage() {
         </button>
       </div>
 
-      {/* Deposit Tab */}
+      {/* Tab Panels */}
       <AnimatePresence mode="wait">
+        {/* ===== DEPOSIT TAB - COMING SOON ===== */}
         {activeTab === 'deposit' && (
           <motion.div
             key="deposit"
@@ -451,118 +378,67 @@ export default function WalletPage() {
             transition={{ duration: 0.3 }}
             className={styles.tabPanel}
           >
-            {/* Method Selection */}
-            <div className={styles.sectionCard}>
-              <h3 className={styles.balanceCardTitle}>Select Deposit Method</h3>
-              <div className={styles.methodGrid}>
-                {DEPOSIT_METHODS.map((method) => {
-                  const Icon = method.icon
-                  return (
-                    <button
-                      key={method.id}
-                      onClick={() => setDepositMethod(method.id as any)}
-                      className={`${styles.methodCard} ${depositMethod === method.id ? styles.methodCardActive : ''}`}
-                      aria-pressed={depositMethod === method.id}
-                    >
-                      <Icon className={styles.methodIcon} />
-                      <p className={styles.methodLabel}>{method.label}</p>
-                      <p className={styles.methodMeta}>Min: {method.min}</p>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Amount Input */}
-            <div className={styles.sectionCard}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Amount to Deposit</label>
-                <div className={styles.inputRow}>
-                  <input
-                    type="number"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="0.00"
-                    className={styles.inputField}
-                    min="0"
-                    step="1"
-                  />
-                  <button
-                    onClick={handleDeposit}
-                    disabled={isLoading || depositAmountNum < depositRules.minimum.USD}
-                    className={`${styles.primaryButton} ${(isLoading || depositAmountNum < depositRules.minimum.USD) ? styles.primaryButtonDisabled : ''}`}
-                  >
-                    {isLoading ? <FaSpinner className={styles.spinning} /> : 'Deposit'}
-                  </button>
-                </div>
-                <div className={styles.helperText}>
-                  <p>You will receive: <strong>{(depositSpyAmount).toLocaleString()} SPY</strong></p>
-                  <div className={styles.infoBox}>
-                    <FaInfoCircle className={styles.iconInline} />
-                    Deposited SPY is locked for 30 days for security.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Crypto Address */}
-            {depositMethod === 'crypto' && depositAmountNum > 0 && (
+            <div className={styles.comingSoonCard}>
               <motion.div 
-                className={styles.sectionCard}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
+                className={styles.comingSoonIcon}
+                animate={{ 
+                  y: [0, -10, 0],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ 
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
               >
-                <h3 className={styles.balanceCardTitle}>Send USDT to this address</h3>
-                <div className={styles.nestedSection}>
-                  <div className={styles.addressContainer}>
-                    <code className={styles.addressText}>{cryptoAddress}</code>
-                    <button 
-                      onClick={() => copyToClipboard(cryptoAddress)} 
-                      className={styles.copyButton}
-                      aria-label="Copy address"
-                    >
-                      {copied ? <FaCheck className={styles.successIcon} /> : <FaCopy />}
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.warningBox}>
-                  <p><strong>⚠️ Important:</strong></p>
-                  <ul className={styles.warningList}>
-                    <li>Send only USDT on BEP-20 network</li>
-                    <li>Minimum deposit: ${depositRules.minimum.USD} USD</li>
-                    <li>Funds credited within 1-5 minutes after confirmation</li>
-                    <li>Deposited SPY is locked for 30 days</li>
-                  </ul>
-                </div>
+                🚀
               </motion.div>
-            )}
+              
+              <h2 className={styles.comingSoonTitle}>Deposits Coming Soon</h2>
+              
+              <p className={styles.comingSoonText}>
+                We're working hard to bring you a seamless deposit experience 
+                with multiple payment methods. Stay tuned for updates!
+              </p>
 
-            {/* Pending Deposits */}
-            {pendingDeposits.length > 0 && (
-              <div className={styles.sectionCard}>
-                <h3 className={styles.balanceCardTitle}>Pending Deposits</h3>
-                <div className={styles.pendingList}>
-                  {pendingDeposits.map((deposit) => (
-                    <div key={deposit.id} className={styles.pendingItem}>
-                      <div>
-                        <p className={styles.balanceAmount}>${deposit.amount_usd.toFixed(2)} USD</p>
-                        <p className={styles.pendingMeta}>{formatDate(deposit.created_at)}</p>
-                        <p className={styles.pendingMeta}>{deposit.method}</p>
-                      </div>
-                      <div className={styles.pendingStatus}>
-                        <span className={styles.pulseDot} />
-                        {deposit.status === 'pending' ? 'Processing' : 'Confirming'}
-                      </div>
-                    </div>
-                  ))}
+              <div className={styles.comingSoonFeatures}>
+                <div className={styles.comingSoonFeature}>
+                  <span>⚡</span>
+                  <span>Instant Deposits</span>
+                </div>
+                <div className={styles.comingSoonFeature}>
+                  <span>🔒</span>
+                  <span>Secure Transactions</span>
+                </div>
+                <div className={styles.comingSoonFeature}>
+                  <span>💎</span>
+                  <span>Multiple Methods</span>
                 </div>
               </div>
-            )}
+
+              <div className={styles.comingSoonDivider}>
+                <span>While you wait</span>
+              </div>
+
+              <div className={styles.comingSoonActions}>
+                <Link href="/dashboard/earn" className={styles.comingSoonPrimaryBtn}>
+                  <FaWallet className={styles.btnIcon} />
+                  Start Earning SPY
+                </Link>
+                <Link href="/dashboard/nft" className={styles.comingSoonSecondaryBtn}>
+                  <FaRocket className={styles.btnIcon} />
+                  Explore NFTs
+                </Link>
+              </div>
+
+              <p className={styles.comingSoonNote}>
+                💡 Earn SPY from ads, tasks, and referrals while deposits are being set up
+              </p>
+            </div>
           </motion.div>
         )}
 
-        {/* Withdraw Tab */}
+        {/* ===== WITHDRAW TAB ===== */}
         {activeTab === 'withdraw' && (
           <motion.div
             key="withdraw"
@@ -725,7 +601,7 @@ export default function WalletPage() {
           </motion.div>
         )}
 
-        {/* History Tab */}
+        {/* ===== HISTORY TAB ===== */}
         {activeTab === 'history' && (
           <motion.div
             key="history"
