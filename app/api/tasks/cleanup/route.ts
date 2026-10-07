@@ -2,10 +2,8 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-// This should be called by a cron job every hour
 export async function POST(request: Request) {
   try {
-    // Optional: verify cron secret
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
@@ -29,7 +27,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Also clean up expired sessions
+    // Clean expired sessions
     await supabase
       .from('task_sessions')
       .delete()
@@ -38,10 +36,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       deleted: data?.length || 0,
-      cutoff,
     })
   } catch (error) {
     console.error('Cleanup error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
