@@ -3,17 +3,12 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
+const MIN_INTERACTION_SECONDS = 120
+const CLEANUP_HOURS = 72
+
 interface VerificationSignals {
-  // Session verification
   sessionToken: string
-
-  // Timing verification
   actualDuration: number
-  timeSinceStart: number
-  timeOnTaskPage: number
-  timeOnTaskSite: number
-
-  // Browser integrity
   userAgent: string
   screenResolution: string
   timezone: string
@@ -21,8 +16,6 @@ interface VerificationSignals {
   platform: string
   hardwareConcurrency: number
   deviceMemory: number
-
-  // Behavioral
   mouseMovements: number
   keystrokes: number
   scrollEvents: number
@@ -30,159 +23,106 @@ interface VerificationSignals {
   tabSwitches: number
   windowBlurs: number
   copyAttempts: number
-
-  // Environment
   isHeadless: boolean
   isDevToolsOpen: boolean
   hasAdBlocker: boolean
   isPrivateMode: boolean
   isVirtualMachine: boolean
-  isEmulator: boolean
-
-  // Network
   isVPN: boolean
   isProxy: boolean
   isTor: boolean
   isDatacenter: boolean
-
-  // Fingerprint
   canvasFingerprint: string
-  webglFingerprint: string
-
-  // Misc
-  fraudScore: number
   clickedUrl: boolean
   returnedToApp: boolean
+  fraudScore: number
   timestamp: number
+}
+
+function verifySessionToken(token: string, userId: string, taskId: string): {
+  valid: boolean
+  payload?: any
+  error?: string
+} {
+  try {
+    const decoded = Buffer.from(token, 'base64').toString()
+    const { payload, signature } = JSON.parse(decoded)
+
+    const secret = process.env.TASK_SESSION_SECRET || 'supay-task-secret-change-me'
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(JSON.stringify(payload))
+      .digest('hex')
+
+    if (signature !== expectedSignature) {
+      return { valid: false, error: 'Invalid signature' }
+    }
+    if (payload.userId !== userId || payload.taskId !== taskId) {
+      return { valid: false, error: 'Session mismatch' }
+    }
+    if (Date.now() > payload.expiresAt) {
+      return { valid: false, error: 'Session expired' }
+    }
+
+    return { valid: true, payload }
+  } catch {
+    return { valid: false, error: 'Malformed token' }
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const supabase = createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    const { taskId, signals, proofImage } = await request.json() as {
+    const { taskId, signals, taskData } = await request.json() as {
       taskId: string
       signals: VerificationSignals
-      proofImage?: string
+      taskData?: any
     }
 
-    // ============================================
-    // 1. AUTH CHECK
-    // ============================================
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // ============================================
-    // 2. VERIFY SESSION TOKEN (SIGNED)
-    // ============================================
-    let sessionPayload: any
-    try {
-      const decoded = Buffer.from(signals.sessionToken, 'base64').toString()
-      const { payload, signature } = JSON.parse(decoded)
-
-      const secret = process.env.TASK_SESSION_SECRET || 'default-secret'
-      const expectedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(JSON.stringify(payload))
-        .digest('hex')
-
-      if (signature !== expectedSignature) {
-        return NextResponse.json(
-          { error: 'Invalid session signature' },
-          { status: 400 }
-        )
-      }
-
-      if (payload.userId !== user.id || payload.taskId !== taskId) {
-        return NextResponse.json(
-          { error: 'Session mismatch' },
-          { status: 400 }
-        )
-      }
-
-      sessionPayload = payload
-    } catch {
+    // 1. VERIFY SESSION TOKEN
+    const sessionCheck = verifySessionToken(signals.sessionToken, user.id, taskId)
+    if (!sessionCheck.valid) {
       return NextResponse.json(
-        { error: 'Malformed session token' },
+        { error: sessionCheck.error || 'Invalid session' },
         { status: 400 }
       )
     }
 
-    // ============================================
-    // 3. CHECK SESSION EXPIRY (30 MINUTES)
-    // ============================================
-    const timeSinceStart = (Date.now() - sessionPayload.startedAt) / 1000
-
-    if (Date.now() > sessionPayload.expiresAt) {
-      await supabase
-        .from('task_sessions')
-        .update({ status: 'expired' })
-        .eq('session_token', signals.sessionToken)
-
-      return NextResponse.json(
-        { error: 'Session expired. Please start the task again.' },
-        { status: 400 }
-      )
-    }
-
-    // ============================================
-    // 4. VERIFY MINIMUM DURATION (2 MINUTES)
-    // ============================================
-    const MIN_DURATION_SECONDS = 120 // 2 minutes
-    const MIN_TIME_ON_SITE = 110     // 1m 50s minimum
-    const MIN_TIME_ON_PAGE = 115     // 1m 55s minimum
-
-    if (signals.actualDuration < MIN_DURATION_SECONDS) {
+    // 2. VERIFY MINIMUM DURATION
+    if (signals.actualDuration < MIN_INTERACTION_SECONDS) {
       return NextResponse.json(
         { 
-          error: `You must spend at least ${MIN_DURATION_SECONDS / 60} minutes on this task`,
-          details: `You spent only ${Math.round(signals.actualDuration)}s`
+          error: `You must spend at least ${MIN_INTERACTION_SECONDS / 60} minutes on this task`,
+          details: `You spent ${Math.round(signals.actualDuration)}s`
         },
         { status: 400 }
       )
     }
 
-    if (signals.timeOnTaskSite < MIN_TIME_ON_SITE) {
-      return NextResponse.json(
-        { error: 'You did not spend enough time on the task site' },
-        { status: 400 }
-      )
-    }
-
-    if (signals.timeOnTaskPage < MIN_TIME_ON_PAGE) {
-      return NextResponse.json(
-        { error: 'You did not spend enough time on the task page' },
-        { status: 400 }
-      )
-    }
-
-    // ============================================
-    // 5. VERIFY USER CLICKED THE URL
-    // ============================================
+    // 3. VERIFY USER CLICKED URL
     if (!signals.clickedUrl) {
       return NextResponse.json(
-        { error: 'You must click the task link to proceed' },
+        { error: 'You must click the task link first' },
         { status: 400 }
       )
     }
 
-    // ============================================
-    // 6. VERIFY USER RETURNED TO APP
-    // ============================================
+    // 4. VERIFY USER RETURNED
     if (!signals.returnedToApp) {
       return NextResponse.json(
-        { error: 'Please return to the app to complete the task' },
+        { error: 'Please return to the app to verify' },
         { status: 400 }
       )
     }
 
-    // ============================================
-    // 7. ANTI-CHEAT VERIFICATION
-    // ============================================
+    // 5. ANTI-CHEAT CHECKS
     const fraudScore = signals.fraudScore || 0
 
-    // Block if fraud score too high
     if (fraudScore >= 60) {
       await supabase.from('fraud_logs').insert({
         user_id: user.id,
@@ -199,14 +139,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify behavioral signals
+    // Behavioral checks
     const behavioralChecks = {
       hasMouseMovement: signals.mouseMovements >= 10,
       hasScrolls: signals.scrollEvents >= 3,
-      hasValidClicks: signals.clicks >= 1,
-      noExcessiveTabSwitches: signals.tabSwitches <= 5,
-      noExcessiveBlurs: signals.windowBlurs <= 8,
-      noCopyAttempts: signals.copyAttempts === 0,
+      hasClicks: signals.clicks >= 1,
+      okTabSwitches: signals.tabSwitches <= 5,
+      okBlurs: signals.windowBlurs <= 8,
+      noCopy: signals.copyAttempts === 0,
     }
 
     const failedChecks = Object.entries(behavioralChecks)
@@ -220,7 +160,7 @@ export async function POST(request: Request) {
         fraud_score: Math.max(fraudScore, 45),
         signals,
         action: 'blocked',
-        reason: `Failed behavioral checks: ${failedChecks.join(', ')}`,
+        reason: `Failed: ${failedChecks.join(', ')}`,
         created_at: new Date().toISOString(),
       }).then(() => {}).catch(() => {})
 
@@ -230,9 +170,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // ============================================
-    // 8. CHECK IF ALREADY COMPLETED
-    // ============================================
+    // 6. CHECK IF ALREADY COMPLETED
     const { data: existing } = await supabase
       .from('completed_tasks')
       .select('id')
@@ -247,38 +185,41 @@ export async function POST(request: Request) {
       )
     }
 
-    // ============================================
-    // 9. GET TASK AND PROFILE
-    // ============================================
+    // 7. GET TASK DETAILS
+    let taskReward = 10 // Default fallback
+    let taskTitle = 'Task'
+
     const { data: task } = await supabase
       .from('tasks')
       .select('*')
       .eq('id', taskId)
-      .single()
+      .maybeSingle()
 
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    if (task) {
+      taskReward = task.reward_spy
+      taskTitle = task.title
+    } else if (taskData) {
+      // Social task from client
+      taskReward = taskData.reward_spy || 10
+      taskTitle = taskData.title || 'Social Task'
     }
 
+    // 8. GET PROFILE
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_premium, spy_balance, earned_spy, trust_score')
       .eq('id', user.id)
       .single()
 
-    // ============================================
-    // 10. CALCULATE REWARD (with trust modifier)
-    // ============================================
+    // 9. CALCULATE REWARD
     const multiplier = profile?.is_premium ? 2 : 1
     const trustScore = profile?.trust_score ?? 100
-    const trustModifier = Math.max(0.5, trustScore / 100) // Min 50% reward
-    const baseReward = task.reward_spy * multiplier
+    const trustModifier = Math.max(0.5, trustScore / 100)
+    const baseReward = taskReward * multiplier
     const reward = Math.round(baseReward * trustModifier * 100) / 100
 
-    // ============================================
-    // 11. INSERT COMPLETION
-    // ============================================
-    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString() // 72 hours
+    // 10. INSERT COMPLETION
+    const expiresAt = new Date(Date.now() + CLEANUP_HOURS * 60 * 60 * 1000).toISOString()
 
     const { data: completion, error: insertError } = await supabase
       .from('completed_tasks')
@@ -288,31 +229,33 @@ export async function POST(request: Request) {
         reward_spy: reward,
         status: 'verified',
         verified_at: new Date().toISOString(),
-        expires_at: expiresAt, // Auto-delete after 72 hours
+        expires_at: expiresAt,
         fraud_score: fraudScore,
-        signals: signals,
+        signals,
         trust_modifier: trustModifier,
         session_token: signals.sessionToken,
+        task_title: taskTitle,
       })
       .select()
       .single()
 
     if (insertError) {
       console.error('Insert error:', insertError)
-      return NextResponse.json({ error: 'Failed to record completion' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Failed to record completion' },
+        { status: 500 }
+      )
     }
 
-    // ============================================
-    // 12. UPDATE TASK COUNTER
-    // ============================================
-    await supabase
-      .from('tasks')
-      .update({ total_completions: (task.total_completions || 0) + 1 })
-      .eq('id', taskId)
+    // 11. UPDATE TASK COUNTER (if exists in DB)
+    if (task) {
+      await supabase
+        .from('tasks')
+        .update({ total_completions: (task.total_completions || 0) + 1 })
+        .eq('id', taskId)
+    }
 
-    // ============================================
-    // 13. CREDIT USER BALANCE
-    // ============================================
+    // 12. CREDIT BALANCE
     const newBalance = (profile?.spy_balance || 0) + reward
     const newEarned = (profile?.earned_spy || 0) + reward
 
@@ -324,32 +267,26 @@ export async function POST(request: Request) {
       })
       .eq('id', user.id)
 
-    // ============================================
-    // 14. UPDATE TRUST SCORE
-    // ============================================
+    // 13. UPDATE TRUST SCORE
     const newTrustScore = Math.min(100, trustScore + 1)
     await supabase
       .from('profiles')
       .update({ trust_score: newTrustScore })
       .eq('id', user.id)
 
-    // ============================================
-    // 15. MARK SESSION COMPLETE
-    // ============================================
+    // 14. MARK SESSION COMPLETE
     await supabase
       .from('task_sessions')
       .update({ status: 'completed', completed_at: new Date().toISOString() })
       .eq('session_token', signals.sessionToken)
 
-    // ============================================
-    // 16. LOG TRANSACTION
-    // ============================================
+    // 15. LOG TRANSACTION
     await supabase.from('transactions').insert({
       user_id: user.id,
       type: 'task_complete',
       amount_spy: reward,
       balance_after: newBalance,
-      description: `Completed: ${task.title}`,
+      description: `Completed: ${taskTitle}`,
       metadata: {
         task_id: taskId,
         fraud_score: fraudScore,
@@ -359,9 +296,7 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString(),
     }).then(() => {}).catch(() => {})
 
-    // ============================================
-    // 17. RETURN SUCCESS
-    // ============================================
+    // 16. RETURN
     return NextResponse.json({
       success: true,
       reward,
@@ -373,6 +308,9 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Task completion error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
