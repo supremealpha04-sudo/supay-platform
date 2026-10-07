@@ -1,3 +1,5 @@
+/* app/dashboard/earn/page.css */
+
 /* ============================================
    EARN PAGE - PREMIUM DARK THEME
    ============================================ */
@@ -398,7 +400,6 @@
   transform: translateY(0) scale(0.99);
 }
 
-/* Icon wrappers with gradients */
 .earn-icon-wrapper-blue {
   width: 3.75rem;
   height: 3.75rem;
