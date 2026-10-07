@@ -39,11 +39,11 @@ interface VerificationSignals {
   timestamp: number
 }
 
-function verifySessionToken(token: string, userId: string, taskId: string): {
-  valid: boolean
-  payload?: any
-  error?: string
-} {
+function verifySessionToken(
+  token: string,
+  userId: string,
+  taskId: string
+): { valid: boolean; payload?: any; error?: string } {
   try {
     const decoded = Buffer.from(token, 'base64').toString()
     const { payload, signature } = JSON.parse(decoded)
@@ -70,11 +70,22 @@ function verifySessionToken(token: string, userId: string, taskId: string): {
   }
 }
 
+// ✅ HELPER: Safe insert that catches errors properly
+async function safeInsert(supabase: any, table: string, data: any) {
+  try {
+    const result = await supabase.from(table).insert(data)
+    return result
+  } catch (error) {
+    console.warn(`Silent insert failed on ${table}:`, error)
+    return { data: null, error }
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    const { taskId, signals, taskData } = await request.json() as {
+    const { taskId, signals, taskData } = (await request.json()) as {
       taskId: string
       signals: VerificationSignals
       taskData?: any
@@ -96,9 +107,9 @@ export async function POST(request: Request) {
     // 2. VERIFY MINIMUM DURATION
     if (signals.actualDuration < MIN_INTERACTION_SECONDS) {
       return NextResponse.json(
-        { 
+        {
           error: `You must spend at least ${MIN_INTERACTION_SECONDS / 60} minutes on this task`,
-          details: `You spent ${Math.round(signals.actualDuration)}s`
+          details: `You spent ${Math.round(signals.actualDuration)}s`,
         },
         { status: 400 }
       )
@@ -124,14 +135,15 @@ export async function POST(request: Request) {
     const fraudScore = signals.fraudScore || 0
 
     if (fraudScore >= 60) {
-      await supabase.from('fraud_logs').insert({
+      // ✅ FIXED: Use safeInsert instead of .then().catch()
+      await safeInsert(supabase, 'fraud_logs', {
         user_id: user.id,
         task_id: taskId,
         fraud_score: fraudScore,
         signals,
         action: 'blocked',
         created_at: new Date().toISOString(),
-      }).then(() => {}).catch(() => {})
+      })
 
       return NextResponse.json(
         { error: 'Suspicious activity detected. Task rejected.' },
@@ -154,7 +166,7 @@ export async function POST(request: Request) {
       .map(([name]) => name)
 
     if (failedChecks.length >= 3) {
-      await supabase.from('fraud_logs').insert({
+      await safeInsert(supabase, 'fraud_logs', {
         user_id: user.id,
         task_id: taskId,
         fraud_score: Math.max(fraudScore, 45),
@@ -162,7 +174,7 @@ export async function POST(request: Request) {
         action: 'blocked',
         reason: `Failed: ${failedChecks.join(', ')}`,
         created_at: new Date().toISOString(),
-      }).then(() => {}).catch(() => {})
+      })
 
       return NextResponse.json(
         { error: 'Task verification failed. Please try again.' },
@@ -186,7 +198,7 @@ export async function POST(request: Request) {
     }
 
     // 7. GET TASK DETAILS
-    let taskReward = 10 // Default fallback
+    let taskReward = 10
     let taskTitle = 'Task'
 
     const { data: task } = await supabase
@@ -199,7 +211,6 @@ export async function POST(request: Request) {
       taskReward = task.reward_spy
       taskTitle = task.title
     } else if (taskData) {
-      // Social task from client
       taskReward = taskData.reward_spy || 10
       taskTitle = taskData.title || 'Social Task'
     }
@@ -247,7 +258,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // 11. UPDATE TASK COUNTER (if exists in DB)
+    // 11. UPDATE TASK COUNTER (if exists)
     if (task) {
       await supabase
         .from('tasks')
@@ -281,7 +292,8 @@ export async function POST(request: Request) {
       .eq('session_token', signals.sessionToken)
 
     // 15. LOG TRANSACTION
-    await supabase.from('transactions').insert({
+    // ✅ FIXED: Use safeInsert
+    await safeInsert(supabase, 'transactions', {
       user_id: user.id,
       type: 'task_complete',
       amount_spy: reward,
@@ -294,9 +306,9 @@ export async function POST(request: Request) {
         trust_modifier: trustModifier,
       },
       created_at: new Date().toISOString(),
-    }).then(() => {}).catch(() => {})
+    })
 
-    // 16. RETURN
+    // 16. RETURN SUCCESS
     return NextResponse.json({
       success: true,
       reward,
@@ -305,7 +317,6 @@ export async function POST(request: Request) {
       expiresAt,
       message: `+${reward} SPY earned!`,
     })
-
   } catch (error) {
     console.error('Task completion error:', error)
     return NextResponse.json(
