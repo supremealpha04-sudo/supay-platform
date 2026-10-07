@@ -57,6 +57,39 @@ interface ActiveSession {
   task: Task
 }
 
+interface TaskSignals {
+  actualDuration: number
+  userAgent: string
+  screenResolution: string
+  timezone: string
+  language: string
+  platform: string
+  hardwareConcurrency: number
+  deviceMemory: number
+  mouseMovements: number
+  keystrokes: number
+  scrollEvents: number
+  clicks: number
+  tabSwitches: number
+  windowBlurs: number
+  copyAttempts: number
+  isHeadless: boolean
+  isDevToolsOpen: boolean
+  hasAdBlocker: boolean
+  isPrivateMode: boolean
+  isVirtualMachine: boolean
+  isVPN: boolean
+  isProxy: boolean
+  isTor: boolean
+  isDatacenter: boolean
+  canvasFingerprint: string
+  clickedUrl: boolean
+  returnedToApp: boolean
+  fraudScore: number
+  timestamp: number
+  sessionToken?: string
+}
+
 // ============================================
 // CONSTANTS
 // ============================================
@@ -272,7 +305,11 @@ class AntiCheatService {
     }
   }
 
-  async getSignals(expectedDuration: number, clickedUrl: boolean, returnedToApp: boolean) {
+  async getSignals(
+    expectedDuration: number,
+    clickedUrl: boolean,
+    returnedToApp: boolean
+  ): Promise<TaskSignals> {
     const actualDuration = (Date.now() - this.startTime) / 1000
     const isHeadless = this.detectHeadless()
     const isDevToolsOpen = this.detectDevTools()
@@ -365,14 +402,12 @@ export default function TasksPage() {
 
     setLoading(true)
     try {
-      // Fetch DB tasks
       const { data: tasksData } = await supabase
         .from('tasks')
         .select('*')
         .eq('is_active', true)
         .order('reward_spy', { ascending: false })
 
-      // Fetch user's completed tasks (non-expired)
       const now = new Date().toISOString()
       const { data: completedData } = await supabase
         .from('completed_tasks')
@@ -384,7 +419,6 @@ export default function TasksPage() {
       let allTasks: Task[] = []
       if (tasksData) allTasks = [...tasksData]
 
-      // Add social tasks (if not already in DB)
       const existingSocialIds = new Set(allTasks.map(t => t.id))
       SOCIAL_TASKS.forEach(st => {
         if (!existingSocialIds.has(st.id)) allTasks.push(st)
@@ -393,7 +427,6 @@ export default function TasksPage() {
       setTasks(allTasks)
       setUserTasks(completedData || [])
 
-      // Stats
       const completed = (completedData || []).length
       const totalEarned = (completedData || []).reduce(
         (sum, c) => sum + (c.reward_spy || 0),
@@ -455,11 +488,24 @@ export default function TasksPage() {
     return `${hours}h left`
   }, [])
 
+  // ===== CANCEL SESSION =====
+  const cancelSession = useCallback((showToast = true) => {
+    antiCheat.stopTracking()
+    if (taskTimerRef.current) clearInterval(taskTimerRef.current)
+    if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
+    setActiveSession(null)
+    setTaskTimer(0)
+    setSessionTimer(0)
+    setClickedUrl(false)
+    setReturnedToApp(false)
+    setShowCancelConfirm(false)
+    if (showToast) toast('Task cancelled', { icon: '⚠️' })
+  }, [])
+
   // ===== START TASK =====
   const startTask = useCallback(async (task: Task) => {
     if (!user?.id) return
 
-    // Social tasks - use modal
     if (task.task_type === 'social_follow') {
       setSelectedSocialTask(task)
       return
@@ -478,7 +524,6 @@ export default function TasksPage() {
         return
       }
 
-      // Start anti-cheat
       antiCheat.startTracking()
 
       setActiveSession({
@@ -496,7 +541,6 @@ export default function TasksPage() {
 
       toast.success('Task started! Click the link to open.')
 
-      // Timers
       if (taskTimerRef.current) clearInterval(taskTimerRef.current)
       taskTimerRef.current = setInterval(() => {
         setTaskTimer(prev => {
@@ -523,7 +567,7 @@ export default function TasksPage() {
       console.error('Error starting task:', e)
       toast.error('Failed to start task')
     }
-  }, [user?.id])
+  }, [user?.id, cancelSession])
 
   // ===== CLICK TASK URL =====
   const handleClickTaskUrl = useCallback(() => {
@@ -563,12 +607,15 @@ export default function TasksPage() {
     setIsVerifying(true)
 
     try {
-      const signals = await antiCheat.getSignals(
+      const baseSignals = await antiCheat.getSignals(
         activeSession.minDurationSeconds,
         clickedUrl,
         returnedToApp
       )
-      signals.sessionToken = activeSession.sessionToken
+      const signals: TaskSignals = {
+        ...baseSignals,
+        sessionToken: activeSession.sessionToken,
+      }
 
       if (signals.fraudScore >= 60) {
         toast.error('🚫 Suspicious activity detected')
@@ -592,10 +639,8 @@ export default function TasksPage() {
       if (data.success) {
         toast.success(`✅ +${data.reward} SPY earned!`)
 
-        // Remove from available
         setTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
 
-        // Add to completed
         setUserTasks(prev => [
           ...prev,
           {
@@ -625,21 +670,7 @@ export default function TasksPage() {
     } finally {
       setIsVerifying(false)
     }
-  }, [activeSession, user?.id, clickedUrl, returnedToApp, taskTimer, formatCountdown, refreshProfile, fetchTasks])
-
-  // ===== CANCEL SESSION =====
-  const cancelSession = useCallback((showToast = true) => {
-    antiCheat.stopTracking()
-    if (taskTimerRef.current) clearInterval(taskTimerRef.current)
-    if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
-    setActiveSession(null)
-    setTaskTimer(0)
-    setSessionTimer(0)
-    setClickedUrl(false)
-    setReturnedToApp(false)
-    setShowCancelConfirm(false)
-    if (showToast) toast('Task cancelled', { icon: '⚠️' })
-  }, [])
+  }, [activeSession, user?.id, clickedUrl, returnedToApp, taskTimer, formatCountdown, refreshProfile, fetchTasks, cancelSession])
 
   // ===== VERIFY SOCIAL TASK =====
   const verifySocialTask = useCallback(async () => {
@@ -648,9 +679,8 @@ export default function TasksPage() {
     setIsCompletingSocial(true)
 
     try {
-      const signals = await antiCheat.getSignals(30, true, true)
+      const baseSignals = await antiCheat.getSignals(30, true, true)
 
-      // Start a session for the social task
       const startRes = await fetch('/api/tasks/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -667,8 +697,11 @@ export default function TasksPage() {
         return
       }
 
-      signals.sessionToken = startData.sessionToken
-      signals.actualDuration = 120 // Social tasks pass immediately after real verification
+      const signals: TaskSignals = {
+        ...baseSignals,
+        sessionToken: startData.sessionToken,
+        actualDuration: 120,
+      }
 
       const completeRes = await fetch('/api/tasks/complete', {
         method: 'POST',
@@ -757,7 +790,6 @@ export default function TasksPage() {
               exit={{ scale: 0.9, y: 20 }}
               className="session-modal"
             >
-              {/* Session Header */}
               <div className="session-header">
                 <div>
                   <h3>Complete Task</h3>
@@ -775,7 +807,6 @@ export default function TasksPage() {
                 </button>
               </div>
 
-              {/* Session Body */}
               <div className="session-body">
                 <div className="session-task-icon">
                   <Zap size={28} />
@@ -783,9 +814,7 @@ export default function TasksPage() {
                 <h2>{activeSession.task.title}</h2>
                 <p className="session-task-desc">{activeSession.task.description}</p>
 
-                {/* Steps */}
                 <div className="session-steps">
-                  {/* Step 1 */}
                   <div className={`session-step ${clickedUrl ? 'done' : 'active'}`}>
                     <div className="step-num">
                       {clickedUrl ? <Check size={16} /> : '1'}
@@ -806,7 +835,6 @@ export default function TasksPage() {
                     </div>
                   </div>
 
-                  {/* Step 2 */}
                   <div className={`session-step ${returnedToApp ? 'done' : clickedUrl ? 'active' : ''}`}>
                     <div className="step-num">
                       {returnedToApp ? <Check size={16} /> : '2'}
@@ -823,7 +851,6 @@ export default function TasksPage() {
                     </div>
                   </div>
 
-                  {/* Step 3 */}
                   <div className={`session-step ${taskTimer === 0 && returnedToApp ? 'active' : ''}`}>
                     <div className="step-num">
                       {taskTimer === 0 && returnedToApp ? <Timer size={16} /> : '3'}
@@ -839,14 +866,12 @@ export default function TasksPage() {
                   </div>
                 </div>
 
-                {/* Anti-cheat indicator */}
                 <div className="anticheat-badge">
                   <ShieldCheck size={16} />
                   <span>Anti-cheat protection active</span>
                 </div>
               </div>
 
-              {/* Session Footer */}
               <div className="session-footer">
                 <button
                   onClick={() => setShowCancelConfirm(true)}
@@ -1048,7 +1073,6 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Social Banner */}
       <div className="social-banner">
         <div className="banner-content">
           <Sparkles size={20} className="banner-icon" />
@@ -1079,7 +1103,6 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Search & Filter */}
       <div className="tasks-toolbar">
         <div className="search-box">
           <Search size={18} className="search-icon" />
@@ -1100,7 +1123,6 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {/* Type Filters */}
       <div className="type-filters">
         {[
           { id: 'all', label: 'All Tasks', icon: BarChart3 },
@@ -1124,7 +1146,6 @@ export default function TasksPage() {
         })}
       </div>
 
-      {/* Tasks Grid */}
       {loading ? (
         <div className="tasks-loading">
           <div className="loading-spinner" />
@@ -1232,7 +1253,6 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Completed Tasks (72h auto-delete) */}
       {userTasks.length > 0 && (
         <div className="completed-section">
           <h2>
