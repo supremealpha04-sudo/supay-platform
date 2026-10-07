@@ -1,472 +1,936 @@
-// app/dashboard/earn/page.tsx
+// app/dashboard/tasks/page.tsx
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { 
-  FaPlay, FaClock, FaCoins, FaStopwatch, FaFire, 
-  FaAd, FaHistory, FaStar, FaChartLine,
-  FaVideo, FaDatabase, FaSync, FaExclamationCircle
+  FaTasks, FaCoins, FaClock, FaCheckCircle, 
+  FaTimes, FaExternalLinkAlt, FaSync,
+  FaExclamationCircle, FaShieldAlt, FaStar,
+  FaPlayCircle, FaMousePointer, FaUserPlus, 
+  FaGlobe, FaHourglassHalf, FaTrash
 } from 'react-icons/fa'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
-
-import './page.css'
+import './tasks.css'
 
 const supabase = createClient()
 
-const AdViewer = dynamic(() => import('@/components/ads/AdViewer'), {
-  ssr: false,
-  loading: () => (
-    <div className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin" />
-    </div>
-  )
-})
-
-interface AdOption {
-  tier: 'display' | 'video'
+// ============================================
+// TYPES
+// ============================================
+interface Task {
+  id: string
   title: string
   description: string
-  totalDuration: number
-  adCount: number
-  icon: any
-  color: string
-  dailyLimit: number
-  estimatedReward: string
+  reward_spy: number
+  task_type: 'video' | 'click' | 'social' | 'survey' | 'signup'
+  url?: string
+  min_duration_seconds: number
+  daily_limit: number
+  total_completions: number
+  is_active: boolean
+  created_at: string
 }
 
-const AD_OPTIONS: AdOption[] = [
-  {
-    tier: 'display',
-    title: 'Display Ads',
-    description: 'Watch 3 display ads (25s each)',
-    totalDuration: 75,
-    adCount: 3,
-    icon: FaAd,
-    color: 'bg-blue-500',
-    dailyLimit: 20,
-    estimatedReward: '0.45 SPY'
-  },
-  {
-    tier: 'video',
-    title: 'Video Ads',
-    description: 'Watch 2 video ads (30s each)',
-    totalDuration: 60,
-    adCount: 2,
-    icon: FaVideo,
-    color: 'bg-purple-500',
-    dailyLimit: 10,
-    estimatedReward: '1.00 SPY'
+interface CompletedTask {
+  id: string
+  task_id: string
+  verified_at: string
+  expires_at: string
+  reward_spy: number
+  status: string
+}
+
+interface ActiveSession {
+  sessionToken: string
+  expiresAt: string
+  minDurationSeconds: number
+  maxWindowMinutes: number
+  task: {
+    id: string
+    title: string
+    url?: string
+    taskType: string
+    rewardSpy: number
   }
-]
+}
 
-export default function EarnPage() {
-  const router = useRouter()
-  const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
-  
-  const [showAd, setShowAd] = useState(false)
-  const [selectedAd, setSelectedAd] = useState<AdOption | null>(null)
-  const [stats, setStats] = useState({
-    todayEarnings: 0,
-    dailyRemaining: 20,
-    streak: 0,
-    totalAds: 0
-  })
+// ============================================
+// ANTI-CHEAT SERVICE - ULTRA
+// ============================================
+class AntiCheatService {
+  private mouseMoves = 0
+  private keystrokes = 0
+  private scrolls = 0
+  private clicks = 0
+  private tabSwitches = 0
+  private windowBlurs = 0
+  private copyAttempts = 0
+  private startTime = 0
+  private pageVisibleStart = 0
+  private listeners: (() => void)[] = []
+  private onBlurReset: () => void
+
+  constructor(onBlurReset: () => void) {
+    this.onBlurReset = onBlurReset
+  }
+
+  startTracking() {
+    this.mouseMoves = 0
+    this.keystrokes = 0
+    this.scrolls = 0
+    this.clicks = 0
+    this.tabSwitches = 0
+    this.windowBlurs = 0
+    this.copyAttempts = 0
+    this.startTime = Date.now()
+    this.pageVisibleStart = Date.now()
+    this.listeners = []
+
+    // Mouse movement
+    const mouseHandler = () => { this.mouseMoves++ }
+    document.addEventListener('mousemove', mouseHandler)
+    this.listeners.push(() => document.removeEventListener('mousemove', mouseHandler))
+
+    // Keyboard
+    const keyHandler = () => { this.keystrokes++ }
+    document.addEventListener('keydown', keyHandler)
+    this.listeners.push(() => document.removeEventListener('keydown', keyHandler))
+
+    // Scroll
+    const scrollHandler = () => { this.scrolls++ }
+    document.addEventListener('scroll', scrollHandler, { passive: true })
+    this.listeners.push(() => document.removeEventListener('scroll', scrollHandler))
+
+    // Clicks
+    const clickHandler = () => { this.clicks++ }
+    document.addEventListener('click', clickHandler)
+    this.listeners.push(() => document.removeEventListener('click', clickHandler))
+
+    // Tab visibility
+    const visibilityHandler = () => {
+      if (document.hidden) {
+        this.tabSwitches++
+      } else {
+        this.pageVisibleStart = Date.now()
+      }
+    }
+    document.addEventListener('visibilitychange', visibilityHandler)
+    this.listeners.push(() => document.removeEventListener('visibilitychange', visibilityHandler))
+
+    // Window blur
+    const blurHandler = () => {
+      this.windowBlurs++
+      this.onBlurReset()
+    }
+    window.addEventListener('blur', blurHandler)
+    this.listeners.push(() => window.removeEventListener('blur', blurHandler))
+
+    // Copy attempt
+    const copyHandler = (e: ClipboardEvent) => {
+      this.copyAttempts++
+    }
+    document.addEventListener('copy', copyHandler)
+    this.listeners.push(() => document.removeEventListener('copy', copyHandler))
+
+    // Context menu (right-click)
+    const contextHandler = (e: MouseEvent) => {
+      e.preventDefault()
+      return false
+    }
+    document.addEventListener('contextmenu', contextHandler)
+    this.listeners.push(() => document.removeEventListener('contextmenu', contextHandler))
+  }
+
+  stopTracking() {
+    this.listeners.forEach(remove => remove())
+    this.listeners = []
+  }
+
+  detectHeadless(): boolean {
+    const checks = [
+      navigator.webdriver === true,
+      /HeadlessChrome/.test(navigator.userAgent),
+      /Chrome\/\d+/.test(navigator.userAgent) && navigator.plugins.length === 0,
+      window.outerWidth === 0 && window.outerHeight === 0,
+      !navigator.mimeTypes || navigator.mimeTypes.length === 0,
+      !!(window as any).Cypress,
+      !!(window as any).__playwright,
+      !!(window as any).callPhantom,
+      !!(window as any)._phantom,
+      !!(window as any).__nightmare,
+    ]
+    return checks.filter(Boolean).length >= 3
+  }
+
+  detectDevTools(): boolean {
+    const threshold = 160
+    return (window.outerWidth - window.innerWidth > threshold) ||
+           (window.outerHeight - window.innerHeight > threshold)
+  }
+
+  detectAdBlocker(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const testAd = document.createElement('div')
+      testAd.className = 'adsbox pub_300x250 text-ad'
+      testAd.style.cssText = 'position:absolute;left:-9999px;'
+      document.body.appendChild(testAd)
+      setTimeout(() => {
+        const blocked = testAd.offsetHeight === 0
+        document.body.removeChild(testAd)
+        resolve(blocked)
+      }, 100)
+    })
+  }
+
+  detectPrivateMode(): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        localStorage.setItem('test', '1')
+        localStorage.removeItem('test')
+        resolve(false)
+      } catch {
+        resolve(true)
+      }
+    })
+  }
+
+  detectVM(): boolean {
+    return [
+      /VMware|VirtualBox|Parallels|QEMU/.test(navigator.userAgent),
+      navigator.hardwareConcurrency <= 2,
+      (navigator as any).deviceMemory && (navigator as any).deviceMemory < 4,
+    ].filter(Boolean).length >= 2
+  }
+
+  async detectVPN(): Promise<{ vpn: boolean; proxy: boolean; tor: boolean; datacenter: boolean }> {
+    try {
+      const res = await fetch('https://ipapi.co/json/', {
+        signal: AbortSignal.timeout(3000)
+      })
+      const data = await res.json()
+      return {
+        vpn: data.security?.vpn || false,
+        proxy: data.security?.proxy || false,
+        tor: data.security?.tor || false,
+        datacenter: data.type === 'hosting' || data.type === 'business',
+      }
+    } catch {
+      return { vpn: false, proxy: false, tor: false, datacenter: false }
+    }
+  }
+
+  async getCanvasFingerprint(): Promise<string> {
+    try {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return 'unsupported'
+      canvas.width = 200
+      canvas.height = 50
+      ctx.textBaseline = 'top'
+      ctx.font = '14px Arial'
+      ctx.fillStyle = '#f60'
+      ctx.fillRect(0, 0, 200, 50)
+      ctx.fillStyle = '#069'
+      ctx.fillText('Supay Anti-Cheat ' + Date.now(), 2, 15)
+      return canvas.toDataURL().slice(-50)
+    } catch {
+      return 'blocked'
+    }
+  }
+
+  async getSignals(expectedDuration: number, clickedUrl: boolean, returnedToApp: boolean) {
+    const actualDuration = (Date.now() - this.startTime) / 1000
+    const playbackSpeed = expectedDuration / actualDuration
+    const isHeadless = this.detectHeadless()
+    const isDevToolsOpen = this.detectDevTools()
+    const hasAdBlocker = await this.detectAdBlocker()
+    const isPrivateMode = await this.detectPrivateMode()
+    const isVM = this.detectVM()
+    const vpnInfo = await this.detectVPN()
+    const canvasFingerprint = await this.getCanvasFingerprint()
+
+    // Calculate fraud score
+    let fraudScore = 0
+    if (isHeadless) fraudScore += 40
+    if (isDevToolsOpen) fraudScore += 25
+    if (hasAdBlocker) fraudScore += 15
+    if (isPrivateMode) fraudScore += 10
+    if (isVM) fraudScore += 15
+    if (vpnInfo.vpn) fraudScore += 20
+    if (vpnInfo.proxy) fraudScore += 20
+    if (vpnInfo.tor) fraudScore += 30
+    if (vpnInfo.datacenter) fraudScore += 15
+    if (playbackSpeed > 1.5) fraudScore += 25
+    if (this.mouseMoves < 10) fraudScore += 15
+    if (this.scrolls < 3) fraudScore += 10
+    if (this.clicks < 1) fraudScore += 10
+    if (this.tabSwitches > 3) fraudScore += 15
+    if (this.windowBlurs > 5) fraudScore += 10
+    if (this.copyAttempts > 0) fraudScore += 20
+
+    return {
+      actualDuration,
+      timeSinceStart: actualDuration,
+      timeOnTaskPage: actualDuration,
+      timeOnTaskSite: actualDuration,
+      userAgent: navigator.userAgent,
+      screenResolution: `${screen.width}x${screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      language: navigator.language,
+      platform: navigator.platform,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      deviceMemory: (navigator as any).deviceMemory || 0,
+      mouseMovements: this.mouseMoves,
+      keystrokes: this.keystrokes,
+      scrollEvents: this.scrolls,
+      clicks: this.clicks,
+      tabSwitches: this.tabSwitches,
+      windowBlurs: this.windowBlurs,
+      copyAttempts: this.copyAttempts,
+      isHeadless,
+      isDevToolsOpen,
+      hasAdBlocker,
+      isPrivateMode,
+      isVirtualMachine: isVM,
+      isEmulator: false,
+      isVPN: vpnInfo.vpn,
+      isProxy: vpnInfo.proxy,
+      isTor: vpnInfo.tor,
+      isDatacenter: vpnInfo.datacenter,
+      canvasFingerprint,
+      webglFingerprint: 'n/a',
+      expectedDuration,
+      playbackSpeed,
+      fraudScore: Math.min(100, fraudScore),
+      clickedUrl,
+      returnedToApp,
+      timestamp: Date.now(),
+    }
+  }
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+export default function TasksPage() {
+  const { profile, user, refreshProfile } = useAuth()
+  const [availableTasks, setAvailableTasks] = useState<Task[]>([])
+  const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [recentActivity, setRecentActivity] = useState<any[]>([])
-  const [statsError, setStatsError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null)
+  const [taskTimer, setTaskTimer] = useState(0)
+  const [sessionTimeLeft, setSessionTimeLeft] = useState(0)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [clickedUrl, setClickedUrl] = useState(false)
+  const [returnedToApp, setReturnedToApp] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [sessionUser, setSessionUser] = useState<any>(null)
-  const [retryCount, setRetryCount] = useState(0)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const sessionTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const antiCheatRef = useRef<AntiCheatService | null>(null)
 
-  // Direct session check
+  // Initialize anti-cheat
+  useEffect(() => {
+    antiCheatRef.current = new AntiCheatService(() => {
+      // Called when window blurs - reset returnedToApp
+      setReturnedToApp(false)
+    })
+  }, [])
+
+  // ===== SESSION CHECK =====
   useEffect(() => {
     const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          setSessionUser(session.user)
-        }
-      } catch (err) {
-        console.error('Session check error:', err)
-      }
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) setSessionUser(session.user)
     }
     checkSession()
   }, [])
 
-  // Robust stats fetcher - NEVER crashes the page
-  const fetchStats = useCallback(async () => {
+  // ===== FETCH TASKS =====
+  const fetchTasks = useCallback(async () => {
     const userId = profile?.id || sessionUser?.id
-    
     if (!userId) {
       setIsLoading(false)
       return
     }
-    
+
     setIsLoading(true)
-    setStatsError(null)
+    setError(null)
 
     try {
-      const today = new Date().toISOString().split('T')[0]
+      // Get all active tasks
+      const { data: allTasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('is_active', true)
+        .order('reward_spy', { ascending: false })
 
-      // Try to get today's watches - gracefully handle missing table/RLS
-      let todayWatches: any[] = []
-      let totalAds = 0
-      let earnings = 0
+      if (tasksError) throw tasksError
 
-      try {
-        const { data, error } = await supabase
-          .from('ad_watches')
-          .select('reward_spy, ad_tier, created_at')
-          .eq('user_id', userId)
-          .gte('created_at', today)
-          .order('created_at', { ascending: false })
+      // Get user's completed tasks (only non-expired)
+      const now = new Date().toISOString()
+      const { data: completions } = await supabase
+        .from('completed_tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'verified')
+        .or(`expires_at.is.null,expires_at.gt.${now}`)
 
-        if (error) {
-          console.warn('⚠️ ad_watches query failed (table missing or RLS):', error.message)
-          setStatsError('Stats temporarily unavailable')
-        } else {
-          todayWatches = data || []
-          totalAds = todayWatches.length
-          earnings = todayWatches.reduce((sum, w) => sum + (w.reward_spy || 0), 0)
-        }
-      } catch (e) {
-        console.warn('⚠️ ad_watches table may not exist yet')
-        setStatsError('Stats temporarily unavailable')
-      }
+      const completedIds = new Set((completions || []).map(c => c.task_id))
+      const available = (allTasks || []).filter(task => !completedIds.has(task.id))
 
-      // Try to get streak from profile - gracefully handle missing column
-      let streak = 0
-      try {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('daily_bonus_streak')
-          .eq('id', userId)
-          .maybeSingle()
-
-        if (!profileError && profileData) {
-          streak = profileData.daily_bonus_streak || 0
-        }
-      } catch (e) {
-        console.warn('⚠️ Could not load streak')
-      }
-
-      setStats({
-        todayEarnings: earnings,
-        dailyRemaining: Math.max(0, 20 - totalAds),
-        streak,
-        totalAds
-      })
-      setRecentActivity(todayWatches.slice(0, 5))
-
-    } catch (error) {
-      console.error('❌ Unexpected error in fetchStats:', error)
-      setStatsError('Failed to load stats')
-      // Keep default zero stats so page still works
-      setStats({
-        todayEarnings: 0,
-        dailyRemaining: 20,
-        streak: 0,
-        totalAds: 0
-      })
+      setAvailableTasks(available)
+      setCompletedTasks(completions || [])
+    } catch (err) {
+      console.error('Error fetching tasks:', err)
+      setError('Failed to load tasks')
     } finally {
       setIsLoading(false)
     }
   }, [profile, sessionUser])
 
-  // Load stats when user is available
   useEffect(() => {
     const userId = profile?.id || sessionUser?.id
-    if (userId) {
-      fetchStats()
-    } else if (!authLoading) {
-      setIsLoading(false)
-    }
-  }, [profile, sessionUser, authLoading, fetchStats, retryCount])
+    if (userId) fetchTasks()
+  }, [profile, sessionUser, fetchTasks])
 
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1)
-  }
-
-  const startAd = (option: AdOption) => {
+  // ===== START TASK =====
+  const handleStartTask = async (task: Task) => {
     const userId = profile?.id || sessionUser?.id
     if (!userId) {
-      toast.error('Please log in to watch ads')
-      router.push('/login?redirect=/dashboard/earn')
+      toast.error('Please log in')
       return
     }
-    setSelectedAd(option)
-    setShowAd(true)
-  }
 
-  // Resilient ad completion handler
-  const handleAdComplete = async (reward: number, tier: string, fraudScore: any) => {
-    setShowAd(false)
-    setSelectedAd(null)
+    if (completedTasks.some(c => c.task_id === task.id)) {
+      toast.error('You already completed this task!')
+      return
+    }
 
     try {
-      const res = await fetch('/api/ads/complete', {
+      const response = await fetch('/api/tasks/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adTier: tier,
-          platform: 'adsterra',
-          fraudSignals: fraudScore,
-          fraudScore,
-        }),
+        body: JSON.stringify({ taskId: task.id }),
       })
 
-      // Handle non-JSON responses
-      const contentType = res.headers.get('content-type')
-      if (!contentType?.includes('application/json')) {
-        const text = await res.text()
-        console.error('Non-JSON response:', text)
-        toast.error('Server error. Please try again.')
+      const data = await response.json()
+
+      if (!data.success) {
+        toast.error(data.error || 'Failed to start task')
         return
       }
 
-      const data = await res.json()
-      
-      if (data.success) {
-        toast.success(`+${data.reward} SPY! 🎉`)
-        await refreshProfile()
-        fetchStats()
-      } else {
-        toast.error(data.message || 'Failed to process')
-        if (data.message?.includes('Unauthorized') || data.message?.includes('log in')) {
-          router.push('/login?redirect=/dashboard/earn')
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error completing ad:', error)
-      toast.error('Network error. Reward may still be processed.')
+      // Start anti-cheat tracking
+      antiCheatRef.current?.startTracking()
+
+      setActiveSession({
+        sessionToken: data.sessionToken,
+        expiresAt: data.expiresAt,
+        minDurationSeconds: data.minDurationSeconds,
+        maxWindowMinutes: data.maxWindowMinutes,
+        task: data.task,
+      })
+
+      setTaskTimer(data.minDurationSeconds)
+      setSessionTimeLeft(data.maxWindowMinutes * 60)
+      setClickedUrl(false)
+      setReturnedToApp(false)
+
+      toast.success('Task started! Click the link below to open it.')
+
+      // Start countdown timers
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = setInterval(() => {
+        setTaskTimer(prev => {
+          if (prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+      if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
+      sessionTimerRef.current = setInterval(() => {
+        setSessionTimeLeft(prev => {
+          if (prev <= 1) {
+            if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
+            handleCancelSession()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err) {
+      console.error('Start task error:', err)
+      toast.error('Failed to start task')
     }
   }
 
-  const handleCancelAd = () => {
-    setShowAd(false)
-    setSelectedAd(null)
-    toast('Ad cancelled', { icon: '⚠️' })
+  // ===== CLICK TASK URL =====
+  const handleClickTaskUrl = () => {
+    if (!activeSession?.task.url) return
+    window.open(activeSession.task.url, '_blank', 'noopener,noreferrer')
+    setClickedUrl(true)
+    toast.success('Task opened! Return here after completing.')
   }
 
-  const isLoggedIn = !!(user || profile || sessionUser)
-
-  // Auth loading
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-accent-500/30 border-t-accent-500 rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 mt-4">Loading...</p>
-        </div>
-      </div>
-    )
+  // ===== RETURN TO APP =====
+  const handleReturnToApp = () => {
+    if (!clickedUrl) {
+      toast.error('Please click the task link first')
+      return
+    }
+    setReturnedToApp(true)
+    toast.success('Ready to verify!')
   }
 
-  // Not logged in
-  if (!isLoggedIn) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <p className="text-gray-400">Please log in to earn rewards</p>
-          <Link href="/login?redirect=/dashboard/earn" className="text-accent-500 hover:text-accent-400 mt-2 inline-block">
-            Go to Login
-          </Link>
-        </div>
-      </div>
-    )
+  // ===== COMPLETE TASK =====
+  const handleCompleteTask = async () => {
+    if (!activeSession) return
+    const userId = profile?.id || sessionUser?.id
+    if (!userId) return
+
+    if (!clickedUrl) {
+      toast.error('Please click the task link first')
+      return
+    }
+
+    if (!returnedToApp) {
+      toast.error('Please confirm you returned to the app')
+      return
+    }
+
+    if (taskTimer > 0) {
+      toast.error(`Please wait ${taskTimer} more seconds`)
+      return
+    }
+
+    setIsVerifying(true)
+
+    try {
+      const signals = await antiCheatRef.current?.getSignals(
+        activeSession.minDurationSeconds,
+        clickedUrl,
+        returnedToApp
+      )
+
+      if (!signals) {
+        toast.error('Failed to collect signals')
+        setIsVerifying(false)
+        return
+      }
+
+      signals.sessionToken = activeSession.sessionToken
+
+      if (signals.fraudScore >= 60) {
+        toast.error('🚫 Suspicious activity detected')
+        console.warn('Fraud signals:', signals)
+        handleCancelSession()
+        setIsVerifying(false)
+        return
+      }
+
+      const response = await fetch('/api/tasks/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: activeSession.task.id,
+          signals,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success(`✅ +${data.reward} SPY earned!`)
+
+        // ✅ AUTO-REMOVE FROM AVAILABLE
+        setAvailableTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
+
+        // ✅ ADD TO COMPLETED
+        setCompletedTasks(prev => [...prev, {
+          id: data.completionId,
+          task_id: activeSession.task.id,
+          verified_at: new Date().toISOString(),
+          expires_at: data.expiresAt,
+          reward_spy: data.reward,
+          status: 'verified',
+        }])
+
+        await refreshProfile()
+        handleCancelSession(false)
+      } else {
+        toast.error(data.error || 'Verification failed')
+        if (data.error?.includes('already')) {
+          setAvailableTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
+          fetchTasks()
+        }
+        handleCancelSession(false)
+      }
+    } catch (err) {
+      console.error('Task completion error:', err)
+      toast.error('Failed to verify task')
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
-  // MAIN RENDER - Always show ad options, even if stats fail
+  // ===== CANCEL SESSION =====
+  const handleCancelSession = (showToast = true) => {
+    if (isVerifying) return
+    antiCheatRef.current?.stopTracking()
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
+    setActiveSession(null)
+    setTaskTimer(0)
+    setSessionTimeLeft(0)
+    setClickedUrl(false)
+    setReturnedToApp(false)
+    setShowConfirmModal(false)
+    if (showToast) toast('Task cancelled', { icon: '⚠️' })
+  }
+
+  // ===== CLEANUP =====
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
+      antiCheatRef.current?.stopTracking()
+    }
+  }, [])
+
+  // ===== HELPERS =====
+  const getTaskIcon = (type: string) => {
+    switch (type) {
+      case 'video': return FaPlayCircle
+      case 'click': return FaMousePointer
+      case 'social': return FaUserPlus
+      case 'survey': return FaGlobe
+      case 'signup': return FaUserPlus
+      default: return FaTasks
+    }
+  }
+
+  const getTaskColor = (type: string) => {
+    switch (type) {
+      case 'video': return 'bg-red-500'
+      case 'click': return 'bg-blue-500'
+      case 'social': return 'bg-purple-500'
+      case 'survey': return 'bg-green-500'
+      case 'signup': return 'bg-orange-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  const getHoursUntilExpiry = (expiresAt: string) => {
+    const diff = new Date(expiresAt).getTime() - Date.now()
+    if (diff <= 0) return 'Expiring...'
+    return `${Math.floor(diff / (1000 * 60 * 60))}h left`
+  }
+
+  // ===== RENDER =====
   return (
-    <div className="earn-container">
+    <div className="tasks-container">
+      {/* ACTIVE SESSION OVERLAY */}
       <AnimatePresence>
-        {showAd && selectedAd && (
-          <AdViewer
-            userId={profile?.id || sessionUser?.id || ''}
-            platform="adsterra"
-            adTier={selectedAd.tier}
-            totalDuration={selectedAd.totalDuration}
-            adCount={selectedAd.adCount}
-            onComplete={handleAdComplete}
-            onCancel={handleCancelAd}
-          />
+        {activeSession && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="task-overlay"
+          >
+            <div className="task-modal">
+              {/* Header with session timer */}
+              <div className="task-modal-header">
+                <div>
+                  <h3>Complete Task</h3>
+                  <p className="task-modal-session-timer">
+                    <FaHourglassHalf /> Session: {formatTime(sessionTimeLeft)}
+                  </p>
+                </div>
+                <button onClick={() => setShowConfirmModal(true)} disabled={isVerifying}>
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="task-modal-body">
+                <div className={`task-modal-icon ${getTaskColor(activeSession.task.taskType)}`}>
+                  {(() => {
+                    const Icon = getTaskIcon(activeSession.task.taskType)
+                    return <Icon />
+                  })()}
+                </div>
+
+                <h2>{activeSession.task.title}</h2>
+
+                {/* Steps */}
+                <div className="task-steps">
+                  <div className={`task-step ${clickedUrl ? 'completed' : 'active'}`}>
+                    <div className="task-step-number">
+                      {clickedUrl ? <FaCheckCircle /> : '1'}
+                    </div>
+                    <div className="task-step-content">
+                      <h4>Open Task</h4>
+                      <p>Click the button below to open the task</p>
+                      {activeSession.task.url && (
+                        <button
+                          onClick={handleClickTaskUrl}
+                          className="task-step-btn"
+                          disabled={clickedUrl}
+                        >
+                          <FaExternalLinkAlt /> Open Task
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`task-step ${returnedToApp ? 'completed' : clickedUrl ? 'active' : ''}`}>
+                    <div className="task-step-number">
+                      {returnedToApp ? <FaCheckCircle /> : '2'}
+                    </div>
+                    <div className="task-step-content">
+                      <h4>Complete & Return</h4>
+                      <p>Complete the task then come back</p>
+                      {clickedUrl && !returnedToApp && (
+                        <button
+                          onClick={handleReturnToApp}
+                          className="task-step-btn"
+                        >
+                          ✓ I've Returned
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`task-step ${taskTimer === 0 && returnedToApp ? 'active' : ''}`}>
+                    <div className="task-step-number">3</div>
+                    <div className="task-step-content">
+                      <h4>Wait & Verify</h4>
+                      <p>
+                        {taskTimer > 0
+                          ? `Wait ${formatTime(taskTimer)} before verifying`
+                          : 'Ready to verify!'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Anti-cheat indicator */}
+                <div className="task-verify-status">
+                  <FaShieldAlt className="text-green-400" />
+                  <span>Anti-cheat protection active</span>
+                </div>
+              </div>
+
+              <div className="task-modal-footer">
+                <button
+                  onClick={() => setShowConfirmModal(true)}
+                  className="task-btn-cancel"
+                  disabled={isVerifying}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCompleteTask}
+                  className="task-btn-complete"
+                  disabled={taskTimer > 0 || !clickedUrl || !returnedToApp || isVerifying}
+                >
+                  {isVerifying ? (
+                    <>
+                      <FaSync className="animate-spin" /> Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <FaCheckCircle /> Verify Task
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* CONFIRM CANCEL MODAL */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="task-confirm-overlay"
+          >
+            <div className="task-confirm-modal">
+              <h3>Cancel Task?</h3>
+              <p>Your progress will be lost. Are you sure?</p>
+              <div className="task-confirm-actions">
+                <button onClick={() => setShowConfirmModal(false)} className="task-btn-cancel">
+                  Keep Going
+                </button>
+                <button onClick={() => handleCancelSession()} className="task-btn-danger">
+                  Cancel Task
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="earn-header"
-      >
-        <div className="earn-header-top">
+      <div className="tasks-header">
+        <h1><FaTasks className="text-accent-500" /> Tasks</h1>
+        <p>Complete tasks to earn SPY rewards</p>
+      </div>
+
+      {/* Stats */}
+      <div className="tasks-stats">
+        <div className="tasks-stat-card">
+          <FaTasks className="text-accent-500" />
           <div>
-            <h1 className="earn-header-title">Earn SPY</h1>
-            <p className="earn-header-subtitle">Watch ads from Adsterra</p>
-            {profile?.is_premium && (
-              <div className="earn-premium-badge">
-                <FaStar /> Premium: 2x Rewards Active
+            <p className="tasks-stat-label">Available</p>
+            <p className="tasks-stat-value">{availableTasks.length}</p>
+          </div>
+        </div>
+        <div className="tasks-stat-card">
+          <FaCheckCircle className="text-green-400" />
+          <div>
+            <p className="tasks-stat-label">Completed</p>
+            <p className="tasks-stat-value">{completedTasks.length}</p>
+          </div>
+        </div>
+        <div className="tasks-stat-card">
+          <FaCoins className="text-yellow-400" />
+          <div>
+            <p className="tasks-stat-label">Total Earned</p>
+            <p className="tasks-stat-value">
+              {completedTasks.reduce((sum, t) => sum + (t.reward_spy || 0), 0).toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="tasks-error">
+          <FaExclamationCircle />
+          <span>{error}</span>
+          <button onClick={fetchTasks}>
+            <FaSync /> Retry
+          </button>
+        </div>
+      )}
+
+      {/* Loading */}
+      {isLoading ? (
+        <div className="tasks-loading">
+          <div className="spinner" />
+          <p>Loading tasks...</p>
+        </div>
+      ) : (
+        <>
+          {/* Available Tasks */}
+          <div className="tasks-section">
+            <h2>Available Tasks ({availableTasks.length})</h2>
+            {availableTasks.length === 0 ? (
+              <div className="tasks-empty">
+                <FaCheckCircle className="tasks-empty-icon" />
+                <h3>All tasks completed! 🎉</h3>
+                <p>New tasks will appear soon. Check back later!</p>
+                <Link href="/dashboard/earn" className="tasks-empty-link">
+                  Watch Ads Instead
+                </Link>
+              </div>
+            ) : (
+              <div className="tasks-grid">
+                {availableTasks.map((task) => {
+                  const Icon = getTaskIcon(task.task_type)
+                  return (
+                    <motion.div
+                      key={task.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="task-card"
+                    >
+                      <div className={`task-icon ${getTaskColor(task.task_type)}`}>
+                        <Icon />
+                      </div>
+                      <div className="task-content">
+                        <h3>{task.title}</h3>
+                        <p>{task.description}</p>
+                        <div className="task-meta">
+                          <span className="task-reward">
+                            <FaCoins /> +{task.reward_spy} SPY
+                            {profile?.is_premium && (
+                              <span className="task-premium-boost">2x</span>
+                            )}
+                          </span>
+                          <span className="task-duration">
+                            <FaClock /> {Math.floor((task.min_duration_seconds || 120) / 60)}min
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleStartTask(task)}
+                        className="task-start-btn"
+                      >
+                        Start <FaExternalLinkAlt />
+                      </button>
+                    </motion.div>
+                  )
+                })}
               </div>
             )}
           </div>
-          <div className="earn-header-badges">
-            <div className="earn-platform-badge available">
-              <span className="mr-1">🎯</span>
-              Adsterra
-              <span className="ml-1 text-green-400">●</span>
+
+          {/* Completed Tasks (Auto-deletes after 72h) */}
+          {completedTasks.length > 0 && (
+            <div className="tasks-section">
+              <h2>
+                Recently Completed ({completedTasks.length})
+                <span className="tasks-section-note">
+                  Auto-deletes after 72 hours
+                </span>
+              </h2>
+              <div className="tasks-grid completed">
+                {completedTasks.map((completion) => (
+                  <div key={completion.id} className="task-card completed">
+                    <div className="task-icon bg-green-500">
+                      <FaCheckCircle />
+                    </div>
+                    <div className="task-content">
+                      <h3>Task Completed</h3>
+                      <p>Reward: <strong>+{completion.reward_spy} SPY</strong></p>
+                      <div className="task-completed-meta">
+                        <span className="task-completed-time">
+                          {new Date(completion.verified_at).toLocaleDateString()}
+                        </span>
+                        {completion.expires_at && (
+                          <span className="task-expires-in">
+                            <FaTrash /> {getHoursUntilExpiry(completion.expires_at)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Stats Error Banner (non-blocking) */}
-      {statsError && (
-        <motion.div 
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="stats-error-banner"
-        >
-          <FaExclamationCircle className="text-yellow-400 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-yellow-400 text-sm font-medium">{statsError}</p>
-            <p className="text-yellow-400/60 text-xs">You can still watch ads and earn rewards</p>
-          </div>
-          <button 
-            onClick={handleRetry}
-            className="p-2 hover:bg-yellow-500/20 rounded-lg transition"
-          >
-            <FaSync className="text-yellow-400 text-sm" />
-          </button>
-        </motion.div>
-      )}
-
-      {/* Stats Cards */}
-      <div className="earn-stats-grid">
-        {[
-          { label: 'Today', value: `${stats.todayEarnings.toFixed(2)} SPY`, icon: FaCoins, iconClass: 'earn-stat-icon-accent' },
-          { label: 'Remaining', value: `${stats.dailyRemaining} ads`, icon: FaStopwatch, iconClass: 'earn-stat-icon-blue' },
-          { label: 'Streak', value: `${stats.streak} days 🔥`, icon: FaFire, iconClass: 'earn-stat-icon-orange' },
-          { label: 'Total Views', value: `${stats.totalAds}`, icon: FaChartLine, iconClass: 'earn-stat-icon-green' },
-        ].map((s, i) => (
-          <motion.div 
-            key={i} 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.1 }}
-            className="earn-stat-card"
-          >
-            <s.icon className={s.iconClass} />
-            <p className="earn-stat-label">{s.label}</p>
-            <p className="earn-stat-value">{isLoading ? '...' : s.value}</p>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Ad Options */}
-      <h2 className="earn-section-title">Available Ads</h2>
-      <div className="grid gap-4 mb-6">
-        {AD_OPTIONS.map((option, index) => {
-          const Icon = option.icon
-          const iconWrapperClass = {
-            'bg-blue-500': 'earn-icon-wrapper-blue',
-            'bg-purple-500': 'earn-icon-wrapper-purple',
-          }[option.color] || 'earn-icon-wrapper-blue'
-
-          return (
-            <motion.button
-              key={option.tier}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => startAd(option)}
-              className="earn-ad-option"
-            >
-              <div className={iconWrapperClass}>
-                <Icon className="text-white text-2xl" />
-              </div>
-              <div className="earn-ad-content">
-                <div className="earn-ad-title">
-                  {option.title}
-                  {option.tier === 'video' && (
-                    <span className="earn-ad-badge-best-value">BEST VALUE</span>
-                  )}
-                </div>
-                <p className="earn-ad-description">{option.description}</p>
-                <div className="earn-ad-meta">
-                  <span className="earn-ad-meta-item">
-                    <FaClock className="inline" /> {option.totalDuration}s total
-                  </span>
-                  <span className="earn-ad-meta-item">{option.adCount} ads</span>
-                  <span className="earn-ad-meta-item">Limit: {option.dailyLimit}/day</span>
-                  <span className="earn-ad-reward-estimate">
-                    {option.estimatedReward}
-                  </span>
-                </div>
-              </div>
-              <div className="flex-shrink-0">
-                <div className="earn-ad-action-button">
-                  <FaPlay />
-                </div>
-              </div>
-            </motion.button>
-          )
-        })}
-      </div>
-
-      {/* Recent Activity */}
-      {recentActivity.length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="earn-recent-activity"
-        >
-          <h3 className="earn-recent-activity-title">
-            <FaHistory /> Today's Activity
-          </h3>
-          <div className="earn-activity-list">
-            {recentActivity.map((watch, i) => (
-              <div key={i} className="earn-activity-item">
-                <div className="flex items-center gap-2">
-                  <span className="earn-activity-time">
-                    {new Date(watch.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  <span className="earn-activity-tier">{watch.ad_tier}</span>
-                </div>
-                <span className="earn-activity-reward">+{watch.reward_spy.toFixed(2)} SPY</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Premium Upgrade Banner */}
-      {!profile?.is_premium && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="earn-premium-banner"
-        >
-          <div className="earn-premium-banner-content">
-            <div>
-              <h3 className="earn-premium-banner-title">
-                <FaStar className="earn-star" /> Go Premium
-              </h3>
-              <p className="earn-premium-banner-description">2x rewards on everything + exclusive ad types</p>
-            </div>
-            <Link href="/dashboard/premium">
-              <button className="earn-upgrade-btn">
-                Upgrade Now
-              </button>
-            </Link>
-          </div>
-        </motion.div>
+          )}
+        </>
       )}
     </div>
   )
