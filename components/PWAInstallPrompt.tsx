@@ -14,19 +14,15 @@ export default function PWAInstallPrompt() {
   const [isIOS, setIsIOS] = useState(false)
 
   useEffect(() => {
-    // Detect iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
     setIsIOS(isIOSDevice)
 
-    // Check if already dismissed recently
     const dismissed = localStorage.getItem('pwa-prompt-dismissed')
     if (dismissed) {
-      const dismissedAt = parseInt(dismissed)
-      const daysSinceDismissed = (Date.now() - dismissedAt) / (1000 * 60 * 60 * 24)
+      const daysSinceDismissed = (Date.now() - parseInt(dismissed)) / (1000 * 60 * 60 * 24)
       if (daysSinceDismissed < 7) return
     }
 
-    // Android/Chrome install prompt
     const handler = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e as BeforeInstallPromptEvent)
@@ -35,23 +31,18 @@ export default function PWAInstallPrompt() {
 
     window.addEventListener('beforeinstallprompt', handler)
 
-    // iOS: show after 5 seconds
     if (isIOSDevice) {
       setTimeout(() => setShowPrompt(true), 5000)
     }
 
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler)
-    }
+    return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
   const handleInstall = async () => {
     if (!deferredPrompt) return
     await deferredPrompt.prompt()
     const { outcome } = await deferredPrompt.userChoice
-    if (outcome === 'accepted') {
-      setShowPrompt(false)
-    }
+    if (outcome === 'accepted') setShowPrompt(false)
     setDeferredPrompt(null)
   }
 
@@ -69,9 +60,7 @@ export default function PWAInstallPrompt() {
         <div className="pwa-prompt-text">
           <h4>Install Supay</h4>
           {isIOS ? (
-            <p>
-              Tap <strong>Share</strong> then <strong>Add to Home Screen</strong>
-            </p>
+            <p>Tap <strong>Share</strong> then <strong>Add to Home Screen</strong></p>
           ) : (
             <p>Install our app for faster access & offline support</p>
           )}
