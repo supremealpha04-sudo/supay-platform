@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { 
   Activity, DollarSign, Users, Wallet, Play, 
   CheckCircle, Gift, TrendingUp, ArrowRight,
-  Flame, Zap, ArrowUp, ArrowDown, X, Clock,
+  Flame, Zap, ArrowUp, X, Clock,
   RefreshCw
 } from 'lucide-react'
 import './dashboard.css'
@@ -409,11 +409,11 @@ export default function DashboardPage() {
         </div>
         <div className="spy-usd">≈ ${usdValue.toFixed(2)} USD</div>
         <div className="spy-buttons">
-          <Link href="/dashboard/wallet?tab=deposit" className="spy-btn deposit">
-            <ArrowDown size={14} aria-hidden="true" /> Deposit
-          </Link>
           <Link href="/dashboard/wallet?tab=withdraw" className="spy-btn withdraw">
             <ArrowUp size={14} aria-hidden="true" /> Withdraw
+          </Link>
+          <Link href="/dashboard/earn" className="spy-btn earn">
+            <Zap size={14} aria-hidden="true" /> Earn More
           </Link>
         </div>
       </div>
