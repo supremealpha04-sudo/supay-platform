@@ -7,6 +7,32 @@ const SESSION_DURATION_MINUTES = 30
 const MIN_INTERACTION_SECONDS = 120
 
 // ============================================
+// TYPES
+// ============================================
+interface CompletedTaskRow {
+  id: string
+  verified_at: string | null
+  expires_at: string | null
+}
+
+interface TaskSessionRow {
+  id: string
+  user_id: string
+  task_id: string
+  session_token: string
+  status: string
+  started_at: string
+  expires_at: string
+  min_duration_seconds: number | null
+  task_data: any
+}
+
+interface TaskRow {
+  id: string
+  [key: string]: any
+}
+
+// ============================================
 // SAFE DB HELPERS
 // ============================================
 async function safeQuery<T = any>(
@@ -14,7 +40,7 @@ async function safeQuery<T = any>(
 ): Promise<{ data: T | null; error: any }> {
   try {
     const result = await query
-    return result
+    return result as { data: T | null; error: any }
   } catch (error) {
     console.warn('Query failed:', error)
     return { data: null, error }
@@ -75,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     // 3. CHECK IF ALREADY COMPLETED (Anti-Duplicate)
-    const { data: existingCompletion } = await safeQuery(
+    const { data: existingCompletion } = await safeQuery<CompletedTaskRow>(
       supabase
         .from('completed_tasks')
         .select('id, verified_at, expires_at')
@@ -99,7 +125,7 @@ export async function POST(request: Request) {
     }
 
     // 4. CHECK FOR ACTIVE SESSION
-    const { data: activeSession } = await safeQuery(
+    const { data: activeSession } = await safeQuery<TaskSessionRow>(
       supabase
         .from('task_sessions')
         .select('*')
@@ -125,8 +151,8 @@ export async function POST(request: Request) {
 
     // 5. VERIFY TASK EXISTS (for DB tasks)
     // Social tasks won't exist in DB - handle gracefully
-    let taskRecord = null
-    const { data: dbTask } = await safeQuery(
+    let taskRecord: TaskRow | null = null
+    const { data: dbTask } = await safeQuery<TaskRow>(
       supabase
         .from('tasks')
         .select('*')
