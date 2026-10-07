@@ -3,16 +3,18 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
-// Generate signed task session token
+const SESSION_DURATION_MINUTES = 30
+const MIN_INTERACTION_SECONDS = 120
+
 function generateSessionToken(userId: string, taskId: string): string {
   const payload = {
     userId,
     taskId,
     startedAt: Date.now(),
-    expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
+    expiresAt: Date.now() + SESSION_DURATION_MINUTES * 60 * 1000,
     nonce: crypto.randomBytes(16).toString('hex'),
   }
-  const secret = process.env.TASK_SESSION_SECRET || 'default-secret'
+  const secret = process.env.TASK_SESSION_SECRET || 'supay-task-secret-change-me'
   const signature = crypto
     .createHmac('sha256', secret)
     .update(JSON.stringify(payload))
@@ -24,37 +26,28 @@ export async function POST(request: Request) {
   try {
     const supabase = createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    const { taskId } = await request.json()
+    const { taskId, taskData } = await request.json()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify task exists and is active
-    const { data: task, error: taskError } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('id', taskId)
-      .eq('is_active', true)
-      .single()
-
-    if (taskError || !task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
-    }
-
-    // Check if already completed
-    const { data: existing } = await supabase
+    // Check if already completed (both tables for compatibility)
+    const { data: existingCompletion } = await supabase
       .from('completed_tasks')
       .select('id')
       .eq('user_id', user.id)
       .eq('task_id', taskId)
       .maybeSingle()
 
-    if (existing) {
-      return NextResponse.json({ error: 'Task already completed' }, { status: 400 })
+    if (existingCompletion) {
+      return NextResponse.json(
+        { error: 'You already completed this task' },
+        { status: 400 }
+      )
     }
 
-    // Check if there's an active session (prevent multiple concurrent sessions)
+    // Check for active session
     const { data: activeSession } = await supabase
       .from('task_sessions')
       .select('*')
@@ -65,20 +58,21 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (activeSession) {
-      // Return existing session token
       return NextResponse.json({
         success: true,
         sessionToken: activeSession.session_token,
         expiresAt: activeSession.expires_at,
-        minDurationSeconds: task.min_duration_seconds || 120, // Default 2 min
-        maxWindowMinutes: 30,
+        minDurationSeconds: activeSession.min_duration_seconds,
+        maxWindowMinutes: SESSION_DURATION_MINUTES,
         existing: true,
       })
     }
 
-    // Generate new session
+    // Create new session
     const sessionToken = generateSessionToken(user.id, taskId)
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const expiresAt = new Date(
+      Date.now() + SESSION_DURATION_MINUTES * 60 * 1000
+    ).toISOString()
 
     const { error: insertError } = await supabase
       .from('task_sessions')
@@ -89,30 +83,30 @@ export async function POST(request: Request) {
         status: 'active',
         started_at: new Date().toISOString(),
         expires_at: expiresAt,
-        min_duration_seconds: task.min_duration_seconds || 120,
+        min_duration_seconds: MIN_INTERACTION_SECONDS,
+        task_data: taskData || {},
       })
 
     if (insertError) {
       console.error('Session insert error:', insertError)
-      return NextResponse.json({ error: 'Failed to start session' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Failed to start session' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
       success: true,
       sessionToken,
       expiresAt,
-      minDurationSeconds: task.min_duration_seconds || 120,
-      maxWindowMinutes: 30,
-      task: {
-        id: task.id,
-        title: task.title,
-        url: task.url,
-        taskType: task.task_type,
-        rewardSpy: task.reward_spy,
-      },
+      minDurationSeconds: MIN_INTERACTION_SECONDS,
+      maxWindowMinutes: SESSION_DURATION_MINUTES,
     })
   } catch (error) {
     console.error('Task start error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
