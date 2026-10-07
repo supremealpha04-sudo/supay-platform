@@ -10,6 +10,7 @@ import {
   Zap, Moon, Sun, ChevronDown
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import './layout-modules.css'
 
 // ============================================
@@ -492,6 +493,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })}
       </nav>
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   )
 }
