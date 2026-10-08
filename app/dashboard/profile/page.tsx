@@ -11,11 +11,67 @@ import {
   Flame, Wallet, Settings, HelpCircle,
   ShieldCheck, Crown, Activity, BarChart3, Award
 } from 'lucide-react'
-import { ExtendedProfile, UserStats, Country } from '@/types/profile'
 import './profile.css'
 
 const supabase = createClient()
 
+// ============================================
+// INLINE TYPES (No separate file needed)
+// ============================================
+interface ExtendedProfile {
+  id?: string
+  username?: string
+  full_name?: string
+  email?: string
+  phone_number?: string
+  phone_verified?: boolean
+  country?: string
+  country_code?: string
+  bio?: string
+  avatar_url?: string
+  spy_balance?: number
+  earned_spy?: number
+  deposited_spy?: number
+  referral_spy?: number
+  staking_rewards_spy?: number
+  total_earned_usd?: number
+  total_withdrawn_usd?: number
+  referral_count?: number
+  daily_bonus_streak?: number
+  is_premium?: boolean
+  is_admin?: boolean
+  is_banned?: boolean
+  kyc_status?: string
+  created_at?: string
+  updated_at?: string
+  last_active?: string
+}
+
+interface UserStats {
+  total_earned_spy: number
+  total_earned_usd: number
+  total_withdrawn_usd: number
+  total_referrals: number
+  active_referrals: number
+  total_ads_watched: number
+  total_tasks_completed: number
+  current_streak: number
+  longest_streak: number
+  last_activity: string | null
+}
+
+interface Country {
+  id: number
+  code: string
+  name: string
+  flag: string
+  dial_code: string
+  is_active: boolean
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 export default function ProfilePage() {
   const { profile, user, refreshProfile } = useAuth()
   
@@ -201,26 +257,10 @@ export default function ProfilePage() {
   ]
 
   const extendedStats = [
-    { 
-      label: 'Ads Watched', 
-      value: stats.total_ads_watched || 0,
-      icon: Activity
-    },
-    { 
-      label: 'Tasks Done', 
-      value: stats.total_tasks_completed || 0,
-      icon: CheckCircle
-    },
-    { 
-      label: 'Active Referrals', 
-      value: stats.active_referrals || 0,
-      icon: Users
-    },
-    { 
-      label: 'Longest Streak', 
-      value: `${stats.longest_streak || 0}d`,
-      icon: Award
-    }
+    { label: 'Ads Watched', value: stats.total_ads_watched || 0, icon: Activity },
+    { label: 'Tasks Done', value: stats.total_tasks_completed || 0, icon: CheckCircle },
+    { label: 'Active Referrals', value: stats.active_referrals || 0, icon: Users },
+    { label: 'Longest Streak', value: `${stats.longest_streak || 0}d`, icon: Award }
   ]
 
   if (loading) {
@@ -249,11 +289,7 @@ export default function ProfilePage() {
             </Link>
           )}
           {editMode && (
-            <button 
-              className="cancel-btn"
-              onClick={handleCancel}
-              disabled={saving}
-            >
+            <button className="cancel-btn" onClick={handleCancel} disabled={saving}>
               <X size={16} />
               Cancel
             </button>
@@ -282,18 +318,10 @@ export default function ProfilePage() {
       {message && (
         <div className={`profile-message ${message.type}`}>
           <div className="message-content">
-            {message.type === 'success' ? (
-              <CheckCircle size={18} />
-            ) : (
-              <AlertCircle size={18} />
-            )}
+            {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
             <span>{message.text}</span>
           </div>
-          <button 
-            className="message-dismiss"
-            onClick={() => setMessage(null)}
-            aria-label="Dismiss message"
-          >
+          <button className="message-dismiss" onClick={() => setMessage(null)} aria-label="Dismiss">
             <X size={16} />
           </button>
         </div>
@@ -310,35 +338,22 @@ export default function ProfilePage() {
               </button>
             )}
           </div>
-          {editMode && (
-            <div className="avatar-hint">Click camera to change</div>
-          )}
+          {editMode && <div className="avatar-hint">Click camera to change</div>}
         </div>
         <h2>{userName}</h2>
         <p className="user-role">
           {isAdmin ? (
-            <>
-              <Crown size={12} />
-              Administrator
-            </>
+            <><Crown size={12} />Administrator</>
           ) : extendedProfile.is_premium ? (
-            <>
-              <Sparkles size={12} />
-              Premium Member
-            </>
+            <><Sparkles size={12} />Premium Member</>
           ) : (
-            <>
-              <Shield size={12} />
-              Verified Member
-            </>
+            <><Shield size={12} />Verified Member</>
           )}
         </p>
         <p className="user-since">
           <Calendar size={12} />
           Joined {extendedProfile.created_at ? new Date(extendedProfile.created_at).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+            year: 'numeric', month: 'long', day: 'numeric'
           }) : 'N/A'}
         </p>
       </div>
@@ -346,19 +361,12 @@ export default function ProfilePage() {
       {/* Profile Form */}
       <div className="profile-form">
         <div className="form-group">
-          <label>
-            <User size={14} /> 
-            Username
-          </label>
+          <label><User size={14} /> Username</label>
           {editMode ? (
             <input 
-              type="text" 
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              placeholder="Enter username"
-              disabled={saving}
-              maxLength={30}
+              type="text" name="username" value={formData.username}
+              onChange={handleChange} placeholder="Enter username"
+              disabled={saving} maxLength={30}
             />
           ) : (
             <div className="form-value">{formData.username || 'Not set'}</div>
@@ -366,19 +374,12 @@ export default function ProfilePage() {
         </div>
 
         <div className="form-group">
-          <label>
-            <User size={14} /> 
-            Full Name
-          </label>
+          <label><User size={14} /> Full Name</label>
           {editMode ? (
             <input 
-              type="text" 
-              name="full_name"
-              value={formData.full_name}
-              onChange={handleChange}
-              placeholder="Enter your full name"
-              disabled={saving}
-              maxLength={100}
+              type="text" name="full_name" value={formData.full_name}
+              onChange={handleChange} placeholder="Enter your full name"
+              disabled={saving} maxLength={100}
             />
           ) : (
             <div className="form-value">{formData.full_name || 'Not set'}</div>
@@ -386,31 +387,20 @@ export default function ProfilePage() {
         </div>
 
         <div className="form-group">
-          <label>
-            <Mail size={14} /> 
-            Email
-          </label>
+          <label><Mail size={14} /> Email</label>
           <div className="form-value email">
             {formData.email}
-            <span className="verified-badge">
-              <CheckCircle size={14} />
-              Verified
-            </span>
+            <span className="verified-badge"><CheckCircle size={14} />Verified</span>
           </div>
           <small className="field-hint">Email cannot be changed</small>
         </div>
 
         <div className="form-group">
-          <label>
-            <MapPin size={14} /> 
-            Country
-          </label>
+          <label><MapPin size={14} /> Country</label>
           {editMode ? (
             <select 
-              name="country"
-              value={formData.country}
-              onChange={handleChange}
-              disabled={saving}
+              name="country" value={formData.country}
+              onChange={handleChange} disabled={saving}
               className="country-select"
             >
               <option value="">Select your country</option>
@@ -423,31 +413,19 @@ export default function ProfilePage() {
           ) : (
             <div className="form-value">
               {formData.country ? (
-                <>
-                  {countries.find(c => c.name === formData.country)?.flag || '🌍'}{' '}
-                  {formData.country}
-                </>
-              ) : (
-                'Not set'
-              )}
+                <>{countries.find(c => c.name === formData.country)?.flag || '🌍'} {formData.country}</>
+              ) : 'Not set'}
             </div>
           )}
         </div>
 
         <div className="form-group">
-          <label>
-            <Edit3 size={14} /> 
-            Bio
-          </label>
+          <label><Edit3 size={14} /> Bio</label>
           {editMode ? (
             <textarea 
-              name="bio"
-              value={formData.bio}
-              onChange={handleChange}
-              placeholder="Tell us about yourself..."
-              rows={4}
-              disabled={saving}
-              maxLength={200}
+              name="bio" value={formData.bio}
+              onChange={handleChange} placeholder="Tell us about yourself..."
+              rows={4} disabled={saving} maxLength={200}
             />
           ) : (
             <div className="form-value bio">{formData.bio || 'No bio yet'}</div>
@@ -461,9 +439,7 @@ export default function ProfilePage() {
           const Icon = stat.icon
           return (
             <div key={index} className={`p-stat ${stat.color}`}>
-              <div className="p-stat-icon">
-                <Icon size={16} />
-              </div>
+              <div className="p-stat-icon"><Icon size={16} /></div>
               <div className="p-stat-content">
                 <span className="p-stat-num">{stat.value}</span>
                 <span className="p-stat-label">{stat.label}</span>
@@ -475,10 +451,7 @@ export default function ProfilePage() {
 
       {/* Extended Stats */}
       <div className="profile-extended-stats">
-        <h3 className="section-title">
-          <BarChart3 size={16} />
-          Activity Overview
-        </h3>
+        <h3 className="section-title"><BarChart3 size={16} />Activity Overview</h3>
         <div className="extended-stats-grid">
           {extendedStats.map((stat, index) => {
             const Icon = stat.icon
@@ -496,40 +469,31 @@ export default function ProfilePage() {
       {/* Quick Actions */}
       <div className="profile-actions">
         <Link href="/dashboard/wallet" className="action-link">
-          <Wallet size={16} />
-          Wallet
+          <Wallet size={16} />Wallet
         </Link>
         <Link href="/dashboard/settings" className="action-link">
-          <Settings size={16} />
-          Settings
+          <Settings size={16} />Settings
         </Link>
         <Link href="/dashboard/help" className="action-link">
-          <HelpCircle size={16} />
-          Help
+          <HelpCircle size={16} />Help
         </Link>
       </div>
 
       {/* Account Info */}
       <div className="account-info">
-        <h3 className="section-title">
-          <Shield size={16} />
-          Account Information
-        </h3>
+        <h3 className="section-title"><Shield size={16} />Account Information</h3>
         <div className="info-item">
           <span className="info-label">Member Since</span>
           <span className="info-value">
             {extendedProfile.created_at ? new Date(extendedProfile.created_at).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
+              year: 'numeric', month: 'long', day: 'numeric'
             }) : 'N/A'}
           </span>
         </div>
         <div className="info-item">
           <span className="info-label">Account Status</span>
           <span className={`info-value ${extendedProfile.is_banned ? 'status-rejected' : 'status-active'}`}>
-            <CheckCircle size={12} />
-            {extendedProfile.is_banned ? 'Banned' : 'Active'}
+            <CheckCircle size={12} />{extendedProfile.is_banned ? 'Banned' : 'Active'}
           </span>
         </div>
         <div className="info-item">
@@ -542,16 +506,10 @@ export default function ProfilePage() {
           <span className="info-label">Account Type</span>
           <span className={`info-value ${isAdmin ? 'status-admin' : extendedProfile.is_premium ? 'status-premium' : ''}`}>
             {isAdmin ? (
-              <>
-                <Crown size={12} /> Administrator
-              </>
+              <><Crown size={12} />Administrator</>
             ) : extendedProfile.is_premium ? (
-              <>
-                <Sparkles size={12} /> Premium
-              </>
-            ) : (
-              'Standard'
-            )}
+              <><Sparkles size={12} />Premium</>
+            ) : 'Standard'}
           </span>
         </div>
         {stats.last_activity && (
@@ -559,10 +517,7 @@ export default function ProfilePage() {
             <span className="info-label">Last Active</span>
             <span className="info-value">
               {new Date(stats.last_activity).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
               })}
             </span>
           </div>
