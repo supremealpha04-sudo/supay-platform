@@ -1,5 +1,8 @@
 'use client'
 
+// ✅ Force dynamic rendering (don't prerender at build time)
+export const dynamic = 'force-dynamic'
+
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -16,7 +19,7 @@ import './profile.css'
 const supabase = createClient()
 
 // ============================================
-// INLINE TYPES (No separate file needed)
+// INLINE TYPES
 // ============================================
 interface ExtendedProfile {
   id?: string
@@ -101,7 +104,8 @@ export default function ProfilePage() {
     bio: ''
   })
 
-  const extendedProfile = profile as ExtendedProfile
+  // ✅ Safe profile access with fallback
+  const extendedProfile = (profile || {}) as ExtendedProfile
 
   // ===== LOAD DATA =====
   const loadCountries = useCallback(async () => {
@@ -139,7 +143,11 @@ export default function ProfilePage() {
   // ===== EFFECTS =====
   useEffect(() => {
     async function init() {
-      if (!profile) return
+      // ✅ If no profile yet, wait for auth
+      if (!profile) {
+        setLoading(false)
+        return
+      }
       
       setFormData({
         username: extendedProfile.username || '',
@@ -224,9 +232,9 @@ export default function ProfilePage() {
     setMessage(null)
   }, [extendedProfile])
 
-  // ===== COMPUTED =====
-  const userName = extendedProfile.full_name || extendedProfile.username || 'User'
-  const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  // ===== COMPUTED (with safe fallbacks) =====
+  const userName = extendedProfile.full_name || extendedProfile.username || user?.email?.split('@')[0] || 'User'
+  const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'
   const isAdmin = extendedProfile.is_admin === true
 
   const statsDisplay = [
@@ -263,11 +271,25 @@ export default function ProfilePage() {
     { label: 'Longest Streak', value: `${stats.longest_streak || 0}d`, icon: Award }
   ]
 
+  // ===== LOADING STATE =====
   if (loading) {
     return (
       <div className="profile-loading">
         <div className="spinner" />
         <p>Loading profile...</p>
+      </div>
+    )
+  }
+
+  // ===== NOT LOGGED IN STATE =====
+  if (!user || !profile) {
+    return (
+      <div className="profile-loading">
+        <AlertCircle size={48} style={{ opacity: 0.5 }} />
+        <p>Please sign in to view your profile</p>
+        <Link href="/login" className="action-link" style={{ marginTop: '1rem' }}>
+          Go to Login
+        </Link>
       </div>
     )
   }
