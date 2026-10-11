@@ -1,328 +1,522 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { 
-  FaSearch, FaEye, FaBan, FaUserCheck, FaCoins, 
-  FaShieldAlt, FaTimes, FaUsers, FaDownload
+import { useRouter, usePathname } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  FaUsers, FaEye, FaCoins, FaWallet, FaSearch,
+  FaUserShield, FaCheck, FaTimes, FaArrowUp, FaArrowDown,
+  FaClock, FaSync, FaChartLine, FaBullhorn, FaShieldAlt,
+  FaCog, FaClipboardList, FaHome, FaChevronRight,
+  FaExclamationTriangle, FaUserCheck, FaUserTimes,
+  FaRocket, FaFire
 } from 'react-icons/fa'
 import Link from 'next/link'
-import toast from 'react-hot-toast'
-import './users.css'
+import './admin.css'
 
 const supabase = createClient()
 
-interface User {
+// ===== TYPES =====
+interface DashboardStats {
+  totalUsers: number
+  totalAdsWatched: number
+  totalSpyDistributed: number
+  pendingWithdrawals: number
+  todayNewUsers: number
+  todayAdsWatched: number
+}
+
+interface RecentUser {
   id: string
   username: string
   email: string
   spy_balance: number
   is_premium: boolean
   is_banned: boolean
-  referral_count: number
   created_at: string
-  last_active: string
 }
 
-export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>([])
+interface RecentActivity {
+  id: string
+  user_id: string
+  type: string
+  amount_spy: number
+  created_at: string
+  profiles?: { username: string }[]
+}
+
+// ===== NAVIGATION =====
+const ADMIN_NAV = [
+  { id: '', label: 'Dashboard', icon: FaHome, href: '/admin' },
+  { id: 'analytics', label: 'Analytics', icon: FaChartLine, href: '/admin/analytics' },
+  { id: 'users', label: 'Users', icon: FaUsers, href: '/admin/users' },
+  { id: 'withdrawals', label: 'Withdrawals', icon: FaArrowUp, href: '/admin/withdrawals' },
+  { id: 'tasks', label: 'Tasks', icon: FaClipboardList, href: '/admin/tasks' },
+  { id: 'broadcast', label: 'Broadcast', icon: FaBullhorn, href: '/admin/broadcast' },
+  { id: 'fraud', label: 'Fraud', icon: FaShieldAlt, href: '/admin/fraud' },
+  { id: 'settings', label: 'Settings', icon: FaCog, href: '/admin/settings' },
+]
+
+export default function AdminPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { profile, user, isLoading: authLoading } = useAuth()
+  
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0, totalAdsWatched: 0,
+    totalSpyDistributed: 0, pendingWithdrawals: 0,
+    todayNewUsers: 0, todayAdsWatched: 0
+  })
+  const [users, setUsers] = useState<RecentUser[]>([])
+  const [activities, setActivities] = useState<RecentActivity[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [showBalanceModal, setShowBalanceModal] = useState(false)
-  const [adjustAmount, setAdjustAmount] = useState('')
-  const [adjustReason, setAdjustReason] = useState('')
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity'>('overview')
 
-  const fetchUsers = useCallback(async () => {
-    setIsLoading(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
-
-    if (!error && data) {
-      setUsers(data)
+  // ===== GUARDS =====
+  useEffect(() => {
+    if (!authLoading && (!user || !profile?.is_admin)) {
+      router.push('/dashboard')
     }
-    setIsLoading(false)
+  }, [authLoading, user, profile, router])
+
+  // ===== DATA FETCHING =====
+  const fetchDashboardData = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const today = new Date().toISOString().split('T')[0]
+
+      const [
+        { count: totalUsers },
+        { count: totalAds },
+        { data: spyData },
+        { count: pendingWithdrawals },
+        { count: todayUsers },
+        { count: todayAds }
+      ] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('ad_watches').select('*', { count: 'exact', head: true }),
+        supabase.from('ad_watches').select('reward_spy'),
+        supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', today),
+        supabase.from('ad_watches').select('*', { count: 'exact', head: true }).gte('created_at', today),
+      ])
+
+      const totalSpy = spyData?.reduce((s, r) => s + (r.reward_spy || 0), 0) || 0
+
+      setStats({
+        totalUsers: totalUsers || 0,
+        totalAdsWatched: totalAds || 0,
+        totalSpyDistributed: totalSpy,
+        pendingWithdrawals: pendingWithdrawals || 0,
+        todayNewUsers: todayUsers || 0,
+        todayAdsWatched: todayAds || 0
+      })
+
+      const { data: recentUsers } = await supabase
+        .from('profiles')
+        .select('id, username, email, spy_balance, is_premium, is_banned, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      setUsers(recentUsers || [])
+
+      const { data: recentActivity } = await supabase
+        .from('transactions')
+        .select('id, user_id, type, amount_spy, created_at, profiles(username)')
+        .order('created_at', { ascending: false })
+        .limit(15)
+
+      setActivities(recentActivity || [])
+
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load admin data')
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
   useEffect(() => {
-    fetchUsers()
-  }, [fetchUsers])
+    if (profile?.is_admin) fetchDashboardData()
+  }, [profile, fetchDashboardData])
 
+  // ===== ACTIONS =====
   const toggleBan = useCallback(async (userId: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_banned: !currentStatus })
-      .eq('id', userId)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_banned: !currentStatus })
+        .eq('id', userId)
 
-    if (!error) {
+      if (error) throw error
       toast.success(`User ${currentStatus ? 'unbanned' : 'banned'} successfully`)
-      fetchUsers()
-    } else {
-      toast.error('Failed to update user status')
+      fetchDashboardData()
+    } catch {
+      toast.error('Action failed')
     }
-  }, [fetchUsers])
+  }, [fetchDashboardData])
 
-  const adjustBalance = useCallback(async (userId: string, amount: number, reason: string) => {
-    const { data: user } = await supabase
-      .from('profiles')
-      .select('spy_balance')
-      .eq('id', userId)
-      .single()
+  const filteredUsers = users.filter(u =>
+    u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
-    const newBalance = (user?.spy_balance || 0) + amount
+  const getUsername = (act: RecentActivity) => act.profiles?.[0]?.username || 'Unknown'
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ spy_balance: newBalance })
-      .eq('id', userId)
-
-    if (!error) {
-      await supabase.from('transactions').insert({
-        user_id: userId,
-        type: 'admin_adjustment',
-        amount_spy: amount,
-        balance_before: user?.spy_balance || 0,
-        balance_after: newBalance,
-        metadata: { reason, admin: true }
-      })
-
-      toast.success(`Balance adjusted by ${amount} SPY`)
-      setShowBalanceModal(false)
-      setAdjustAmount('')
-      setAdjustReason('')
-      fetchUsers()
-    } else {
-      toast.error('Failed to adjust balance')
-    }
-  }, [fetchUsers])
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filterStatus === 'all' ||
-      (filterStatus === 'premium' && user.is_premium) ||
-      (filterStatus === 'banned' && user.is_banned) ||
-      (filterStatus === 'active' && !user.is_banned)
-    return matchesSearch && matchesFilter
-  })
-
-  if (isLoading) {
+  // ===== LOADING =====
+  if (authLoading || isLoading) {
     return (
-      <div className="admin-user-detail-loading">
-        <div className="admin-user-detail-loading-spinner" />
+      <div className="admin-loading">
+        <div className="admin-loading-spinner" />
+        <p className="admin-loading-text">Loading admin dashboard...</p>
       </div>
     )
   }
 
+  if (!profile?.is_admin) return null
+
+  // ===== RENDER =====
   return (
-    <div className="admin-users-page">
-      {/* Header */}
-      <div className="admin-users-header">
-        <div className="admin-users-header-left">
-          <h1>Users</h1>
-          <p>Manage platform users</p>
-        </div>
-        <button className="admin-users-export-btn">
-          <FaShieldAlt /> Export CSV
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="admin-users-filters">
-        <div className="admin-users-search">
-          <FaSearch className="admin-users-search-icon" />
-          <input
-            type="text"
-            placeholder="Search by username or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="admin-users-search-input"
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="admin-users-filter-select"
-        >
-          <option value="all">All Users</option>
-          <option value="premium">Premium Only</option>
-          <option value="active">Active</option>
-          <option value="banned">Banned</option>
-        </select>
-      </div>
-
-      {/* Users Table */}
-      <div className="admin-users-table-wrapper">
-        <div className="admin-users-table-scroll">
-          <table className="admin-users-table">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Balance</th>
-                <th>Status</th>
-                <th>Referrals</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <div className="admin-users-user-cell">
-                      <div className="admin-users-avatar">
-                        {user.username?.[0]?.toUpperCase() || 'U'}
-                      </div>
-                      <div className="admin-users-user-info">
-                        <p className="admin-users-username">{user.username || 'No username'}</p>
-                        <p className="admin-users-email">{user.email || 'No email'}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="admin-users-balance">
-                      {user.spy_balance?.toLocaleString()} SPY
-                      <span className="admin-users-balance-usd">
-                        ≈ ${((user.spy_balance || 0) / 100).toFixed(2)}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="admin-users-status">
-                      {user.is_premium && (
-                        <span className="admin-users-badge admin-users-badge-premium">Premium</span>
-                      )}
-                      {user.is_banned && (
-                        <span className="admin-users-badge admin-users-badge-banned">Banned</span>
-                      )}
-                      {!user.is_premium && !user.is_banned && (
-                        <span className="admin-users-badge admin-users-badge-free">Free</span>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="admin-users-referrals">{user.referral_count || 0}</span>
-                  </td>
-                  <td>
-                    <span className="admin-users-date">
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="admin-users-actions">
-                      <Link 
-                        href={`/admin/users/${user.id}`} 
-                        className="admin-users-action-btn view"
-                        title="View user"
-                      >
-                        <FaEye />
-                      </Link>
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user)
-                          setShowBalanceModal(true)
-                        }}
-                        className="admin-users-action-btn coins"
-                        title="Adjust balance"
-                      >
-                        <FaCoins />
-                      </button>
-                      <button
-                        onClick={() => toggleBan(user.id, user.is_banned)}
-                        className={`admin-users-action-btn ${user.is_banned ? 'unban' : 'ban'}`}
-                        title={user.is_banned ? 'Unban user' : 'Ban user'}
-                      >
-                        {user.is_banned ? <FaUserCheck /> : <FaBan />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredUsers.length === 0 && (
-          <div className="admin-users-empty">
-            <FaUsers />
-            <h3>No users found</h3>
-            <p>Try adjusting your search or filter</p>
+    <div className="admin-page">
+      {/* ===== HEADER ===== */}
+      <div className="admin-header">
+        <div className="admin-header-left">
+          <div className="admin-header-badge">
+            <FaUserShield />
+            <span>Admin Panel</span>
           </div>
-        )}
+          <h1 className="admin-title">Dashboard</h1>
+          <p className="admin-subtitle">Manage your platform in real-time</p>
+        </div>
+        <div className="admin-header-right">
+          <button onClick={fetchDashboardData} className="admin-btn-refresh">
+            <FaSync />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
-      {/* Adjust Balance Modal */}
-      {showBalanceModal && selectedUser && (
-        <div 
-          className="admin-users-modal-overlay"
-          onClick={() => setShowBalanceModal(false)}
-        >
-          <div 
-            className="admin-users-modal"
-            onClick={(e) => e.stopPropagation()}
+      {/* ===== STATS GRID ===== */}
+      <div className="admin-stats-grid">
+        {[
+          { 
+            label: 'Total Users', 
+            value: stats.totalUsers.toLocaleString(), 
+            icon: FaUsers, 
+            variant: 'blue', 
+            change: `+${stats.todayNewUsers} today`,
+            changeType: 'positive'
+          },
+          { 
+            label: 'Ads Watched', 
+            value: stats.totalAdsWatched.toLocaleString(), 
+            icon: FaEye, 
+            variant: 'purple', 
+            change: `+${stats.todayAdsWatched} today`,
+            changeType: 'positive'
+          },
+          { 
+            label: 'SPY Distributed', 
+            value: stats.totalSpyDistributed.toFixed(2), 
+            icon: FaCoins, 
+            variant: 'green', 
+            change: 'All time',
+            changeType: 'neutral'
+          },
+          { 
+            label: 'Pending Withdrawals', 
+            value: stats.pendingWithdrawals.toString(), 
+            icon: FaWallet, 
+            variant: stats.pendingWithdrawals > 0 ? 'orange' : 'muted', 
+            change: stats.pendingWithdrawals > 0 ? 'Needs review' : 'All clear',
+            changeType: stats.pendingWithdrawals > 0 ? 'warning' : 'neutral'
+          },
+        ].map((s, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className={`admin-stat-card admin-stat-${s.variant}`}
           >
-            <h2 className="admin-users-modal-title">Adjust Balance</h2>
-            
-            <div className="admin-users-modal-info">
-              <div className="admin-users-modal-info-row">
-                <span className="admin-users-modal-info-label">User</span>
-                <span className="admin-users-modal-info-value">{selectedUser.username}</span>
+            <div className="admin-stat-bg" />
+            <div className="admin-stat-icon">
+              <s.icon />
+            </div>
+            <div className="admin-stat-content">
+              <p className="admin-stat-label">{s.label}</p>
+              <p className="admin-stat-value">{s.value}</p>
+              <p className={`admin-stat-change admin-stat-change-${s.changeType}`}>
+                {s.changeType === 'positive' && <FaArrowUp />}
+                {s.changeType === 'warning' && <FaExclamationTriangle />}
+                {s.change}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* ===== TABS ===== */}
+      <div className="admin-tabs">
+        {[
+          { id: 'overview', label: 'Overview', icon: FaRocket },
+          { id: 'users', label: 'Users', icon: FaUsers },
+          { id: 'activity', label: 'Activity', icon: FaClock },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`admin-tab ${activeTab === tab.id ? 'active' : ''}`}
+          >
+            <tab.icon />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ===== TAB CONTENT ===== */}
+      <AnimatePresence mode="wait">
+        {/* ===== OVERVIEW ===== */}
+        {activeTab === 'overview' && (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="admin-sections"
+          >
+            {/* Quick Actions */}
+            <div className="admin-section">
+              <div className="admin-section-header">
+                <h3 className="admin-section-title">
+                  <FaRocket /> Quick Actions
+                </h3>
               </div>
-              <div className="admin-users-modal-info-row">
-                <span className="admin-users-modal-info-label">Current Balance</span>
-                <span className="admin-users-modal-info-value accent">
-                  {selectedUser.spy_balance?.toLocaleString()} SPY
-                </span>
+              <div className="admin-actions-grid">
+                {ADMIN_NAV.slice(1, 7).map((nav) => (
+                  <Link key={nav.id} href={nav.href} className="admin-action-btn">
+                    <div className="admin-action-btn-icon">
+                      <nav.icon />
+                    </div>
+                    <span className="admin-action-btn-label">{nav.label}</span>
+                    <FaChevronRight className="admin-action-btn-arrow" />
+                  </Link>
+                ))}
               </div>
             </div>
 
-            <div className="admin-users-modal-field">
-              <label>Amount (+ or -)</label>
-              <input
-                type="number"
-                value={adjustAmount}
-                onChange={(e) => setAdjustAmount(e.target.value)}
-                placeholder="e.g., 100 or -50"
-                className="admin-users-modal-input"
-              />
+            {/* Recent Users */}
+            <div className="admin-section">
+              <div className="admin-section-header">
+                <h3 className="admin-section-title">
+                  <FaUsers /> Recent Users
+                </h3>
+                <button onClick={() => setActiveTab('users')} className="admin-section-link">
+                  View All <FaChevronRight />
+                </button>
+              </div>
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Balance</th>
+                      <th>Status</th>
+                      <th>Joined</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.slice(0, 5).map(user => (
+                      <tr key={user.id}>
+                        <td>
+                          <div className="admin-user-cell">
+                            <div className="admin-user-avatar">
+                              {user.username?.[0]?.toUpperCase() || 'U'}
+                            </div>
+                            <div className="admin-user-info">
+                              <p className="admin-user-name">{user.username || 'Unknown'}</p>
+                              <p className="admin-user-email">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="admin-balance">
+                            {user.spy_balance?.toFixed(2) || '0.00'} <span>SPY</span>
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`admin-badge ${
+                            user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'
+                          }`}>
+                            {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="admin-date">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          </motion.div>
+        )}
 
-            <div className="admin-users-modal-field">
-              <label>Reason</label>
-              <input
-                type="text"
-                value={adjustReason}
-                onChange={(e) => setAdjustReason(e.target.value)}
-                placeholder="Compensation, correction, etc."
-                className="admin-users-modal-input"
-              />
+        {/* ===== USERS ===== */}
+        {activeTab === 'users' && (
+          <motion.div
+            key="users"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="admin-section"
+          >
+            <div className="admin-section-header">
+              <h3 className="admin-section-title">
+                <FaUsers /> All Users
+                <span className="admin-section-count">{filteredUsers.length}</span>
+              </h3>
+              <div className="admin-search">
+                <FaSearch className="admin-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="admin-search-input"
+                />
+              </div>
             </div>
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Balance</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(user => (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="admin-user-cell">
+                          <div className="admin-user-avatar">
+                            {user.username?.[0]?.toUpperCase() || 'U'}
+                          </div>
+                          <div className="admin-user-info">
+                            <p className="admin-user-name">{user.username || 'Unknown'}</p>
+                            <p className="admin-user-email">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="admin-balance">
+                          {user.spy_balance?.toFixed(2) || '0.00'} <span>SPY</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`admin-badge ${
+                          user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'
+                        }`}>
+                          {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="admin-date">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => toggleBan(user.id, user.is_banned)}
+                          className={`admin-action-icon ${user.is_banned ? 'unban' : 'ban'}`}
+                          title={user.is_banned ? 'Unban user' : 'Ban user'}
+                        >
+                          {user.is_banned ? <FaUserCheck /> : <FaUserTimes />}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
 
-            <div className="admin-users-modal-actions">
-              <button
-                onClick={() => adjustBalance(
-                  selectedUser.id, 
-                  parseInt(adjustAmount) || 0, 
-                  adjustReason
-                )}
-                className="admin-users-modal-btn apply"
-              >
-                Apply
-              </button>
-              <button
-                onClick={() => setShowBalanceModal(false)}
-                className="admin-users-modal-btn cancel"
-              >
-                Cancel
-              </button>
+        {/* ===== ACTIVITY ===== */}
+        {activeTab === 'activity' && (
+          <motion.div
+            key="activity"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="admin-section"
+          >
+            <div className="admin-section-header">
+              <h3 className="admin-section-title">
+                <FaClock /> Recent Activity
+              </h3>
             </div>
-          </div>
+            <div className="admin-activity-list">
+              {activities.map(act => (
+                <div key={act.id} className="admin-activity-item">
+                  <div className={`admin-activity-icon admin-activity-icon-${act.type}`}>
+                    {act.type === 'ad_watch' ? <FaEye /> :
+                     act.type === 'withdrawal' ? <FaArrowUp /> :
+                     act.type === 'task' ? <FaClipboardList /> :
+                     <FaCoins />}
+                  </div>
+                  <div className="admin-activity-content">
+                    <p className="admin-activity-title">
+                      <span className="admin-activity-user">{getUsername(act)}</span>
+                      <span className="admin-activity-action">
+                        {act.type.replace(/_/g, ' ')}
+                      </span>
+                    </p>
+                    <p className="admin-activity-time">
+                      {new Date(act.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <span className={`admin-activity-amount ${act.amount_spy >= 0 ? 'positive' : 'negative'}`}>
+                    {act.amount_spy >= 0 ? '+' : ''}{act.amount_spy} SPY
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ===== BOTTOM NAV ===== */}
+      <div className="admin-bottom-nav">
+        <div className="admin-bottom-nav-scroll">
+          {ADMIN_NAV.map((nav) => {
+            const isActive = pathname === nav.href
+            return (
+              <Link
+                key={nav.id}
+                href={nav.href}
+                className={`admin-bottom-nav-item ${isActive ? 'active' : ''}`}
+              >
+                <div className="admin-bottom-nav-icon">
+                  <nav.icon />
+                </div>
+                <span className="admin-bottom-nav-label">{nav.label}</span>
+              </Link>
+            )
+          })}
         </div>
-      )}
+      </div>
     </div>
   )
 }
