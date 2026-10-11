@@ -12,10 +12,10 @@ import {
   FaClock, FaSync, FaChartLine, FaBullhorn, FaShieldAlt,
   FaCog, FaClipboardList, FaHome, FaChevronRight,
   FaExclamationTriangle, FaUserCheck, FaUserTimes,
-  FaRocket, FaFire
+  FaRocket
 } from 'react-icons/fa'
 import Link from 'next/link'
-import './users.css'
+import './admin.css'
 
 const supabase = createClient()
 
