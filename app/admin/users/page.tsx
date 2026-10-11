@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Filter, MoreVertical, UserCheck, UserX, Eye, Ban, Shield, Coins } from 'lucide-react'
+import { 
+  FaSearch, FaEye, FaBan, FaUserCheck, FaCoins, 
+  FaShieldAlt, FaTimes, FaUsers, FaDownload
+} from 'react-icons/fa'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import './users.css'
 
 const supabase = createClient()
 
@@ -30,11 +34,7 @@ export default function AdminUsersPage() {
   const [adjustAmount, setAdjustAmount] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  async function fetchUsers() {
+  const fetchUsers = useCallback(async () => {
     setIsLoading(true)
     const { data, error } = await supabase
       .from('profiles')
@@ -46,9 +46,13 @@ export default function AdminUsersPage() {
       setUsers(data)
     }
     setIsLoading(false)
-  }
+  }, [])
 
-  async function toggleBan(userId: string, currentStatus: boolean) {
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  const toggleBan = useCallback(async (userId: string, currentStatus: boolean) => {
     const { error } = await supabase
       .from('profiles')
       .update({ is_banned: !currentStatus })
@@ -60,9 +64,9 @@ export default function AdminUsersPage() {
     } else {
       toast.error('Failed to update user status')
     }
-  }
+  }, [fetchUsers])
 
-  async function adjustBalance(userId: string, amount: number, reason: string) {
+  const adjustBalance = useCallback(async (userId: string, amount: number, reason: string) => {
     const { data: user } = await supabase
       .from('profiles')
       .select('spy_balance')
@@ -94,7 +98,7 @@ export default function AdminUsersPage() {
     } else {
       toast.error('Failed to adjust balance')
     }
-  }
+  }, [fetchUsers])
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -108,41 +112,41 @@ export default function AdminUsersPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="w-12 h-12 border-4 border-primary-500 border-t-accent-500 rounded-full animate-spin" />
+      <div className="admin-user-detail-loading">
+        <div className="admin-user-detail-loading-spinner" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-users-page">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Users</h1>
-          <p className="text-gray-400 mt-1">Manage platform users</p>
+      <div className="admin-users-header">
+        <div className="admin-users-header-left">
+          <h1>Users</h1>
+          <p>Manage platform users</p>
         </div>
-        <button className="px-4 py-2 glass rounded-lg text-sm flex items-center gap-2">
-          <Shield className="w-4 h-4" /> Export CSV
+        <button className="admin-users-export-btn">
+          <FaShieldAlt /> Export CSV
         </button>
       </div>
 
-      {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+      {/* Filters */}
+      <div className="admin-users-filters">
+        <div className="admin-users-search">
+          <FaSearch className="admin-users-search-icon" />
           <input
             type="text"
             placeholder="Search by username or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
+            className="admin-users-search-input"
           />
         </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white focus:outline-none focus:border-primary-500"
+          className="admin-users-filter-select"
         >
           <option value="all">All Users</option>
           <option value="premium">Premium Only</option>
@@ -152,66 +156,87 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Users Table */}
-      <div className="glass rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-navy-800/50 border-b border-primary-500/20">
+      <div className="admin-users-table-wrapper">
+        <div className="admin-users-table-scroll">
+          <table className="admin-users-table">
+            <thead>
               <tr>
-                <th className="text-left py-3 px-4">User</th>
-                <th className="text-left py-3 px-4">Balance</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-left py-3 px-4">Referrals</th>
-                <th className="text-left py-3 px-4">Joined</th>
-                <th className="text-left py-3 px-4">Actions</th>
+                <th>User</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <th>Referrals</th>
+                <th>Joined</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                <tr key={user.id} className="border-b border-primary-500/10 hover:bg-white/5">
-                  <td className="py-3 px-4">
-                    <div>
-                      <p className="text-white font-medium">{user.username || 'No username'}</p>
-                      <p className="text-xs text-gray-500">{user.email || 'No email'}</p>
+                <tr key={user.id}>
+                  <td>
+                    <div className="admin-users-user-cell">
+                      <div className="admin-users-avatar">
+                        {user.username?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                      <div className="admin-users-user-info">
+                        <p className="admin-users-username">{user.username || 'No username'}</p>
+                        <p className="admin-users-email">{user.email || 'No email'}</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="py-3 px-4">
-                    <p className="text-white">{user.spy_balance?.toLocaleString()} SPY</p>
-                    <p className="text-xs text-gray-500">≈ ${((user.spy_balance || 0) / 100).toFixed(2)}</p>
+                  <td>
+                    <div className="admin-users-balance">
+                      {user.spy_balance?.toLocaleString()} SPY
+                      <span className="admin-users-balance-usd">
+                        ≈ ${((user.spy_balance || 0) / 100).toFixed(2)}
+                      </span>
+                    </div>
                   </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2">
+                  <td>
+                    <div className="admin-users-status">
                       {user.is_premium && (
-                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full text-xs">Premium</span>
+                        <span className="admin-users-badge admin-users-badge-premium">Premium</span>
                       )}
                       {user.is_banned && (
-                        <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs">Banned</span>
+                        <span className="admin-users-badge admin-users-badge-banned">Banned</span>
                       )}
                       {!user.is_premium && !user.is_banned && (
-                        <span className="px-2 py-0.5 bg-gray-500/20 text-gray-400 rounded-full text-xs">Free</span>
+                        <span className="admin-users-badge admin-users-badge-free">Free</span>
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-white">{user.referral_count || 0}</td>
-                  <td className="py-3 px-4 text-gray-400">{new Date(user.created_at).toLocaleDateString()}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-2">
-                      <Link href={`/admin/users/${user.id}`} className="p-1.5 hover:bg-white/10 rounded-lg transition">
-                        <Eye className="w-4 h-4 text-gray-400" />
+                  <td>
+                    <span className="admin-users-referrals">{user.referral_count || 0}</span>
+                  </td>
+                  <td>
+                    <span className="admin-users-date">
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="admin-users-actions">
+                      <Link 
+                        href={`/admin/users/${user.id}`} 
+                        className="admin-users-action-btn view"
+                        title="View user"
+                      >
+                        <FaEye />
                       </Link>
                       <button
                         onClick={() => {
                           setSelectedUser(user)
                           setShowBalanceModal(true)
                         }}
-                        className="p-1.5 hover:bg-white/10 rounded-lg transition"
+                        className="admin-users-action-btn coins"
+                        title="Adjust balance"
                       >
-                        <Coins className="w-4 h-4 text-accent-500" />
+                        <FaCoins />
                       </button>
                       <button
                         onClick={() => toggleBan(user.id, user.is_banned)}
-                        className="p-1.5 hover:bg-white/10 rounded-lg transition"
+                        className={`admin-users-action-btn ${user.is_banned ? 'unban' : 'ban'}`}
+                        title={user.is_banned ? 'Unban user' : 'Ban user'}
                       >
-                        {user.is_banned ? <UserCheck className="w-4 h-4 text-green-400" /> : <Ban className="w-4 h-4 text-red-400" />}
+                        {user.is_banned ? <FaUserCheck /> : <FaBan />}
                       </button>
                     </div>
                   </td>
@@ -220,51 +245,80 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+
+        {filteredUsers.length === 0 && (
+          <div className="admin-users-empty">
+            <FaUsers />
+            <h3>No users found</h3>
+            <p>Try adjusting your search or filter</p>
+          </div>
+        )}
       </div>
 
       {/* Adjust Balance Modal */}
       {showBalanceModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-white mb-4">Adjust Balance</h2>
-            <p className="text-gray-400 text-sm mb-4">User: <span className="text-white">{selectedUser.username}</span></p>
-            <p className="text-gray-400 text-sm mb-4">Current Balance: <span className="text-accent-500">{selectedUser.spy_balance} SPY</span></p>
+        <div 
+          className="admin-users-modal-overlay"
+          onClick={() => setShowBalanceModal(false)}
+        >
+          <div 
+            className="admin-users-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="admin-users-modal-title">Adjust Balance</h2>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-300 mb-2">Amount (+ or -)</label>
-                <input
-                  type="number"
-                  value={adjustAmount}
-                  onChange={(e) => setAdjustAmount(e.target.value)}
-                  placeholder="e.g., 100 or -50"
-                  className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
-                />
+            <div className="admin-users-modal-info">
+              <div className="admin-users-modal-info-row">
+                <span className="admin-users-modal-info-label">User</span>
+                <span className="admin-users-modal-info-value">{selectedUser.username}</span>
               </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-2">Reason</label>
-                <input
-                  type="text"
-                  value={adjustReason}
-                  onChange={(e) => setAdjustReason(e.target.value)}
-                  placeholder="Compensation, correction, etc."
-                  className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
-                />
+              <div className="admin-users-modal-info-row">
+                <span className="admin-users-modal-info-label">Current Balance</span>
+                <span className="admin-users-modal-info-value accent">
+                  {selectedUser.spy_balance?.toLocaleString()} SPY
+                </span>
               </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => adjustBalance(selectedUser.id, parseInt(adjustAmount) || 0, adjustReason)}
-                  className="flex-1 py-2 bg-gradient-to-r from-primary-500 to-accent-500 rounded-xl text-white"
-                >
-                  Apply
-                </button>
-                <button
-                  onClick={() => setShowBalanceModal(false)}
-                  className="flex-1 py-2 glass rounded-xl text-white"
-                >
-                  Cancel
-                </button>
-              </div>
+            </div>
+
+            <div className="admin-users-modal-field">
+              <label>Amount (+ or -)</label>
+              <input
+                type="number"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                placeholder="e.g., 100 or -50"
+                className="admin-users-modal-input"
+              />
+            </div>
+
+            <div className="admin-users-modal-field">
+              <label>Reason</label>
+              <input
+                type="text"
+                value={adjustReason}
+                onChange={(e) => setAdjustReason(e.target.value)}
+                placeholder="Compensation, correction, etc."
+                className="admin-users-modal-input"
+              />
+            </div>
+
+            <div className="admin-users-modal-actions">
+              <button
+                onClick={() => adjustBalance(
+                  selectedUser.id, 
+                  parseInt(adjustAmount) || 0, 
+                  adjustReason
+                )}
+                className="admin-users-modal-btn apply"
+              >
+                Apply
+              </button>
+              <button
+                onClick={() => setShowBalanceModal(false)}
+                className="admin-users-modal-btn cancel"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
