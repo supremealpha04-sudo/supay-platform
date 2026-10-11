@@ -2,7 +2,6 @@
    ADMIN DASHBOARD - PREMIUM MODERN UI
    ============================================ */
 
-/* ===== PAGE CONTAINER ===== */
 .admin-page {
   padding: 1.5rem;
   max-width: 90rem;
@@ -60,9 +59,7 @@
 }
 
 @media (min-width: 640px) {
-  .admin-title {
-    font-size: 2.5rem;
-  }
+  .admin-title { font-size: 2.5rem; }
 }
 
 .admin-subtitle {
@@ -71,10 +68,7 @@
   font-weight: 500;
 }
 
-.admin-header-right {
-  display: flex;
-  gap: 0.75rem;
-}
+.admin-header-right { display: flex; gap: 0.75rem; }
 
 .admin-btn-refresh {
   display: inline-flex;
@@ -97,10 +91,6 @@
   box-shadow: 0 12px 32px rgba(99, 102, 241, 0.5);
 }
 
-.admin-btn-refresh:active {
-  transform: translateY(0);
-}
-
 /* ===== LOADING ===== */
 .admin-loading {
   display: flex;
@@ -120,9 +110,7 @@
   animation: admin-spin 0.8s linear infinite;
 }
 
-@keyframes admin-spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes admin-spin { to { transform: rotate(360deg); } }
 
 .admin-loading-text {
   color: #6b7280;
@@ -139,16 +127,11 @@
 }
 
 @media (min-width: 640px) {
-  .admin-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .admin-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (min-width: 1024px) {
-  .admin-stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.25rem;
-  }
+  .admin-stats-grid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
 }
 
 .admin-stat-card {
@@ -227,12 +210,7 @@
   box-shadow: 0 8px 24px rgba(100, 116, 139, 0.35);
 }
 
-.admin-stat-content {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  z-index: 1;
-}
+.admin-stat-content { position: relative; flex: 1; min-width: 0; z-index: 1; }
 
 .admin-stat-label {
   color: #94a3b8;
@@ -277,9 +255,7 @@
   scrollbar-width: none;
 }
 
-.admin-tabs::-webkit-scrollbar {
-  display: none;
-}
+.admin-tabs::-webkit-scrollbar { display: none; }
 
 .admin-tab {
   display: inline-flex;
@@ -299,10 +275,7 @@
   justify-content: center;
 }
 
-.admin-tab:hover {
-  background: rgba(51, 65, 85, 0.4);
-  color: #e5e7eb;
-}
+.admin-tab:hover { background: rgba(51, 65, 85, 0.4); color: #e5e7eb; }
 
 .admin-tab.active {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
@@ -311,11 +284,7 @@
 }
 
 /* ===== SECTIONS ===== */
-.admin-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+.admin-sections { display: flex; flex-direction: column; gap: 1.5rem; }
 
 .admin-section {
   background: rgba(15, 23, 42, 0.6);
@@ -344,10 +313,7 @@
   letter-spacing: -0.01em;
 }
 
-.admin-section-title svg {
-  color: #818cf8;
-  font-size: 1.125rem;
-}
+.admin-section-title svg { color: #818cf8; font-size: 1.125rem; }
 
 .admin-section-count {
   display: inline-flex;
@@ -375,9 +341,7 @@
   transition: color 0.2s ease;
 }
 
-.admin-section-link:hover {
-  color: #a5b4fc;
-}
+.admin-section-link:hover { color: #a5b4fc; }
 
 /* ===== QUICK ACTIONS ===== */
 .admin-actions-grid {
@@ -387,15 +351,11 @@
 }
 
 @media (min-width: 640px) {
-  .admin-actions-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  .admin-actions-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (min-width: 1024px) {
-  .admin-actions-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
+  .admin-actions-grid { grid-template-columns: repeat(6, 1fr); }
 }
 
 .admin-action-btn {
@@ -441,10 +401,7 @@
   transform: scale(1.1);
 }
 
-.admin-action-btn-label {
-  text-align: center;
-  line-height: 1.2;
-}
+.admin-action-btn-label { text-align: center; line-height: 1.2; }
 
 .admin-action-btn-arrow {
   position: absolute;
@@ -492,9 +449,7 @@
   transition: all 0.3s ease;
 }
 
-.admin-search-input::placeholder {
-  color: #4b5563;
-}
+.admin-search-input::placeholder { color: #4b5563; }
 
 .admin-search-input:focus {
   border-color: rgba(99, 102, 241, 0.5);
@@ -510,14 +465,7 @@
   scrollbar-width: thin;
 }
 
-.admin-table-wrapper::-webkit-scrollbar {
-  height: 6px;
-}
-
-.admin-table-wrapper::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+.admin-table-wrapper::-webkit-scrollbar { height: 6px; }
 .admin-table-wrapper::-webkit-scrollbar-thumb {
   background: rgba(51, 65, 85, 0.5);
   border-radius: 3px;
@@ -530,9 +478,7 @@
   font-size: 0.875rem;
 }
 
-.admin-table thead {
-  background: rgba(51, 65, 85, 0.2);
-}
+.admin-table thead { background: rgba(51, 65, 85, 0.2); }
 
 .admin-table th {
   text-align: left;
@@ -562,19 +508,10 @@
   vertical-align: middle;
 }
 
-.admin-table tbody tr {
-  transition: background 0.2s ease;
-}
+.admin-table tbody tr { transition: background 0.2s ease; }
+.admin-table tbody tr:hover { background: rgba(51, 65, 85, 0.15); }
 
-.admin-table tbody tr:hover {
-  background: rgba(51, 65, 85, 0.15);
-}
-
-.admin-user-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-}
+.admin-user-cell { display: flex; align-items: center; gap: 0.875rem; }
 
 .admin-user-avatar {
   width: 2.5rem;
@@ -591,9 +528,7 @@
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
-.admin-user-info {
-  min-width: 0;
-}
+.admin-user-info { min-width: 0; }
 
 .admin-user-name {
   font-weight: 700;
@@ -622,11 +557,7 @@
   font-size: 0.9375rem;
 }
 
-.admin-balance span {
-  color: #6b7280;
-  font-weight: 600;
-  font-size: 0.75rem;
-}
+.admin-balance span { color: #6b7280; font-weight: 600; font-size: 0.75rem; }
 
 .admin-date {
   color: #6b7280;
@@ -687,10 +618,7 @@
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-.admin-action-icon.ban:hover {
-  background: rgba(239, 68, 68, 0.25);
-  transform: scale(1.05);
-}
+.admin-action-icon.ban:hover { background: rgba(239, 68, 68, 0.25); transform: scale(1.05); }
 
 .admin-action-icon.unban {
   background: rgba(34, 197, 94, 0.12);
@@ -698,17 +626,10 @@
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
-.admin-action-icon.unban:hover {
-  background: rgba(34, 197, 94, 0.25);
-  transform: scale(1.05);
-}
+.admin-action-icon.unban:hover { background: rgba(34, 197, 94, 0.25); transform: scale(1.05); }
 
 /* ===== ACTIVITY LIST ===== */
-.admin-activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-}
+.admin-activity-list { display: flex; flex-direction: column; gap: 0.625rem; }
 
 .admin-activity-item {
   display: flex;
@@ -754,10 +675,7 @@
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
-.admin-activity-content {
-  flex: 1;
-  min-width: 0;
-}
+.admin-activity-content { flex: 1; min-width: 0; }
 
 .admin-activity-title {
   display: flex;
@@ -769,16 +687,8 @@
   flex-wrap: wrap;
 }
 
-.admin-activity-user {
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.admin-activity-action {
-  color: #818cf8;
-  font-weight: 600;
-  text-transform: capitalize;
-}
+.admin-activity-user { color: #ffffff; font-weight: 700; }
+.admin-activity-action { color: #818cf8; font-weight: 600; text-transform: capitalize; }
 
 .admin-activity-time {
   color: #4b5563;
@@ -824,9 +734,7 @@
   justify-content: flex-start;
 }
 
-.admin-bottom-nav-scroll::-webkit-scrollbar {
-  display: none;
-}
+.admin-bottom-nav-scroll::-webkit-scrollbar { display: none; }
 
 .admin-bottom-nav-item {
   display: flex;
@@ -846,15 +754,9 @@
   position: relative;
 }
 
-.admin-bottom-nav-item:hover {
-  background: rgba(99, 102, 241, 0.08);
-  color: #a5b4fc;
-}
+.admin-bottom-nav-item:hover { background: rgba(99, 102, 241, 0.08); color: #a5b4fc; }
 
-.admin-bottom-nav-item.active {
-  background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
-}
+.admin-bottom-nav-item.active { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; }
 
 .admin-bottom-nav-item.active::before {
   content: '';
@@ -881,162 +783,46 @@
   transform: scale(1.1);
 }
 
-.admin-bottom-nav-label {
-  font-size: 0.625rem;
-  letter-spacing: 0.02em;
-}
+.admin-bottom-nav-label { font-size: 0.625rem; letter-spacing: 0.02em; }
 
 /* ===== RESPONSIVE ===== */
 @media (min-width: 768px) {
-  .admin-bottom-nav-scroll {
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .admin-bottom-nav-item {
-    min-width: 5rem;
-    padding: 0.625rem 1rem;
-  }
-
-  .admin-bottom-nav-label {
-    font-size: 0.75rem;
-  }
-
-  .admin-bottom-nav {
-    display: none;
-  }
-
-  .admin-page {
-    padding-bottom: 2.5rem;
-  }
+  .admin-bottom-nav-scroll { justify-content: center; gap: 0.5rem; }
+  .admin-bottom-nav-item { min-width: 5rem; padding: 0.625rem 1rem; }
+  .admin-bottom-nav-label { font-size: 0.75rem; }
+  .admin-bottom-nav { display: none; }
+  .admin-page { padding-bottom: 2.5rem; }
 }
 
 @media (max-width: 640px) {
-  .admin-page {
-    padding: 1rem;
-    padding-bottom: 6rem;
-  }
-
-  .admin-title {
-    font-size: 1.75rem;
-  }
-
-  .admin-stat-card {
-    padding: 1.25rem;
-  }
-
-  .admin-stat-value {
-    font-size: 1.5rem;
-  }
-
-  .admin-stat-icon {
-    width: 2.75rem;
-    height: 2.75rem;
-    font-size: 1.125rem;
-  }
-
-  .admin-section {
-    padding: 1.25rem;
-  }
-
-  .admin-table-wrapper {
-    margin: 0 -1.25rem;
-    padding: 0 1.25rem;
-  }
-
-  .admin-table th,
-  .admin-table td {
-    padding: 0.75rem 0.5rem;
-    font-size: 0.8125rem;
-  }
-
-  .admin-user-email {
-    display: none;
-  }
-
-  .admin-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .admin-page { padding: 1rem; padding-bottom: 6rem; }
+  .admin-title { font-size: 1.75rem; }
+  .admin-stat-card { padding: 1.25rem; }
+  .admin-stat-value { font-size: 1.5rem; }
+  .admin-stat-icon { width: 2.75rem; height: 2.75rem; font-size: 1.125rem; }
+  .admin-section { padding: 1.25rem; }
+  .admin-table-wrapper { margin: 0 -1.25rem; padding: 0 1.25rem; }
+  .admin-table th, .admin-table td { padding: 0.75rem 0.5rem; font-size: 0.8125rem; }
+  .admin-user-email { display: none; }
+  .admin-actions-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ===== LIGHT MODE ===== */
-[data-theme="light"] .admin-page {
-  background: #f8fafc;
-  color: #0f172a;
-}
-
-[data-theme="light"] .admin-title {
-  color: #0f172a;
-}
-
-[data-theme="light"] .admin-subtitle {
-  color: #64748b;
-}
-
-[data-theme="light"] .admin-stat-card {
-  background: #ffffff;
-  border-color: #e2e8f0;
-}
-
-[data-theme="light"] .admin-stat-label {
-  color: #64748b;
-}
-
-[data-theme="light"] .admin-stat-value {
-  color: #0f172a;
-}
-
-[data-theme="light"] .admin-section {
-  background: #ffffff;
-  border-color: #e2e8f0;
-}
-
-[data-theme="light"] .admin-section-title {
-  color: #0f172a;
-}
-
-[data-theme="light"] .admin-table th {
-  color: #64748b;
-  background: #f1f5f9;
-}
-
-[data-theme="light"] .admin-table td {
-  color: #0f172a;
-  border-top-color: #e2e8f0;
-}
-
-[data-theme="light"] .admin-user-name {
-  color: #0f172a;
-}
-
-[data-theme="light"] .admin-user-email {
-  color: #64748b;
-}
-
-[data-theme="light"] .admin-date {
-  color: #64748b;
-}
-
-[data-theme="light"] .admin-action-btn {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #0f172a;
-}
-
-[data-theme="light"] .admin-tabs {
-  background: #ffffff;
-  border-color: #e2e8f0;
-}
-
-[data-theme="light"] .admin-tab {
-  color: #64748b;
-}
-
-[data-theme="light"] .admin-bottom-nav {
-  background: rgba(255, 255, 255, 0.95);
-  border-top-color: #e2e8f0;
-}
-
-[data-theme="light"] .admin-bottom-nav-item {
-  color: #64748b;
-}
+[data-theme="light"] .admin-page { background: #f8fafc; color: #0f172a; }
+[data-theme="light"] .admin-title { color: #0f172a; }
+[data-theme="light"] .admin-subtitle { color: #64748b; }
+[data-theme="light"] .admin-stat-card { background: #ffffff; border-color: #e2e8f0; }
+[data-theme="light"] .admin-stat-label { color: #64748b; }
+[data-theme="light"] .admin-stat-value { color: #0f172a; }
+[data-theme="light"] .admin-section { background: #ffffff; border-color: #e2e8f0; }
+[data-theme="light"] .admin-section-title { color: #0f172a; }
+[data-theme="light"] .admin-table th { color: #64748b; background: #f1f5f9; }
+[data-theme="light"] .admin-table td { color: #0f172a; border-top-color: #e2e8f0; }
+[data-theme="light"] .admin-user-name { color: #0f172a; }
+[data-theme="light"] .admin-user-email { color: #64748b; }
+[data-theme="light"] .admin-date { color: #64748b; }
+[data-theme="light"] .admin-action-btn { background: #f8fafc; border-color: #e2e8f0; color: #0f172a; }
+[data-theme="light"] .admin-tabs { background: #ffffff; border-color: #e2e8f0; }
+[data-theme="light"] .admin-tab { color: #64748b; }
+[data-theme="light"] .admin-bottom-nav { background: rgba(255, 255, 255, 0.95); border-top-color: #e2e8f0; }
+[data-theme="light"] .admin-bottom-nav-item { color: #64748b; }
