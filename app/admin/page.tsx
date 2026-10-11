@@ -1,23 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   FaUsers, FaEye, FaCoins, FaWallet, FaSearch,
-  FaUserShield, FaCheck, FaTimes, FaArrowUp, FaArrowDown,
+  FaUserShield, FaCheck, FaTimes, FaArrowUp,
   FaClock, FaSync, FaChartLine, FaBullhorn, FaShieldAlt,
-  FaCog, FaClipboardList, FaHome
+  FaCog, FaClipboardList, FaHome, FaChevronRight,
+  FaCircle, FaExclamationTriangle, FaUserCheck,
+  FaUserTimes, FaRocket, FaFire, FaTrendingUp
 } from 'react-icons/fa'
 import Link from 'next/link'
 import './admin.css'
 
-
 const supabase = createClient()
 
+// ===== TYPES =====
 interface DashboardStats {
   totalUsers: number
   totalAdsWatched: number
@@ -46,11 +48,11 @@ interface RecentActivity {
   profiles?: { username: string }[]
 }
 
+// ===== NAVIGATION =====
 const ADMIN_NAV = [
   { id: '', label: 'Dashboard', icon: FaHome, href: '/admin' },
   { id: 'analytics', label: 'Analytics', icon: FaChartLine, href: '/admin/analytics' },
   { id: 'users', label: 'Users', icon: FaUsers, href: '/admin/users' },
-  { id: 'deposits', label: 'Deposits', icon: FaArrowDown, href: '/admin/deposits' },
   { id: 'withdrawals', label: 'Withdrawals', icon: FaArrowUp, href: '/admin/withdrawals' },
   { id: 'tasks', label: 'Tasks', icon: FaClipboardList, href: '/admin/tasks' },
   { id: 'broadcast', label: 'Broadcast', icon: FaBullhorn, href: '/admin/broadcast' },
@@ -61,7 +63,7 @@ const ADMIN_NAV = [
 export default function AdminPage() {
   const router = useRouter()
   const pathname = usePathname()
-  const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
+  const { profile, user, isLoading: authLoading } = useAuth()
   
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0, totalAdsWatched: 0,
@@ -74,44 +76,36 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity'>('overview')
 
-  // Admin guard
+  // ===== GUARDS =====
   useEffect(() => {
     if (!authLoading && (!user || !profile?.is_admin)) {
       router.push('/dashboard')
     }
   }, [authLoading, user, profile, router])
 
-  useEffect(() => {
-    if (profile?.is_admin) fetchDashboardData()
-  }, [profile])
-
-  const fetchDashboardData = async () => {
+  // ===== DATA FETCHING =====
+  const fetchDashboardData = useCallback(async () => {
     setIsLoading(true)
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      const { count: totalUsers } = await supabase
-        .from('profiles').select('*', { count: 'exact', head: true })
-
-      const { count: totalAds } = await supabase
-        .from('ad_watches').select('*', { count: 'exact', head: true })
-
-      const { data: spyData } = await supabase
-        .from('ad_watches').select('reward_spy')
+      const [
+        { count: totalUsers },
+        { count: totalAds },
+        { data: spyData },
+        { count: pendingWithdrawals },
+        { count: todayUsers },
+        { count: todayAds }
+      ] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('ad_watches').select('*', { count: 'exact', head: true }),
+        supabase.from('ad_watches').select('reward_spy'),
+        supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', today),
+        supabase.from('ad_watches').select('*', { count: 'exact', head: true }).gte('created_at', today),
+      ])
 
       const totalSpy = spyData?.reduce((s, r) => s + (r.reward_spy || 0), 0) || 0
-
-      const { count: pendingWithdrawals } = await supabase
-        .from('withdrawals').select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
-
-      const { count: todayUsers } = await supabase
-        .from('profiles').select('*', { count: 'exact', head: true })
-        .gte('created_at', today)
-
-      const { count: todayAds } = await supabase
-        .from('ad_watches').select('*', { count: 'exact', head: true })
-        .gte('created_at', today)
 
       setStats({
         totalUsers: totalUsers || 0,
@@ -144,9 +138,14 @@ export default function AdminPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  const toggleBan = async (userId: string, currentStatus: boolean) => {
+  useEffect(() => {
+    if (profile?.is_admin) fetchDashboardData()
+  }, [profile, fetchDashboardData])
+
+  // ===== ACTIONS =====
+  const toggleBan = useCallback(async (userId: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -154,79 +153,117 @@ export default function AdminPage() {
         .eq('id', userId)
 
       if (error) throw error
-      toast.success(`User ${currentStatus ? 'unbanned' : 'banned'}`)
+      toast.success(`User ${currentStatus ? 'unbanned' : 'banned'} successfully`)
       fetchDashboardData()
     } catch {
       toast.error('Action failed')
     }
-  }
+  }, [fetchDashboardData])
 
   const filteredUsers = users.filter(u =>
     u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const getUsername = (act: RecentActivity) => {
-    return act.profiles?.[0]?.username || 'Unknown'
-  }
+  const getUsername = (act: RecentActivity) => act.profiles?.[0]?.username || 'Unknown'
 
+  // ===== LOADING =====
   if (authLoading || isLoading) {
     return (
       <div className="admin-loading">
-        <div className="admin-spinner" />
-        <p>Loading admin dashboard...</p>
+        <div className="admin-loading-spinner" />
+        <p className="admin-loading-text">Loading admin dashboard...</p>
       </div>
     )
   }
 
   if (!profile?.is_admin) return null
 
+  // ===== RENDER =====
   return (
-    <div className="admin-container">
-      {/* Header */}
+    <div className="admin-page">
+      {/* ===== HEADER ===== */}
       <div className="admin-header">
-        <div>
-          <h1 className="admin-header-title">Admin Dashboard</h1>
-          <p className="admin-header-subtitle">Manage your platform</p>
+        <div className="admin-header-left">
+          <div className="admin-header-badge">
+            <FaUserShield />
+            <span>Admin Panel</span>
+          </div>
+          <h1 className="admin-title">Dashboard</h1>
+          <p className="admin-subtitle">Manage your platform in real-time</p>
         </div>
-        <div className="admin-header-actions">
+        <div className="admin-header-right">
           <button onClick={fetchDashboardData} className="admin-btn-refresh">
-            <FaSync /> Refresh
+            <FaSync />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* ===== STATS GRID ===== */}
       <div className="admin-stats-grid">
         {[
-          { label: 'Total Users', value: stats.totalUsers, icon: FaUsers, color: 'blue', change: `+${stats.todayNewUsers} today` },
-          { label: 'Ads Watched', value: stats.totalAdsWatched, icon: FaEye, color: 'purple', change: `+${stats.todayAdsWatched} today` },
-          { label: 'SPY Distributed', value: `${stats.totalSpyDistributed.toFixed(2)}`, icon: FaCoins, color: 'green', change: 'All time' },
-          { label: 'Pending Withdrawals', value: stats.pendingWithdrawals, icon: FaWallet, color: 'orange', change: 'Needs action' },
+          { 
+            label: 'Total Users', 
+            value: stats.totalUsers.toLocaleString(), 
+            icon: FaUsers, 
+            variant: 'blue', 
+            change: `+${stats.todayNewUsers} today`,
+            changeType: 'positive'
+          },
+          { 
+            label: 'Ads Watched', 
+            value: stats.totalAdsWatched.toLocaleString(), 
+            icon: FaEye, 
+            variant: 'purple', 
+            change: `+${stats.todayAdsWatched} today`,
+            changeType: 'positive'
+          },
+          { 
+            label: 'SPY Distributed', 
+            value: stats.totalSpyDistributed.toFixed(2), 
+            icon: FaCoins, 
+            variant: 'green', 
+            change: 'All time',
+            changeType: 'neutral'
+          },
+          { 
+            label: 'Pending Withdrawals', 
+            value: stats.pendingWithdrawals.toString(), 
+            icon: FaWallet, 
+            variant: stats.pendingWithdrawals > 0 ? 'orange' : 'muted', 
+            change: stats.pendingWithdrawals > 0 ? 'Needs review' : 'All clear',
+            changeType: stats.pendingWithdrawals > 0 ? 'warning' : 'neutral'
+          },
         ].map((s, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="admin-stat-card"
+            transition={{ delay: i * 0.05 }}
+            className={`admin-stat-card admin-stat-${s.variant}`}
           >
-            <div className={`admin-stat-icon admin-stat-icon-${s.color}`}>
+            <div className="admin-stat-bg" />
+            <div className="admin-stat-icon">
               <s.icon />
             </div>
             <div className="admin-stat-content">
               <p className="admin-stat-label">{s.label}</p>
               <p className="admin-stat-value">{s.value}</p>
-              <p className="admin-stat-change">{s.change}</p>
+              <p className={`admin-stat-change admin-stat-change-${s.changeType}`}>
+                {s.changeType === 'positive' && <FaTrendingUp />}
+                {s.changeType === 'warning' && <FaExclamationTriangle />}
+                {s.change}
+              </p>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Tabs */}
+      {/* ===== TABS ===== */}
       <div className="admin-tabs">
         {[
-          { id: 'overview', label: 'Overview', icon: FaUserShield },
+          { id: 'overview', label: 'Overview', icon: FaRocket },
           { id: 'users', label: 'Users', icon: FaUsers },
           { id: 'activity', label: 'Activity', icon: FaClock },
         ].map(tab => (
@@ -235,150 +272,232 @@ export default function AdminPage() {
             onClick={() => setActiveTab(tab.id as any)}
             className={`admin-tab ${activeTab === tab.id ? 'active' : ''}`}
           >
-            <tab.icon /> {tab.label}
+            <tab.icon />
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
-        <div className="admin-sections">
-          <div className="admin-section">
-            <h3 className="admin-section-title">Quick Actions</h3>
-            <div className="admin-actions-grid">
-              {ADMIN_NAV.slice(1).map((nav) => (
-                <Link key={nav.id} href={nav.href} className="admin-action-btn">
-                  <nav.icon /> {nav.label}
-                </Link>
-              ))}
+      {/* ===== TAB CONTENT ===== */}
+      <AnimatePresence mode="wait">
+        {/* ===== OVERVIEW ===== */}
+        {activeTab === 'overview' && (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="admin-sections"
+          >
+            {/* Quick Actions */}
+            <div className="admin-section">
+              <div className="admin-section-header">
+                <h3 className="admin-section-title">
+                  <FaRocket /> Quick Actions
+                </h3>
+              </div>
+              <div className="admin-actions-grid">
+                {ADMIN_NAV.slice(1, 7).map((nav) => (
+                  <Link key={nav.id} href={nav.href} className="admin-action-btn">
+                    <div className="admin-action-btn-icon">
+                      <nav.icon />
+                    </div>
+                    <span className="admin-action-btn-label">{nav.label}</span>
+                    <FaChevronRight className="admin-action-btn-arrow" />
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="admin-section">
+            {/* Recent Users */}
+            <div className="admin-section">
+              <div className="admin-section-header">
+                <h3 className="admin-section-title">
+                  <FaUsers /> Recent Users
+                </h3>
+                <button onClick={() => setActiveTab('users')} className="admin-section-link">
+                  View All <FaChevronRight />
+                </button>
+              </div>
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Balance</th>
+                      <th>Status</th>
+                      <th>Joined</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.slice(0, 5).map(user => (
+                      <tr key={user.id}>
+                        <td>
+                          <div className="admin-user-cell">
+                            <div className="admin-user-avatar">
+                              {user.username?.[0]?.toUpperCase() || 'U'}
+                            </div>
+                            <div className="admin-user-info">
+                              <p className="admin-user-name">{user.username || 'Unknown'}</p>
+                              <p className="admin-user-email">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="admin-balance">
+                            {user.spy_balance?.toFixed(2) || '0.00'} <span>SPY</span>
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`admin-badge ${
+                            user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'
+                          }`}>
+                            {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="admin-date">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ===== USERS ===== */}
+        {activeTab === 'users' && (
+          <motion.div
+            key="users"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="admin-section"
+          >
             <div className="admin-section-header">
-              <h3 className="admin-section-title">Recent Users</h3>
-              <button onClick={() => setActiveTab('users')} className="admin-link">View All</button>
+              <h3 className="admin-section-title">
+                <FaUsers /> All Users
+                <span className="admin-section-count">{filteredUsers.length}</span>
+              </h3>
+              <div className="admin-search">
+                <FaSearch className="admin-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="admin-search-input"
+                />
+              </div>
             </div>
             <div className="admin-table-wrapper">
               <table className="admin-table">
                 <thead>
-                  <tr><th>User</th><th>Balance</th><th>Status</th><th>Joined</th></tr>
+                  <tr>
+                    <th>User</th>
+                    <th>Balance</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  {users.slice(0, 5).map(user => (
+                  {filteredUsers.map(user => (
                     <tr key={user.id}>
                       <td>
                         <div className="admin-user-cell">
-                          <div className="admin-user-avatar">{user.username?.[0]?.toUpperCase() || 'U'}</div>
-                          <div>
-                            <p className="admin-user-name">{user.username}</p>
+                          <div className="admin-user-avatar">
+                            {user.username?.[0]?.toUpperCase() || 'U'}
+                          </div>
+                          <div className="admin-user-info">
+                            <p className="admin-user-name">{user.username || 'Unknown'}</p>
                             <p className="admin-user-email">{user.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="admin-balance">{user.spy_balance?.toFixed(2)} SPY</td>
                       <td>
-                        <span className={`admin-badge ${user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'}`}>
+                        <span className="admin-balance">
+                          {user.spy_balance?.toFixed(2) || '0.00'} <span>SPY</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`admin-badge ${
+                          user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'
+                        }`}>
                           {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
                         </span>
                       </td>
-                      <td className="admin-date">{new Date(user.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <span className="admin-date">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => toggleBan(user.id, user.is_banned)}
+                          className={`admin-action-icon ${user.is_banned ? 'unban' : 'ban'}`}
+                          title={user.is_banned ? 'Unban user' : 'Ban user'}
+                        >
+                          {user.is_banned ? <FaUserCheck /> : <FaUserTimes />}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
 
-      {/* Users Tab */}
-      {activeTab === 'users' && (
-        <div className="admin-section">
-          <div className="admin-section-header">
-            <h3 className="admin-section-title">All Users</h3>
-            <div className="admin-search">
-              <FaSearch className="admin-search-icon" />
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="admin-search-input"
-              />
+        {/* ===== ACTIVITY ===== */}
+        {activeTab === 'activity' && (
+          <motion.div
+            key="activity"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="admin-section"
+          >
+            <div className="admin-section-header">
+              <h3 className="admin-section-title">
+                <FaClock /> Recent Activity
+              </h3>
             </div>
-          </div>
-          <div className="admin-table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr><th>User</th><th>Balance</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map(user => (
-                  <tr key={user.id}>
-                    <td>
-                      <div className="admin-user-cell">
-                        <div className="admin-user-avatar">{user.username?.[0]?.toUpperCase() || 'U'}</div>
-                        <div>
-                          <p className="admin-user-name">{user.username}</p>
-                          <p className="admin-user-email">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="admin-balance">{user.spy_balance?.toFixed(2)} SPY</td>
-                    <td>
-                      <span className={`admin-badge ${user.is_banned ? 'banned' : user.is_premium ? 'premium' : 'active'}`}>
-                        {user.is_banned ? 'Banned' : user.is_premium ? 'Premium' : 'Active'}
+            <div className="admin-activity-list">
+              {activities.map(act => (
+                <div key={act.id} className="admin-activity-item">
+                  <div className={`admin-activity-icon admin-activity-icon-${act.type}`}>
+                    {act.type === 'ad_watch' ? <FaEye /> :
+                     act.type === 'withdrawal' ? <FaArrowUp /> :
+                     act.type === 'task' ? <FaClipboardList /> :
+                     <FaCoins />}
+                  </div>
+                  <div className="admin-activity-content">
+                    <p className="admin-activity-title">
+                      <span className="admin-activity-user">{getUsername(act)}</span>
+                      <span className="admin-activity-action">
+                        {act.type.replace(/_/g, ' ')}
                       </span>
-                    </td>
-                    <td className="admin-date">{new Date(user.created_at).toLocaleDateString()}</td>
-                    <td>
-                      <button
-                        onClick={() => toggleBan(user.id, user.is_banned)}
-                        className={`admin-action-icon ${user.is_banned ? 'unban' : 'ban'}`}
-                        title={user.is_banned ? 'Unban user' : 'Ban user'}
-                      >
-                        {user.is_banned ? <FaCheck /> : <FaTimes />}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Activity Tab */}
-      {activeTab === 'activity' && (
-        <div className="admin-section">
-          <h3 className="admin-section-title">Recent Activity</h3>
-          <div className="admin-activity-list">
-            {activities.map(act => (
-              <div key={act.id} className="admin-activity-item">
-                <div className="admin-activity-icon">
-                  {act.type === 'ad_watch' ? <FaEye /> :
-                   act.type === 'withdrawal' ? <FaArrowUp /> :
-                   act.type === 'deposit' ? <FaArrowDown /> :
-                   <FaCoins />}
+                    </p>
+                    <p className="admin-activity-time">
+                      {new Date(act.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <span className={`admin-activity-amount ${act.amount_spy >= 0 ? 'positive' : 'negative'}`}>
+                    {act.amount_spy >= 0 ? '+' : ''}{act.amount_spy} SPY
+                  </span>
                 </div>
-                <div className="admin-activity-content">
-                  <p className="admin-activity-title">
-                    <span className="admin-activity-user">{getUsername(act)}</span>
-                    {' '}{act.type.replace(/_/g, ' ')}
-                  </p>
-                  <p className="admin-activity-time">{new Date(act.created_at).toLocaleString()}</p>
-                </div>
-                <span className={`admin-activity-amount ${act.amount_spy >= 0 ? 'positive' : 'negative'}`}>
-                  {act.amount_spy >= 0 ? '+' : ''}{act.amount_spy} SPY
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* BOTTOM NAVIGATION */}
+      {/* ===== BOTTOM NAV ===== */}
       <div className="admin-bottom-nav">
         <div className="admin-bottom-nav-scroll">
           {ADMIN_NAV.map((nav) => {
