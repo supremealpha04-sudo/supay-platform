@@ -11,8 +11,8 @@ import {
   FaUserShield, FaCheck, FaTimes, FaArrowUp,
   FaClock, FaSync, FaChartLine, FaBullhorn, FaShieldAlt,
   FaCog, FaClipboardList, FaHome, FaChevronRight,
-  FaCircle, FaExclamationTriangle, FaUserCheck,
-  FaUserTimes, FaRocket, FaFire, FaTrendingUp
+  FaExclamationTriangle, FaUserCheck,
+  FaUserTimes, FaRocket
 } from 'react-icons/fa'
 import Link from 'next/link'
 import './admin.css'
@@ -251,7 +251,7 @@ export default function AdminPage() {
               <p className="admin-stat-label">{s.label}</p>
               <p className="admin-stat-value">{s.value}</p>
               <p className={`admin-stat-change admin-stat-change-${s.changeType}`}>
-                {s.changeType === 'positive' && <FaTrendingUp />}
+                {s.changeType === 'positive' && <FaArrowUp />}
                 {s.changeType === 'warning' && <FaExclamationTriangle />}
                 {s.change}
               </p>
