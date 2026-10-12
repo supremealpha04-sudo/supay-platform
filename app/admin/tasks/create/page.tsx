@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Save } from 'lucide-react'
+import { FaArrowLeft, FaSave } from 'react-icons/fa'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import '../tasks.css'
 
 const supabase = createClient()
 
@@ -23,143 +24,202 @@ export default function CreateTaskPage() {
     expires_at: ''
   })
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validation
+    if (!formData.title.trim()) {
+      toast.error('Please enter a task title')
+      return
+    }
+    if (!formData.description.trim()) {
+      toast.error('Please enter a description')
+      return
+    }
+    if (!formData.task_url.trim()) {
+      toast.error('Please enter a task URL')
+      return
+    }
+
     setIsLoading(true)
 
-    const { error } = await supabase
-      .from('tasks')
-      .insert({
-        ...formData,
-        reward_spy: parseInt(formData.reward_spy.toString()),
-        required_time_seconds: parseInt(formData.required_time_seconds.toString()),
-        max_completions: parseInt(formData.max_completions.toString()),
-        is_active: true
-      })
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          reward_spy: Number(formData.reward_spy),
+          task_url: formData.task_url.trim(),
+          task_type: formData.task_type,
+          required_time_seconds: Number(formData.required_time_seconds),
+          max_completions: Number(formData.max_completions),
+          expires_at: formData.expires_at || null,
+          is_active: true,
+          total_completions: 0
+        })
+        .select()
+        .single()
 
-    if (!error) {
-      toast.success('Task created successfully')
-      router.push('/admin/tasks')
-    } else {
+      if (error) {
+        console.error('Supabase error:', error)
+        toast.error(error.message || 'Failed to create task')
+        return
+      }
+
+      console.log('Task created:', data)
+      toast.success('Task created successfully! 🎉')
+      
+      // Wait a moment then redirect
+      setTimeout(() => {
+        router.push('/admin/tasks')
+      }, 500)
+      
+    } catch (err) {
+      console.error('Error creating task:', err)
       toast.error('Failed to create task')
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-task-form-page">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/admin/tasks" className="p-2 glass rounded-lg hover:bg-white/10 transition">
-          <ArrowLeft className="w-5 h-5" />
+      <div className="admin-task-form-header">
+        <Link href="/admin/tasks" className="admin-task-form-back-btn">
+          <FaArrowLeft />
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Create Task</h1>
-          <p className="text-gray-400 text-sm">Add a new earning task for users</p>
+        <div className="admin-task-form-title-group">
+          <h1 className="admin-task-form-title">Create Task</h1>
+          <p className="admin-task-form-subtitle">Add a new earning task for users</p>
         </div>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="glass rounded-xl p-6 space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Task Title</label>
+      <form onSubmit={handleSubmit} className="admin-task-form-card">
+        <div className="admin-task-form-grid">
+          
+          {/* Title */}
+          <div className="admin-task-form-field">
+            <label className="admin-task-form-label">Task Title</label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
+              placeholder="e.g., Follow us on Twitter"
+              className="admin-task-form-input"
               required
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Task Type</label>
+
+          {/* Task Type */}
+          <div className="admin-task-form-field">
+            <label className="admin-task-form-label">Task Type</label>
             <select
               value={formData.task_type}
               onChange={(e) => setFormData({ ...formData, task_type: e.target.value })}
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
+              className="admin-task-form-select"
             >
               <option value="link">Link Visit</option>
               <option value="survey">Survey</option>
               <option value="video">Video Watch</option>
               <option value="install">App Install</option>
+              <option value="social">Social Follow</option>
             </select>
           </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Reward (SPY)</label>
+
+          {/* Reward */}
+          <div className="admin-task-form-field">
+            <label className="admin-task-form-label">Reward (SPY)</label>
             <input
               type="number"
               value={formData.reward_spy}
-              onChange={(e) => setFormData({ ...formData, reward_spy: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
+              onChange={(e) => setFormData({ ...formData, reward_spy: Number(e.target.value) })}
+              className="admin-task-form-input"
               required
               min={1}
             />
+            <span className="admin-task-form-hint">Amount users will earn</span>
           </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Required Time (seconds)</label>
+
+          {/* Required Time */}
+          <div className="admin-task-form-field">
+            <label className="admin-task-form-label">Required Time (seconds)</label>
             <input
               type="number"
               value={formData.required_time_seconds}
-              onChange={(e) => setFormData({ ...formData, required_time_seconds: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
+              onChange={(e) => setFormData({ ...formData, required_time_seconds: Number(e.target.value) })}
+              className="admin-task-form-input"
               min={10}
             />
+            <span className="admin-task-form-hint">How long users must wait</span>
           </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Max Completions</label>
+
+          {/* Max Completions */}
+          <div className="admin-task-form-field">
+            <label className="admin-task-form-label">Max Completions</label>
             <input
               type="number"
               value={formData.max_completions}
-              onChange={(e) => setFormData({ ...formData, max_completions: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
+              onChange={(e) => setFormData({ ...formData, max_completions: Number(e.target.value) })}
+              className="admin-task-form-input"
               min={1}
             />
+            <span className="admin-task-form-hint">Total users who can complete</span>
           </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Expires At (Optional)</label>
+
+          {/* Expires At */}
+          <div className="admin-task-form-field">
+            <label className="admin-task-form-label">Expires At (Optional)</label>
             <input
               type="datetime-local"
               value={formData.expires_at}
               onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
+              className="admin-task-form-input"
             />
+            <span className="admin-task-form-hint">Leave empty for no expiry</span>
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-300 mb-2">Description</label>
+
+          {/* Description */}
+          <div className="admin-task-form-field full-width">
+            <label className="admin-task-form-label">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white resize-none"
+              placeholder="Explain what the user needs to do"
+              className="admin-task-form-textarea"
               required
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-300 mb-2">Task URL</label>
+
+          {/* Task URL */}
+          <div className="admin-task-form-field full-width">
+            <label className="admin-task-form-label">Task URL</label>
             <input
               type="url"
               value={formData.task_url}
               onChange={(e) => setFormData({ ...formData, task_url: e.target.value })}
               placeholder="https://example.com/task"
-              className="w-full px-4 py-2 bg-navy-800 border border-primary-500/30 rounded-xl text-white"
+              className="admin-task-form-input"
               required
             />
+            <span className="admin-task-form-hint">Where users will be redirected</span>
           </div>
+
         </div>
 
-        <div className="flex gap-3 pt-4">
+        {/* Actions */}
+        <div className="admin-task-form-actions">
           <button
             type="submit"
             disabled={isLoading}
-            className="px-6 py-2 bg-gradient-to-r from-primary-500 to-accent-500 rounded-xl text-white flex items-center gap-2 disabled:opacity-50"
+            className="admin-task-form-btn submit"
           >
-            <Save className="w-4 h-4" /> {isLoading ? 'Creating...' : 'Create Task'}
+            <FaSave /> {isLoading ? 'Creating...' : 'Create Task'}
           </button>
-          <Link
-            href="/admin/tasks"
-            className="px-6 py-2 glass rounded-xl text-white"
-          >
+          <Link href="/admin/tasks" className="admin-task-form-btn cancel">
             Cancel
           </Link>
         </div>
