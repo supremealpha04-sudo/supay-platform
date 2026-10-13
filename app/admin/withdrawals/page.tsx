@@ -6,9 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Search, CheckCircle, XCircle, Clock, Send,
   AlertCircle, Copy, ChevronDown, Filter, Shield,
-  ArrowUpRight, Wallet, TrendingUp, Ban, CheckCheck,
-  Users, DollarSign, Activity, Lock, Eye, RefreshCw,
-  AlertTriangle, Check, X
+  Wallet, TrendingUp, Ban, CheckCheck,
+  Users, Eye, RefreshCw, AlertTriangle, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -64,28 +63,60 @@ export default function AdminWithdrawalsPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [userStats, setUserStats] = useState<Record<string, UserStats>>({})
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
-  // ===== FETCH WITHDRAWALS =====
+  // ===== FETCH WITHDRAWALS (FIXED with explicit FK) =====
   const fetchWithdrawals = useCallback(async () => {
     try {
       setIsLoading(true)
       setRefreshing(true)
+      setLoadError(null)
 
+      // ✅ Explicitly specify the FK to avoid ambiguity
       const { data, error } = await supabase
         .from('withdrawals')
-        .select('*, profiles(username, email)')
+        .select('*, profiles!withdrawals_user_id_fkey(username, email)')
         .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Fetch error:', error)
-        toast.error('Failed to load withdrawals: ' + error.message)
-        setWithdrawals([])
+
+        // Try fallback without profile join
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('withdrawals')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (fallbackError) {
+          setLoadError(fallbackError.message)
+          toast.error('Failed to load withdrawals')
+          setWithdrawals([])
+        } else {
+          // Manually fetch usernames
+          const enriched = await Promise.all(
+            (fallbackData || []).map(async (w: any) => {
+              try {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('username, email')
+                  .eq('id', w.user_id)
+                  .single()
+                return { ...w, profiles: profile ? [profile] : [] }
+              } catch {
+                return { ...w, profiles: [] }
+              }
+            })
+          )
+          setWithdrawals(enriched)
+          console.log('✅ Loaded (fallback)', enriched.length, 'withdrawals')
+        }
       } else {
         setWithdrawals(data || [])
         console.log('✅ Loaded', data?.length || 0, 'withdrawals')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Unexpected error:', err)
+      setLoadError(err.message || 'Unknown error')
       toast.error('Failed to load withdrawals')
       setWithdrawals([])
     } finally {
@@ -132,7 +163,7 @@ export default function AdminWithdrawalsPage() {
     fetchWithdrawals()
   }, [fetchWithdrawals])
 
-  // ===== PROCESS WITHDRAWAL =====
+  // ===== PROCESS WITHDRAWAL (Approve/Reject) =====
   const processWithdrawal = async (withdrawalId: string, action: 'approved' | 'rejected') => {
     setProcessingId(withdrawalId)
     setConfirmAction(null)
@@ -141,7 +172,6 @@ export default function AdminWithdrawalsPage() {
       const withdrawal = withdrawals.find(w => w.id === withdrawalId)
       if (!withdrawal) throw new Error('Withdrawal not found')
 
-      // Update withdrawal status
       const { error: updateError } = await supabase
         .from('withdrawals')
         .update({
@@ -152,7 +182,6 @@ export default function AdminWithdrawalsPage() {
 
       if (updateError) throw updateError
 
-      // If rejected, refund the user
       if (action === 'rejected') {
         const { data: user, error: userErr } = await supabase
           .from('profiles')
@@ -172,7 +201,6 @@ export default function AdminWithdrawalsPage() {
 
         if (refundError) throw refundError
 
-        // Log the refund transaction
         await supabase.from('transactions').insert({
           user_id: withdrawal.user_id,
           type: 'withdrawal_refund',
@@ -229,7 +257,6 @@ export default function AdminWithdrawalsPage() {
     }
   }
 
-  // ===== HELPERS =====
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     toast.success('Copied to clipboard')
@@ -270,7 +297,6 @@ export default function AdminWithdrawalsPage() {
       .reduce((s, w) => s + w.amount_spy, 0),
   }), [withdrawals])
 
-  // ===== LOADING =====
   if (isLoading) {
     return (
       <div className="wd-loading">
@@ -304,8 +330,22 @@ export default function AdminWithdrawalsPage() {
         </div>
       </div>
 
-      {/* ===== ALERT BANNER (if pending) ===== */}
-      {stats.pending > 0 && (
+      {/* ===== ERROR BANNER ===== */}
+      {loadError && (
+        <div className="wd-alert wd-alert-error">
+          <AlertCircle size={18} />
+          <div>
+            <strong>Failed to load withdrawals</strong>
+            <span>{loadError}</span>
+          </div>
+          <button onClick={fetchWithdrawals} className="wd-alert-retry">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ===== PENDING ALERT ===== */}
+      {stats.pending > 0 && !loadError && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -399,7 +439,7 @@ export default function AdminWithdrawalsPage() {
         )}
       </AnimatePresence>
 
-      {/* ===== RESULTS COUNT ===== */}
+      {/* ===== RESULTS ===== */}
       <div className="wd-results">
         <span>{filtered.length} withdrawal{filtered.length !== 1 ? 's' : ''} found</span>
       </div>
@@ -410,7 +450,7 @@ export default function AdminWithdrawalsPage() {
           <div className="wd-empty">
             <Wallet size={48} className="wd-empty-icon" />
             <h3>No withdrawals found</h3>
-            <p>Try adjusting your search or filters</p>
+            <p>{loadError ? 'Fix the error above and retry' : 'Try adjusting your search or filters'}</p>
           </div>
         ) : (
           <div className="wd-table-scroll">
@@ -443,10 +483,7 @@ export default function AdminWithdrawalsPage() {
                       className={`wd-row ${stats?.isBanned ? 'wd-row-banned' : ''}`}
                     >
                       <td>
-                        <Link
-                          href={`/admin/users/${w.user_id}`}
-                          className="wd-user"
-                        >
+                        <Link href={`/admin/users/${w.user_id}`} className="wd-user">
                           <div className="wd-user-avatar">
                             {username[0]?.toUpperCase() || 'U'}
                           </div>
@@ -607,7 +644,6 @@ export default function AdminWithdrawalsPage() {
               </div>
 
               <div className="wd-modal-body">
-                {/* Status */}
                 <div className="wd-detail-status">
                   <span className={`wd-status wd-status-${STATUS_CONFIG[selectedWithdrawal.status].color}`}>
                     {(() => {
@@ -618,7 +654,6 @@ export default function AdminWithdrawalsPage() {
                   </span>
                 </div>
 
-                {/* Amount */}
                 <div className="wd-detail-amount">
                   <p className="wd-detail-label">Amount</p>
                   <p className="wd-detail-value">
@@ -627,7 +662,6 @@ export default function AdminWithdrawalsPage() {
                   <p className="wd-detail-usd">≈ ${selectedWithdrawal.amount_usd?.toFixed(2)} USD</p>
                 </div>
 
-                {/* Info Grid */}
                 <div className="wd-detail-grid">
                   <div className="wd-detail-item">
                     <span className="wd-detail-label-sm">Method</span>
@@ -651,7 +685,6 @@ export default function AdminWithdrawalsPage() {
                   </div>
                 </div>
 
-                {/* User Stats */}
                 {userStats[selectedWithdrawal.user_id] && (
                   <div className="wd-detail-section">
                     <h4 className="wd-detail-section-title">
@@ -686,7 +719,6 @@ export default function AdminWithdrawalsPage() {
                   </div>
                 )}
 
-                {/* Destination */}
                 {selectedWithdrawal.method === 'usdt' && selectedWithdrawal.address && (
                   <div className="wd-detail-section">
                     <h4 className="wd-detail-section-title">Destination Address</h4>
@@ -722,7 +754,6 @@ export default function AdminWithdrawalsPage() {
                   </div>
                 )}
 
-                {/* Security Notice */}
                 {userStats[selectedWithdrawal.user_id]?.isBanned && (
                   <div className="wd-security-alert">
                     <AlertTriangle size={16} />
@@ -816,10 +847,10 @@ export default function AdminWithdrawalsPage() {
 
               <p className="wd-confirm-desc">
                 {confirmAction === 'approve' && (
-                  <>Approve <strong>{selectedWithdrawal.amount_spy.toLocaleString()} SPY</strong> withdrawal for <strong>{selectedWithdrawal.profiles?.[0]?.username}</strong>? The user will be notified and funds sent.</>
+                  <>Approve <strong>{selectedWithdrawal.amount_spy.toLocaleString()} SPY</strong> withdrawal for <strong>{selectedWithdrawal.profiles?.[0]?.username || 'user'}</strong>? The user will be notified and funds sent.</>
                 )}
                 {confirmAction === 'reject' && (
-                  <>Reject and refund <strong>{selectedWithdrawal.amount_spy.toLocaleString()} SPY</strong> back to <strong>{selectedWithdrawal.profiles?.[0]?.username}</strong>? This cannot be undone.</>
+                  <>Reject and refund <strong>{selectedWithdrawal.amount_spy.toLocaleString()} SPY</strong> back to <strong>{selectedWithdrawal.profiles?.[0]?.username || 'user'}</strong>? This cannot be undone.</>
                 )}
                 {confirmAction === 'complete' && (
                   <>Mark <strong>{selectedWithdrawal.amount_spy.toLocaleString()} SPY</strong> withdrawal as completed? Only do this after the funds have been sent.</>
