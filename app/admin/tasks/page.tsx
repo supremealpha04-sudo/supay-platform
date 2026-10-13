@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { FaArrowLeft, FaSave } from 'react-icons/fa'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import '../tasks.css'
+import './tasks.css'
 
 const supabase = createClient()
 
