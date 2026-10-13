@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  FaPlus, FaEdit, FaTrash, FaPower, 
+  FaPlus, FaEdit, FaTrash, FaToggleOn, 
   FaExternalLinkAlt, FaClipboardList, FaClock, FaCoins
 } from 'react-icons/fa'
 import Link from 'next/link'
@@ -168,7 +168,7 @@ export default function AdminTasksPage() {
                   className="admin-task-action-btn power"
                   title={task.is_active ? 'Deactivate' : 'Activate'}
                 >
-                  <FaPower />
+                  <FaToggleOn />
                 </button>
                 <button
                   onClick={() => deleteTask(task.id)}
