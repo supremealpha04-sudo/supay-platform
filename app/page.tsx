@@ -251,9 +251,9 @@ export default function LandingPage() {
         <div className="testimonials-grid">{testimonials.map((t, idx) => (<div key={idx} className="testimonial-card"><div className="testimonial-header"><div className="testimonial-avatar">{t.initials}</div><div><div className="testimonial-name">{t.name}</div><div className="testimonial-role">{t.role}</div></div></div><div className="stars"><StarIcon /><StarIcon /><StarIcon /><StarIcon /><StarIcon /></div><div className="testimonial-quote">"{t.quote}"</div><div className="testimonial-footer"><span className="testimonial-label">Total Earned</span><span className="testimonial-earnings">{t.earnings}</span></div></div>))}</div>
       </section>
 
-      <section className="cta-section"><div className="cta-card"><div className="cta-icon">🎁</div><h2 className="cta-title">Ready to Start Earning?</h2><p className="cta-text">Join {stats.totalUsers.toLocaleString()}+ users already earning with Supay. Get a <span>100 SPY</span> welcome bonus!</p><Link href="/register" className="btn-primary">Create Free Account <ArrowIcon /></Link></div></section>
+      <section className="cta-section"><div className="cta-card"><div className="cta-icon">🎁</div><h2 className="cta-title">Ready to Start Earning?</h2><p className="cta-text">Join {stats.totalUsers.toLocaleString()}+ users already earning with Supay. Get a <span> SPY</span> welcome bonus!</p><Link href="/register" className="btn-primary">Create Free Account <ArrowIcon /></Link></div></section>
 
-      <footer className="footer"><div className="footer-links"><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/cookies">Cookies</Link></div><div className="footer-copyright">© 2024 Supay. All rights reserved.</div></footer>
+      <footer className="footer"><div className="footer-links"><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/cookies">Cookies</Link></div><div className="footer-copyright">© 2026 Supay. All rights reserved.</div></footer>
     </>
   )
 }
