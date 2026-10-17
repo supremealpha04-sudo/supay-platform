@@ -1,9 +1,8 @@
-// components/ads/AdViewer.tsx
 'use client'
 
 import './ad-viewer.css'
-import { useState, useEffect, useRef } from 'react'
-import { FaTimes, FaCheck, FaMousePointer, FaSpinner } from 'react-icons/fa'
+import { useState, useEffect } from 'react'
+import { FaTimes, FaCheck, FaExternalLinkAlt, FaMousePointer } from 'react-icons/fa'
 
 interface AdViewerProps {
   userId: string
@@ -23,77 +22,24 @@ export default function AdViewer({
   onComplete,
   onCancel
 }: AdViewerProps) {
-  const [hasStarted, setHasStarted] = useState(false)
+  const [hasClicked, setHasClicked] = useState(false)
   const [timeLeft, setTimeLeft] = useState(totalDuration)
   const [isComplete, setIsComplete] = useState(false)
   const [canClose, setCanClose] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [adError, setAdError] = useState<string | null>(null)
 
-  const scriptLoadedRef = useRef(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  // Uses Vercel Env Variable first, then falls back to your working link
+  const adUrl = process.env.NEXT_PUBLIC_ADSTERRA_DIRECT_LINK || 'https://www.profitableratecpmnetwork.com/cwdunazwc?key=c7f5960be7e239a274f2f429048b692b'
 
-  // Load Adsterra Ad Script
+  // Timer only starts AFTER user clicks the ad link
   useEffect(() => {
-    if (scriptLoadedRef.current) return
-    scriptLoadedRef.current = true
+    if (!hasClicked) return
 
-    const adScriptUrl = 'https://pl30607520.profitableratecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js'
-    const containerId = 'container-478289f3c17549c6c042b9e58c05b749'
-
-    // Check if script already exists (avoid duplicates)
-    const existingScript = document.querySelector(`script[src="${adScriptUrl}"]`)
-    if (existingScript) {
-      setIsLoading(false)
-      return
-    }
-
-    const script = document.createElement('script')
-    script.async = true
-    script.setAttribute('data-cfasync', 'false')
-    script.src = adScriptUrl
-
-    script.onload = () => {
-      console.log('✅ Adsterra script loaded')
-      setIsLoading(false)
-    }
-
-    script.onerror = () => {
-      console.error('❌ Adsterra script failed to load')
-      setAdError('Failed to load ad. Please try again later.')
-      setIsLoading(false)
-    }
-
-    document.head.appendChild(script)
-
-    // Create container for ad
-    if (containerRef.current) {
-      const adDiv = document.createElement('div')
-      adDiv.id = containerId
-      adDiv.className = 'adsterra-ad-container'
-      containerRef.current.appendChild(adDiv)
-    }
-
-    return () => {
-      // Cleanup on unmount
-      if (containerRef.current) {
-        const adDiv = containerRef.current.querySelector(`#${containerId}`)
-        if (adDiv) adDiv.remove()
-      }
-    }
-  }, [])
-
-  // Timer (only when user starts watching)
-  useEffect(() => {
-    if (!hasStarted) return
-
-    timerRef.current = setInterval(() => {
+    const interval = setInterval(() => {
       setTimeLeft(prev => {
         const next = prev - 1
         if (next <= 0) {
-          clearInterval(timerRef.current!)
+          clearInterval(interval)
           setIsComplete(true)
           setCanClose(true)
           return 0
@@ -102,10 +48,8 @@ export default function AdViewer({
       })
     }, 1000)
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [hasStarted])
+    return () => clearInterval(interval)
+  }, [hasClicked])
 
   const handleClose = () => {
     if (!canClose) {
@@ -128,13 +72,8 @@ export default function AdViewer({
     }
   }
 
-  const handleStart = () => {
-    if (adError) return
-    setHasStarted(true)
-  }
-
-  const progress = hasStarted
-    ? ((totalDuration - timeLeft) / totalDuration) * 100
+  const progress = hasClicked 
+    ? ((totalDuration - timeLeft) / totalDuration) * 100 
     : 0
 
   return (
@@ -142,11 +81,7 @@ export default function AdViewer({
       {/* Header */}
       <div className="ad-viewer-header">
         <div className="ad-viewer-status">
-          {isComplete
-            ? 'Complete!'
-            : hasStarted
-            ? `Watching... ${timeLeft}s`
-            : 'Ready'}
+          {isComplete ? 'Complete!' : hasClicked ? `Watching... ${timeLeft}s` : 'Ready'}
         </div>
         <button
           onClick={handleClose}
@@ -157,7 +92,7 @@ export default function AdViewer({
         </button>
       </div>
 
-      {/* Content */}
+      {/* Main Content */}
       <div className="ad-viewer-content">
         {isComplete ? (
           <div className="ad-viewer-success">
@@ -165,79 +100,40 @@ export default function AdViewer({
             <h2>Reward Ready!</h2>
             <p>Click the green ✕ to claim your 0.05 SPY</p>
           </div>
-        ) : !hasStarted ? (
+        ) : !hasClicked ? (
           <div className="ad-viewer-start">
             <div className="ad-start-icon">📺</div>
             <h2>Watch Ad to Earn</h2>
             <p>
-              Click the button below to start the ad. <br />
-              Watch for <strong>{totalDuration} seconds</strong> to earn your reward.
+              Click the button below to open the ad. <br/>
+              Keep it open for <strong>{totalDuration} seconds</strong> to earn your reward.
             </p>
-
-            {adError ? (
-              <div className="ad-error-box">
-                <p>{adError}</p>
-                <button
-                  onClick={() => {
-                    setAdError(null)
-                    setIsLoading(true)
-                  }}
-                  className="ad-retry-btn"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleStart}
-                disabled={isLoading}
-                className="ad-open-btn"
-              >
-                {isLoading ? (
-                  <>
-                    <FaSpinner className="spin" /> Loading Ad...
-                  </>
-                ) : (
-                  <>
-                    <FaMousePointer /> Start Watching
-                  </>
-                )}
-              </button>
-            )}
+            
+            {/* Clickable "Open Ad" Button */}
+            <a 
+              href={adUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              onClick={() => setHasClicked(true)}
+              className="ad-open-btn"
+            >
+              <FaExternalLinkAlt /> Open Ad
+            </a>
 
             <p className="ad-start-hint">
-              The ad will load in this window.
+              <FaMousePointer className="inline mr-1" />
+              You must click to open the ad.
             </p>
           </div>
         ) : (
           <div className="ad-viewer-countdown">
             <div className="ad-countdown-icon">⏱️</div>
-            <h2>Watching Ad</h2>
-            <p>Stay on this page for {timeLeft} more seconds.</p>
-
-            {/* Adsterra Container - script injects ad here */}
-            <div
-              ref={containerRef}
-              className="ad-viewer-container"
-            >
-              {isLoading && (
-                <div className="ad-loading-overlay">
-                  <div className="ad-loading-spinner" />
-                </div>
-              )}
-            </div>
-
-            {/* Countdown Circle */}
-            <div className="ad-countdown-circle" style={{ marginTop: '1.5rem' }}>
+            <h2>Ad is Open</h2>
+            <p>Keep the ad open and come back.</p>
+            
+            <div className="ad-countdown-circle">
               <svg viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  stroke="#374151"
-                  strokeWidth="8"
-                  fill="none"
-                />
+                <circle cx="50" cy="50" r="45" stroke="#374151" strokeWidth="8" fill="none" />
                 <circle
                   cx="50"
                   cy="50"
@@ -264,15 +160,15 @@ export default function AdViewer({
             <span className="text-green-400 flex items-center gap-1">
               <FaCheck /> Click ✕ to claim 0.05 SPY
             </span>
-          ) : hasStarted ? (
+          ) : hasClicked ? (
             <span>Watch {timeLeft}s more</span>
           ) : (
-            <span>Click "Start Watching" to begin</span>
+            <span>Click "Open Ad" to start</span>
           )}
         </span>
       </div>
 
-      {/* Warning */}
+      {/* Warning Popup */}
       {showWarning && (
         <div className="ad-warning-popup">
           ⏳ Please complete the ad first!
