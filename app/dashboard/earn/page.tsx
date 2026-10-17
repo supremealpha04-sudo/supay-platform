@@ -28,9 +28,8 @@ const AdViewer = dynamic(() => import('@/components/ads/AdViewer'), {
   )
 })
 
-// ===== SINGLE AD OPTION =====
 const REWARD_PER_AD = 0.05
-const AD_DURATION = 20 // seconds
+const AD_DURATION = 20 
 const DAILY_LIMIT = 20
 
 export default function EarnPage() {
@@ -50,14 +49,11 @@ export default function EarnPage() {
   const [sessionUser, setSessionUser] = useState<any>(null)
   const [retryCount, setRetryCount] = useState(0)
 
-  // Direct session check
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          setSessionUser(session.user)
-        }
+        if (session?.user) setSessionUser(session.user)
       } catch (err) {
         console.error('Session check error:', err)
       }
@@ -65,21 +61,15 @@ export default function EarnPage() {
     checkSession()
   }, [])
 
-  // Robust stats fetcher - NEVER crashes the page
   const fetchStats = useCallback(async () => {
     const userId = profile?.id || sessionUser?.id
-    
-    if (!userId) {
-      setIsLoading(false)
-      return
-    }
+    if (!userId) { setIsLoading(false); return }
     
     setIsLoading(true)
     setStatsError(null)
 
     try {
       const today = new Date().toISOString().split('T')[0]
-
       let todayWatches: any[] = []
       let totalAds = 0
       let earnings = 0
@@ -93,7 +83,6 @@ export default function EarnPage() {
           .order('created_at', { ascending: false })
 
         if (error) {
-          console.warn('⚠️ ad_watches query failed:', error.message)
           setStatsError('Stats temporarily unavailable')
         } else {
           todayWatches = data || []
@@ -101,7 +90,6 @@ export default function EarnPage() {
           earnings = todayWatches.reduce((sum, w) => sum + (w.reward_spy || 0), 0)
         }
       } catch (e) {
-        console.warn('⚠️ ad_watches table may not exist yet')
         setStatsError('Stats temporarily unavailable')
       }
 
@@ -113,12 +101,8 @@ export default function EarnPage() {
           .eq('id', userId)
           .maybeSingle()
 
-        if (!profileError && profileData) {
-          streak = profileData.daily_bonus_streak || 0
-        }
-      } catch (e) {
-        console.warn('⚠️ Could not load streak')
-      }
+        if (!profileError && profileData) streak = profileData.daily_bonus_streak || 0
+      } catch (e) {}
 
       setStats({
         todayEarnings: earnings,
@@ -129,14 +113,8 @@ export default function EarnPage() {
       setRecentActivity(todayWatches.slice(0, 5))
 
     } catch (error) {
-      console.error('❌ Unexpected error in fetchStats:', error)
       setStatsError('Failed to load stats')
-      setStats({
-        todayEarnings: 0,
-        dailyRemaining: DAILY_LIMIT,
-        streak: 0,
-        totalAds: 0
-      })
+      setStats({ todayEarnings: 0, dailyRemaining: DAILY_LIMIT, streak: 0, totalAds: 0 })
     } finally {
       setIsLoading(false)
     }
@@ -144,18 +122,10 @@ export default function EarnPage() {
 
   useEffect(() => {
     const userId = profile?.id || sessionUser?.id
-    if (userId) {
-      fetchStats()
-    } else if (!authLoading) {
-      setIsLoading(false)
-    }
+    if (userId) fetchStats()
+    else if (!authLoading) setIsLoading(false)
   }, [profile, sessionUser, authLoading, fetchStats, retryCount])
 
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1)
-  }
-
-  // ===== OPEN AD (user must click this) =====
   const handleOpenAd = () => {
     const userId = profile?.id || sessionUser?.id
     if (!userId) {
@@ -163,19 +133,15 @@ export default function EarnPage() {
       router.push('/login?redirect=/dashboard/earn')
       return
     }
-
     if (stats.dailyRemaining <= 0) {
       toast.error('Daily limit reached. Come back tomorrow!')
       return
     }
-
     setShowAd(true)
   }
 
-  // Resilient ad completion handler
   const handleAdComplete = async (reward: number, tier: string, fraudScore: any) => {
     setShowAd(false)
-
     try {
       const res = await fetch('/api/ads/complete', {
         method: 'POST',
@@ -190,8 +156,6 @@ export default function EarnPage() {
 
       const contentType = res.headers.get('content-type')
       if (!contentType?.includes('application/json')) {
-        const text = await res.text()
-        console.error('Non-JSON response:', text)
         toast.error('Server error. Please try again.')
         return
       }
@@ -209,7 +173,6 @@ export default function EarnPage() {
         }
       }
     } catch (error) {
-      console.error('❌ Error completing ad:', error)
       toast.error('Network error. Reward may still be processed.')
     }
   }
@@ -221,7 +184,6 @@ export default function EarnPage() {
 
   const isLoggedIn = !!(user || profile || sessionUser)
 
-  // Auth loading
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -233,7 +195,6 @@ export default function EarnPage() {
     )
   }
 
-  // Not logged in
   if (!isLoggedIn) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -247,7 +208,6 @@ export default function EarnPage() {
     )
   }
 
-  // MAIN RENDER
   return (
     <div className="earn-container">
       <AnimatePresence>
@@ -265,25 +225,18 @@ export default function EarnPage() {
       </AnimatePresence>
 
       {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="earn-header"
-      >
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="earn-header">
         <div className="earn-header-top">
           <div>
             <h1 className="earn-header-title">Earn SPY</h1>
             <p className="earn-header-subtitle">Watch one ad and earn 0.05 SPY</p>
             {profile?.is_premium && (
-              <div className="earn-premium-badge">
-                <FaStar /> Premium: 2x Rewards Active
-              </div>
+              <div className="earn-premium-badge"><FaStar /> Premium: 2x Rewards Active</div>
             )}
           </div>
           <div className="earn-header-badges">
             <div className="earn-platform-badge available">
-              <span className="mr-1">🎯</span>
-              Adsterra
+              <span className="mr-1">🎯</span> Adsterra
               <span className="ml-1 text-green-400">●</span>
             </div>
           </div>
@@ -292,20 +245,13 @@ export default function EarnPage() {
 
       {/* Stats Error Banner */}
       {statsError && (
-        <motion.div 
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="stats-error-banner"
-        >
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="stats-error-banner">
           <FaExclamationCircle className="text-yellow-400 flex-shrink-0" />
           <div className="flex-1">
             <p className="text-yellow-400 text-sm font-medium">{statsError}</p>
             <p className="text-yellow-400/60 text-xs">You can still watch ads and earn rewards</p>
           </div>
-          <button 
-            onClick={handleRetry}
-            className="p-2 hover:bg-yellow-500/20 rounded-lg transition"
-          >
+          <button onClick={() => setRetryCount(p => p + 1)} className="p-2 hover:bg-yellow-500/20 rounded-lg transition">
             <FaSync className="text-yellow-400 text-sm" />
           </button>
         </motion.div>
@@ -319,13 +265,7 @@ export default function EarnPage() {
           { label: 'Streak', value: `${stats.streak} days 🔥`, icon: FaFire, iconClass: 'earn-stat-icon-orange' },
           { label: 'Total Views', value: `${stats.totalAds}`, icon: FaChartLine, iconClass: 'earn-stat-icon-green' },
         ].map((s, i) => (
-          <motion.div 
-            key={i} 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.1 }}
-            className="earn-stat-card"
-          >
+          <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }} className="earn-stat-card">
             <s.icon className={s.iconClass} />
             <p className="earn-stat-label">{s.label}</p>
             <p className="earn-stat-value">{isLoading ? '...' : s.value}</p>
@@ -353,49 +293,29 @@ export default function EarnPage() {
               Watch Ad
               <span className="earn-ad-badge-best-value">+0.05 SPY</span>
             </div>
-            <p className="earn-ad-description">
-              Click to open ad • Watch for {AD_DURATION} seconds
-            </p>
+            <p className="earn-ad-description">Click to open ad • Watch for {AD_DURATION} seconds</p>
             <div className="earn-ad-meta">
-              <span className="earn-ad-meta-item">
-                <FaClock className="inline" /> {AD_DURATION}s
-              </span>
-              <span className="earn-ad-meta-item">
-                <FaMousePointer className="inline" /> Click to start
-              </span>
-              <span className="earn-ad-meta-item">
-                Limit: {DAILY_LIMIT}/day
-              </span>
-              <span className="earn-ad-reward-estimate">
-                +{REWARD_PER_AD} SPY
-              </span>
+              <span className="earn-ad-meta-item"><FaClock className="inline" /> {AD_DURATION}s</span>
+              <span className="earn-ad-meta-item"><FaMousePointer className="inline" /> Click to start</span>
+              <span className="earn-ad-meta-item">Limit: {DAILY_LIMIT}/day</span>
+              <span className="earn-ad-reward-estimate">+{REWARD_PER_AD} SPY</span>
             </div>
           </div>
           <div className="flex-shrink-0">
-            <div className="earn-ad-action-button">
-              <FaPlay />
-            </div>
+            <div className="earn-ad-action-button"><FaPlay /></div>
           </div>
         </motion.button>
       </div>
 
       {/* Recent Activity */}
       {recentActivity.length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="earn-recent-activity"
-        >
-          <h3 className="earn-recent-activity-title">
-            <FaHistory /> Today's Activity
-          </h3>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="earn-recent-activity">
+          <h3 className="earn-recent-activity-title"><FaHistory /> Today's Activity</h3>
           <div className="earn-activity-list">
             {recentActivity.map((watch, i) => (
               <div key={i} className="earn-activity-item">
                 <div className="flex items-center gap-2">
-                  <span className="earn-activity-time">
-                    {new Date(watch.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <span className="earn-activity-time">{new Date(watch.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   <span className="earn-activity-tier">{watch.ad_tier}</span>
                 </div>
                 <span className="earn-activity-reward">+{watch.reward_spy.toFixed(2)} SPY</span>
@@ -405,24 +325,16 @@ export default function EarnPage() {
         </motion.div>
       )}
 
-      {/* Premium Upgrade Banner */}
+      {/* Premium Banner */}
       {!profile?.is_premium && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="earn-premium-banner"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="earn-premium-banner">
           <div className="earn-premium-banner-content">
             <div>
-              <h3 className="earn-premium-banner-title">
-                <FaStar className="earn-star" /> Go Premium
-              </h3>
+              <h3 className="earn-premium-banner-title"><FaStar className="earn-star" /> Go Premium</h3>
               <p className="earn-premium-banner-description">2x rewards on everything + exclusive ad types</p>
             </div>
             <Link href="/dashboard/premium">
-              <button className="earn-upgrade-btn">
-                Upgrade Now
-              </button>
+              <button className="earn-upgrade-btn">Upgrade Now</button>
             </Link>
           </div>
         </motion.div>
