@@ -1,9 +1,10 @@
+// components/ads/AdViewer.tsx
 'use client'
 
 import './ad-viewer.css'
 
-import { useState, useEffect, useRef } from 'react'
-import { FaTimes, FaClock, FaCheck, FaExclamationTriangle } from 'react-icons/fa'
+import { useState, useEffect } from 'react'
+import { FaTimes, FaClock, FaCheck, FaMousePointer, FaExternalLinkAlt } from 'react-icons/fa'
 
 interface AdViewerProps {
   userId: string
@@ -16,94 +17,52 @@ interface AdViewerProps {
 }
 
 export default function AdViewer({
+  userId,
+  platform,
   adTier,
   totalDuration,
-  adCount = 3,
+  adCount = 1,
   onComplete,
-  onCancel,
+  onCancel
 }: AdViewerProps) {
-  const [currentAd, setCurrentAd] = useState(1)
+  const [hasClicked, setHasClicked] = useState(false)
   const [timeLeft, setTimeLeft] = useState(totalDuration)
   const [isComplete, setIsComplete] = useState(false)
   const [canClose, setCanClose] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
-  const [reward, setReward] = useState(0)
-  const [isClaiming, setIsClaiming] = useState(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const scriptLoadedRef = useRef(false)
 
-  // Calculate reward
+  // Timer only starts AFTER user clicks
   useEffect(() => {
-    const baseReward = adTier === 'video' ? 0.50 : 0.15
-    setReward(baseReward * adCount)
-  }, [adTier, adCount])
+    if (!hasClicked) return
 
-  // Load Adsterra ad
-  useEffect(() => {
-    if (!containerRef.current || scriptLoadedRef.current) return
-    scriptLoadedRef.current = true
-    const container = containerRef.current
-    container.innerHTML = ''
-
-    const wrapper = document.createElement('div')
-    wrapper.className = 'adsterra-ad-wrapper'
-    wrapper.id = `adsterra-wrapper-${currentAd}`
-
-    const adDiv = document.createElement('div')
-    adDiv.id = 'container-478289f3c17549c6c042b9e58c05b749'
-    adDiv.className = 'adsterra-ad-container'
-
-    wrapper.appendChild(adDiv)
-    container.appendChild(wrapper)
-
-    const scriptId = 'adsterra-script'
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script')
-      script.id = scriptId
-      script.async = true
-      script.setAttribute('data-cfasync', 'false')
-      script.src = 'https://pl30607520.effectivecpmnetwork.com/478289f3c17549c6c042b9e58c05b749/invoke.js'
-      script.onerror = () => console.error('❌ Failed to load ad')
-      document.head.appendChild(script)
-    }
-
-    return () => {
-      const el = container.querySelector('.adsterra-ad-wrapper')
-      if (el && el.parentNode === container) {
-        try { container.removeChild(el) } catch {}
-      }
-    }
-  }, [currentAd])
-
-  // Start timer
-  useEffect(() => {
-    let elapsed = 0
-    timerRef.current = setInterval(() => {
-      elapsed += 1
-      const remaining = Math.max(0, totalDuration - elapsed)
-      setTimeLeft(remaining)
-
-      const adDuration = totalDuration / adCount
-      const newAd = Math.min(Math.floor(elapsed / adDuration) + 1, adCount)
-      if (newAd !== currentAd && newAd <= adCount) {
-        setCurrentAd(newAd)
-      }
-
-      if (elapsed >= totalDuration) {
-        clearInterval(timerRef.current!)
-        setIsComplete(true)
-        setCanClose(true)
-      }
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        const next = prev - 1
+        if (next <= 0) {
+          clearInterval(interval)
+          setIsComplete(true)
+          setCanClose(true)
+          return 0
+        }
+        return next
+      })
     }, 1000)
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [totalDuration, adCount])
+    return () => clearInterval(interval)
+  }, [hasClicked])
 
-  // CLAIM: No client-side auth check. API handles auth.
-  const handleClaim = () => {
+  // Handle "Open Ad" click
+  const handleOpenAd = () => {
+    // Open Adsterra direct link in new tab
+    const adUrl = process.env.NEXT_PUBLIC_ADSTERRA_DIRECT_LINK || 'https://www.effectivecpmnetwork.com/'
+    
+    window.open(adUrl, '_blank', 'noopener,noreferrer')
+    
+    // Start timer
+    setHasClicked(true)
+  }
+
+  const handleClose = () => {
     if (!canClose) {
       setShowWarning(true)
       setTimeout(() => setShowWarning(false), 2000)
@@ -111,141 +70,127 @@ export default function AdViewer({
     }
 
     if (isComplete) {
-      setIsClaiming(true)
-      // Brief UX delay so it feels like verification happened
-      setTimeout(() => {
-        const fraudScore = {
-          avgViewTime: totalDuration,
-          tabSwitches: 0,
-          isHeadlessBrowser: false,
-          isProxy: false,
-          fraudScore: 0.1,
-        }
-        onComplete(reward, adTier, fraudScore)
-      }, 600)
+      const fraudScore = {
+        avgViewTime: totalDuration,
+        tabSwitches: 0,
+        isHeadlessBrowser: false,
+        isProxy: false,
+        fraudScore: 0.1
+      }
+      onComplete(0.05, adTier, fraudScore)
     } else {
       onCancel()
     }
   }
 
-  const progress = Math.min(((totalDuration - timeLeft) / totalDuration) * 100, 100)
+  const progress = hasClicked 
+    ? ((totalDuration - timeLeft) / totalDuration) * 100 
+    : 0
 
   return (
-    <div className="ad-viewer-overlay">
-      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
-        <defs>
-          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#a855f7" />
-          </linearGradient>
-        </defs>
-      </svg>
-
+    <div className="fixed inset-0 z-[99999] bg-black flex flex-col ad-viewer-overlay">
       {/* Header */}
-      <div className="ad-viewer-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span className="ad-badge">
-            <span style={{ width: 6, height: 6, borderRadius: '9999px', background: '#818cf8', display: 'inline-block' }} />
-            Ad {currentAd}/{adCount}
-          </span>
-          <span className="timer-display">
-            <FaClock className="timer-icon" style={{ fontSize: '0.75rem' }} />
-            {isComplete ? 'Complete!' : `${Math.ceil(timeLeft)}s`}
+      <div className="flex items-center justify-between px-4 py-3 bg-black/90 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <span className="text-accent-500 font-bold text-sm">
+            {isComplete ? 'Complete!' : hasClicked ? `Watching... ${timeLeft}s` : 'Ready'}
           </span>
         </div>
-        <button onClick={handleClaim} disabled={!canClose} className="close-btn">
-          {isClaiming ? <div className="spinner" /> : <FaTimes style={{ fontSize: '1rem' }} />}
+        <button
+          onClick={handleClose}
+          disabled={!canClose}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+            canClose 
+              ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400 cursor-pointer' 
+              : 'bg-gray-800/50 text-gray-600 cursor-not-allowed opacity-50'
+          }`}
+        >
+          <FaTimes className="text-lg" />
         </button>
       </div>
 
-      {/* Content */}
-      <div className="ad-viewer-content">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
         {isComplete ? (
-          <div className="ad-viewer-complete">
-            <div className="complete-emoji">🎉</div>
-            <h2 className="complete-title">All Ads Complete!</h2>
-            <p className="complete-subtitle">Click the green ✕ button to claim your reward</p>
-            <div className="reward-pill">
-              <span>+{reward.toFixed(2)} SPY</span>
+          <div className="text-center animate-bounce">
+            <div className="text-7xl mb-4">🎉</div>
+            <h2 className="text-3xl font-bold text-white mb-2">Reward Ready!</h2>
+            <p className="text-gray-400 text-lg mb-4">Click the green ✕ to claim your reward</p>
+            <div className="inline-block bg-green-500/20 text-green-400 px-6 py-2 rounded-full text-sm font-medium">
+              +0.05 SPY
             </div>
-            {isClaiming && (
-              <div className="auth-checking">
-                <div className="spinner" />
-                <span>Claiming your reward...</span>
-              </div>
-            )}
+          </div>
+        ) : !hasClicked ? (
+          <div className="text-center max-w-md">
+            <div className="text-7xl mb-6">📺</div>
+            <h2 className="text-2xl font-bold text-white mb-3">Watch Ad to Earn</h2>
+            <p className="text-gray-400 mb-6">
+              Click the button below to open the ad. Keep it open for <strong className="text-white">{totalDuration} seconds</strong> to earn your reward.
+            </p>
+            
+            <button
+              onClick={handleOpenAd}
+              className="inline-flex items-center gap-3 px-8 py-4 bg-accent-500 hover:bg-accent-600 text-white font-bold rounded-xl transition-all transform hover:scale-105"
+            >
+              <FaExternalLinkAlt />
+              Open Ad
+            </button>
+
+            <p className="text-xs text-gray-500 mt-6">
+              <FaMousePointer className="inline mr-1" />
+              You must click to open the ad
+            </p>
           </div>
         ) : (
-          <div style={{ width: '100%', maxWidth: 768, margin: '0 auto' }}>
-            <div className="ad-dots">
-              {Array.from({ length: adCount }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`ad-dot ${i + 1 === currentAd ? 'active' : i + 1 < currentAd ? 'completed' : ''}`}
+          <div className="text-center max-w-md">
+            <div className="text-7xl mb-6 animate-pulse">⏱️</div>
+            <h2 className="text-2xl font-bold text-white mb-3">Ad is Open</h2>
+            <p className="text-gray-400 mb-6">
+              Keep the ad open and come back. You have <strong className="text-accent-500">{timeLeft}s</strong> remaining.
+            </p>
+            
+            {/* Circular Countdown */}
+            <div className="relative w-24 h-24 mx-auto">
+              <svg className="w-24 h-24 transform -rotate-90">
+                <circle cx="48" cy="48" r="42" stroke="#374151" strokeWidth="6" fill="none" />
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="42"
+                  stroke="#818cf8"
+                  strokeWidth="6"
+                  fill="none"
+                  strokeDasharray="263.89"
+                  strokeDashoffset={263.89 * (1 - progress / 100)}
+                  className="transition-all duration-1000"
                 />
-              ))}
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-white font-bold text-2xl">{timeLeft}</span>
+              </div>
             </div>
-            <div className="ad-info">
-              <h2>Ad {currentAd} of {adCount}</h2>
-              <p>{Math.ceil(timeLeft)} seconds remaining</p>
-            </div>
-            <div ref={containerRef} className="ad-viewer-container" />
           </div>
         )}
-
-        {/* Countdown */}
-        <div className="countdown-wrapper">
-          <div className="countdown-ring">
-            <svg viewBox="0 0 64 64">
-              <circle className="track" cx="32" cy="32" r="28" />
-              <circle
-                className={`progress ${isComplete ? 'complete' : ''}`}
-                cx="32" cy="32" r="28"
-                strokeDasharray="175.93"
-                strokeDashoffset={isComplete ? 0 : 175.93 * (1 - progress / 100)}
-              />
-            </svg>
-            <div className={`countdown-text ${isComplete ? 'complete' : ''}`}>
-              {isComplete ? '✓' : Math.ceil(timeLeft)}
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="ad-progress-bar">
-          <div className="ad-progress-inner">
-            <span className="ad-progress-label percent">{Math.round(progress)}%</span>
-            <div className="ad-progress-track">
-              <div className="ad-progress-fill" style={{ width: `${progress}%` }} />
-            </div>
-            <span className={`ad-progress-label status ${canClose ? 'text-green-400' : 'text-gray-500'}`}>
-              {canClose ? 'Claim' : `${Math.ceil(timeLeft)}s`}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Footer */}
-      <div className="ad-viewer-footer">
-        <span className="footer-brand">Powered by Adsterra</span>
-        <span className={`footer-reward ${canClose ? 'ready' : 'pending'}`}>
+      <div className="bg-black/90 border-t border-gray-800 px-4 py-3 flex justify-between items-center">
+        <span className="text-xs text-gray-600">Powered by Adsterra</span>
+        <span className="text-xs text-gray-600">
           {canClose ? (
-            <>
-              <FaCheck style={{ fontSize: '0.75rem' }} /> Claim {reward.toFixed(2)} SPY
-            </>
+            <span className="text-green-400">✅ Click ✕ to claim 0.05 SPY</span>
+          ) : hasClicked ? (
+            <span>Watch {timeLeft}s more</span>
           ) : (
-            `Watch all ads to earn ${reward.toFixed(2)} SPY`
+            <span>Click "Open Ad" to start</span>
           )}
         </span>
       </div>
 
-      {/* Warning */}
+      {/* Warning Popup */}
       {showWarning && (
-        <div className="ad-warning">
-          <FaExclamationTriangle className="ad-warning-icon" style={{ color: 'white' }} />
-          <p className="ad-warning-text">
-            {isComplete ? 'Claiming...' : '⏳ Please watch the full ad to earn rewards!'}
-          </p>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[99999] bg-red-500/95 rounded-xl px-6 py-4 max-w-sm text-center shadow-2xl">
+          <p className="text-white font-medium">⏳ Please complete the ad first!</p>
         </div>
       )}
     </div>
