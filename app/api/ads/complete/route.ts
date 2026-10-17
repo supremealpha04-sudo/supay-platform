@@ -8,15 +8,19 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
     const body = await request.json()
-    const { adTier, platform, fraudScore } = body
+    const { adTier, platform, fraudSignals, fraudScore } = body
     
     console.log('📝 Ad completion request:', { adTier, platform })
 
-    // ✅ FIX 1: Use getUser() instead of getSession() for server-side auth
+    // ✅ FIX: Extract the actual number from the fraudScore object
+    const numericFraudScore = typeof fraudScore === 'object' 
+      ? (fraudScore?.fraudScore || 0) 
+      : (fraudScore || 0)
+
+    // Get user (using getUser for server-side auth)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      console.error('❌ Auth error:', authError)
       return NextResponse.json({ 
         success: false, 
         message: 'Please log in to earn rewards' 
@@ -24,7 +28,6 @@ export async function POST(request: Request) {
     }
     
     const userId = user.id
-    console.log('✅ User authenticated:', userId)
 
     // Get user profile
     const { data: profile, error: profileError } = await supabase
@@ -34,7 +37,6 @@ export async function POST(request: Request) {
       .single()
     
     if (profileError || !profile) {
-      console.error('❌ Profile error:', profileError)
       return NextResponse.json({ 
         success: false, 
         message: 'User profile not found' 
@@ -60,8 +62,7 @@ export async function POST(request: Request) {
     // Calculate reward
     const reward = profile.is_premium ? FIXED_REWARD * 2 : FIXED_REWARD
 
-    // ✅ FIX 2: Insert WITHOUT .select() to avoid needing a SELECT RLS policy
-    // This is the most common cause of "Failed to record" errors [citation:2][citation:10]
+    // Insert ad watch (with numeric fraud_score)
     const { error: insertError } = await supabase
       .from('ad_watches')
       .insert({
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
         platform_used: platform || 'adsterra',
         reward_spy: reward,
         duration_seconds: 20,
-        fraud_score: fraudScore || 0,
+        fraud_score: numericFraudScore,  // ✅ Now a number
         created_at: new Date().toISOString()
       })
 
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       }, { status: 500 })
     }
 
-    // ✅ FIX 3: Update balance using RPC or direct update
+    // Update balance
     const newBalance = (profile.spy_balance || 0) + reward
     const { error: updateError } = await supabase
       .from('profiles')
@@ -114,7 +115,46 @@ export async function POST(request: Request) {
   }
 }
 
-// (Keep your existing updateStreak function below)
 async function updateStreak(userId: string) {
-  // ... your existing streak logic ...
+  const supabase = createClient()
+  const today = new Date().toISOString().split('T')[0]
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  
+  try {
+    const { data: todayWatch } = await supabase
+      .from('ad_watches')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', today)
+      .limit(1)
+    
+    if (todayWatch && todayWatch.length > 0) {
+      const { data: yesterdayWatch } = await supabase
+        .from('ad_watches')
+        .select('id')
+        .eq('user_id', userId)
+        .gte('created_at', yesterday)
+        .lt('created_at', today)
+        .limit(1)
+      
+      if (yesterdayWatch && yesterdayWatch.length > 0) {
+        await supabase.rpc('increment_streak', { user_id: userId })
+      } else {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('daily_bonus_streak')
+          .eq('id', userId)
+          .single()
+        
+        if (profile?.daily_bonus_streak === 0 || profile?.daily_bonus_streak === null) {
+          await supabase
+            .from('profiles')
+            .update({ daily_bonus_streak: 1 })
+            .eq('id', userId)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Streak error:', error)
+  }
 }
