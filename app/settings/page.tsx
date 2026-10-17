@@ -1,6 +1,7 @@
+// app/settings/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -10,28 +11,53 @@ import { motion } from 'framer-motion'
 import {
   FaArrowLeft, FaUser, FaLock, FaBell, FaPalette,
   FaTrash, FaEye, FaEyeSlash, FaSave, FaSignOutAlt,
-  FaShieldAlt, FaCreditCard, FaMoon, FaSun
+  FaShieldAlt, FaMoon, FaSun
 } from 'react-icons/fa'
 
 const supabase = createClient()
 
+// ✅ Extend the Profile type to include your new DB columns
+interface ExtendedProfile {
+  id?: string
+  username?: string
+  full_name?: string
+  bio?: string
+  country?: string
+  phone_number?: string
+  email?: string
+  [key: string]: any
+}
+
 export default function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth()
   const router = useRouter()
+
+  // Cast profile to our extended type
+  const p = profile as ExtendedProfile | null
 
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications' | 'appearance' | 'danger'>('profile')
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   // Profile state
-  const [username, setUsername] = useState(profile?.username || '')
-  const [fullName, setFullName] = useState(profile?.full_name || '')
-  const [bio, setBio] = useState(profile?.bio || '')
-  const [country, setCountry] = useState(profile?.country || '')
-  const [phone, setPhone] = useState(profile?.phone_number || '')
+  const [username, setUsername] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [bio, setBio] = useState('')
+  const [country, setCountry] = useState('')
+  const [phone, setPhone] = useState('')
+
+  // Populate state when profile loads
+  useEffect(() => {
+    if (p) {
+      setUsername(p.username || '')
+      setFullName(p.full_name || '')
+      setBio(p.bio || '')
+      setCountry(p.country || '')
+      setPhone(p.phone_number || '')
+    }
+  }, [p])
 
   // Security state
-  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -42,6 +68,14 @@ export default function SettingsPage() {
 
   // Appearance
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+
+  // Initialize theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null
+    if (savedTheme) {
+      setTheme(savedTheme)
+    }
+  }, [])
 
   const handleSaveProfile = async () => {
     if (!user) return
@@ -86,7 +120,6 @@ export default function SettingsPage() {
 
       if (error) throw error
       toast.success('Password updated successfully!')
-      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
     } catch (error: any) {
@@ -109,7 +142,6 @@ export default function SettingsPage() {
 
     setIsLoading(true)
     try {
-      // Note: Full account deletion requires a server-side endpoint
       const response = await fetch('/api/user/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
