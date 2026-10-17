@@ -158,7 +158,7 @@ export default function AdViewer({
         <span className="ad-footer-status">
           {canClose ? (
             <span className="text-green-400 flex items-center gap-1">
-              <FaCheck /> Click ✕ to claim 0.05 SPY
+              <FaCheck /> Click ✕ to claim 0.005 SPY
             </span>
           ) : hasClicked ? (
             <span>Watch {timeLeft}s more</span>
