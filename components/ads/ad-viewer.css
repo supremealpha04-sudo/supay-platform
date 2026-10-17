@@ -1,179 +1,429 @@
-'use client'
+/* ============================================
+   AD VIEWER - SINGLE CLICK-TO-OPEN FLOW
+   ============================================ */
 
-import './ad-viewer.css'
-import { useState, useEffect } from 'react'
-import { FaTimes, FaCheck, FaExternalLinkAlt, FaMousePointer } from 'react-icons/fa'
-
-interface AdViewerProps {
-  userId: string
-  platform: string
-  adTier: string
-  totalDuration: number
-  adCount: number
-  onComplete: (reward: number, tier: string, fraudScore: any) => void
-  onCancel: () => void
+.ad-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #0a0a0f;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
 }
 
-export default function AdViewer({
-  userId,
-  platform,
-  adTier,
-  totalDuration,
-  onComplete,
-  onCancel
-}: AdViewerProps) {
-  const [hasClicked, setHasClicked] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(totalDuration)
-  const [isComplete, setIsComplete] = useState(false)
-  const [canClose, setCanClose] = useState(false)
-  const [showWarning, setShowWarning] = useState(false)
+.ad-viewer-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(168, 85, 247, 0.06) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
 
-  // Uses Vercel Env Variable first, then falls back to your working link
-  const adUrl = process.env.NEXT_PUBLIC_ADSTERRA_DIRECT_LINK || 'https://www.profitableratecpmnetwork.com/cwdunazwc?key=c7f5960be7e239a274f2f429048b692b'
+/* ============================================
+   HEADER
+   ============================================ */
 
-  // Timer only starts AFTER user clicks the ad link
-  useEffect(() => {
-    if (!hasClicked) return
+.ad-viewer-header {
+  position: relative;
+  z-index: 10;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.875rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
 
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        const next = prev - 1
-        if (next <= 0) {
-          clearInterval(interval)
-          setIsComplete(true)
-          setCanClose(true)
-          return 0
-        }
-        return next
-      })
-    }, 1000)
+.ad-viewer-status {
+  color: #818cf8;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
 
-    return () => clearInterval(interval)
-  }, [hasClicked])
+.ad-close-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
 
-  const handleClose = () => {
-    if (!canClose) {
-      setShowWarning(true)
-      setTimeout(() => setShowWarning(false), 2000)
-      return
-    }
+.ad-close-btn.disabled {
+  background: rgba(55, 65, 81, 0.4);
+  color: #4b5563;
+  cursor: not-allowed;
+}
 
-    if (isComplete) {
-      const fraudScore = {
-        avgViewTime: totalDuration,
-        tabSwitches: 0,
-        isHeadlessBrowser: false,
-        isProxy: false,
-        fraudScore: 0.1
-      }
-      onComplete(0.05, adTier, fraudScore)
-    } else {
-      onCancel()
-    }
+.ad-close-btn.active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.ad-close-btn.active:hover {
+  background: rgba(34, 197, 94, 0.25);
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+/* ============================================
+   CONTENT AREA
+   ============================================ */
+
+.ad-viewer-content {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+/* ============================================
+   START SCREEN (CLICK TO OPEN)
+   ============================================ */
+
+.ad-viewer-start {
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.ad-start-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  animation: float 3s ease-in-out infinite;
+}
+
+.ad-viewer-start h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.ad-viewer-start p {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.ad-viewer-start p strong {
+  color: #ffffff;
+}
+
+/* Clickable "Open Ad" Button (Anchor Tag) */
+.ad-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 0.75rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+}
+
+.ad-open-btn:hover {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(99, 102, 241, 0.4);
+}
+
+.ad-open-btn:active {
+  transform: translateY(0);
+}
+
+.ad-start-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #4b5563;
+  margin-top: 1.25rem;
+}
+
+/* ============================================
+   COUNTDOWN SCREEN
+   ============================================ */
+
+.ad-viewer-countdown {
+  text-align: center;
+  animation: fadeInScale 0.4s ease-out;
+}
+
+.ad-countdown-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: pulse 2s infinite;
+}
+
+.ad-viewer-countdown h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.ad-viewer-countdown p {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Circular Progress */
+.ad-countdown-circle {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+}
+
+.ad-countdown-circle svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.ad-countdown-progress {
+  transition: stroke-dashoffset 1s linear;
+}
+
+.ad-countdown-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   SUCCESS SCREEN
+   ============================================ */
+
+.ad-viewer-success {
+  text-align: center;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.ad-success-icon {
+  font-size: 5rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  animation: celebrate 1s ease-in-out infinite;
+}
+
+.ad-viewer-success h2 {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.025em;
+}
+
+.ad-viewer-success p {
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+
+.ad-viewer-footer {
+  position: relative;
+  z-index: 10;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.875rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ad-powered-by {
+  font-size: 0.6875rem;
+  color: #4b5563;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ad-footer-status {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.text-green-400 {
+  color: #4ade80;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}
+
+.inline {
+  display: inline;
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
+}
+
+/* ============================================
+   WARNING POPUP
+   ============================================ */
+
+.ad-warning-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  z-index: 100;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border-radius: 1rem;
+  padding: 1.25rem 2rem;
+  max-width: 320px;
+  text-align: center;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 25px 50px -12px rgba(220, 38, 38, 0.5);
+  animation: warningPop 0.3s ease-out forwards;
+}
+
+@keyframes warningPop {
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes celebrate {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8px) rotate(-5deg);
+  }
+  75% {
+    transform: translateY(-8px) rotate(5deg);
+  }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 640px) {
+  .ad-viewer-content {
+    padding: 1rem;
   }
 
-  const progress = hasClicked 
-    ? ((totalDuration - timeLeft) / totalDuration) * 100 
-    : 0
+  .ad-viewer-start h2,
+  .ad-viewer-countdown h2 {
+    font-size: 1.25rem;
+  }
 
-  return (
-    <div className="ad-viewer-overlay">
-      {/* Header */}
-      <div className="ad-viewer-header">
-        <div className="ad-viewer-status">
-          {isComplete ? 'Complete!' : hasClicked ? `Watching... ${timeLeft}s` : 'Ready'}
-        </div>
-        <button
-          onClick={handleClose}
-          disabled={!canClose}
-          className={`ad-close-btn ${canClose ? 'active' : 'disabled'}`}
-        >
-          <FaTimes />
-        </button>
-      </div>
+  .ad-countdown-circle {
+    width: 120px;
+    height: 120px;
+  }
 
-      {/* Main Content */}
-      <div className="ad-viewer-content">
-        {isComplete ? (
-          <div className="ad-viewer-success">
-            <div className="ad-success-icon">🎉</div>
-            <h2>Reward Ready!</h2>
-            <p>Click the green ✕ to claim your 0.05 SPY</p>
-          </div>
-        ) : !hasClicked ? (
-          <div className="ad-viewer-start">
-            <div className="ad-start-icon">📺</div>
-            <h2>Watch Ad to Earn</h2>
-            <p>
-              Click the button below to open the ad. <br/>
-              Keep it open for <strong>{totalDuration} seconds</strong> to earn your reward.
-            </p>
-            
-            {/* Clickable "Open Ad" Button */}
-            <a 
-              href={adUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              onClick={() => setHasClicked(true)}
-              className="ad-open-btn"
-            >
-              <FaExternalLinkAlt /> Open Ad
-            </a>
+  .ad-countdown-text {
+    font-size: 2rem;
+  }
 
-            <p className="ad-start-hint">
-              <FaMousePointer className="inline mr-1" />
-              You must click to open the ad.
-            </p>
-          </div>
-        ) : (
-          <div className="ad-viewer-countdown">
-            <div className="ad-countdown-icon">⏱️</div>
-            <h2>Ad is Open</h2>
-            <p>Keep the ad open and come back.</p>
-            
-            <div className="ad-countdown-circle">
-              <svg viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="45" stroke="#374151" strokeWidth="8" fill="none" />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  stroke="#818cf8"
-                  strokeWidth="8"
-                  fill="none"
-                  strokeDasharray="282.7"
-                  strokeDashoffset={282.7 * (1 - progress / 100)}
-                  className="ad-countdown-progress"
-                />
-              </svg>
-              <span className="ad-countdown-text">{timeLeft}</span>
-            </div>
-          </div>
-        )}
-      </div>
+  .ad-viewer-success h2 {
+    font-size: 1.5rem;
+  }
 
-      {/* Footer */}
-      <div className="ad-viewer-footer">
-        <span className="ad-powered-by">Powered by {platform}</span>
-        <span className="ad-footer-status">
-          {canClose ? (
-            <span className="text-green-400 flex items-center gap-1">
-              <FaCheck /> Click ✕ to claim 0.05 SPY
-            </span>
-          ) : hasClicked ? (
-            <span>Watch {timeLeft}s more</span>
-          ) : (
-            <span>Click "Open Ad" to start</span>
-          )}
-        </span>
-      </div>
-
-      {/* Warning Popup */}
-      {showWarning && (
-        <div className="ad-warning-popup">
-          ⏳ Please complete the ad first!
-        </div>
-      )}
-    </div>
-  )
+  .ad-success-icon {
+    font-size: 4rem;
+  }
 }
