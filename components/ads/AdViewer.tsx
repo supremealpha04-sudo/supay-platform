@@ -4,7 +4,7 @@
 import './ad-viewer.css'
 
 import { useState, useEffect } from 'react'
-import { FaTimes, FaCheck, FaExternalLinkAlt } from 'react-icons/fa'
+import { FaTimes, FaCheck, FaExternalLinkAlt, FaClock, FaMousePointer } from 'react-icons/fa'
 
 interface AdViewerProps {
   userId: string
@@ -30,9 +30,10 @@ export default function AdViewer({
   const [canClose, setCanClose] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
 
-  // Get link from env
+  // Get link from env variable
   const adUrl = process.env.NEXT_PUBLIC_ADSTERRA_DIRECT_LINK || 'https://www.effectivenetwork.com'
 
+  // Timer only starts AFTER user clicks the ad link
   useEffect(() => {
     if (!hasClicked) return
 
@@ -110,7 +111,7 @@ export default function AdViewer({
               Keep it open for <strong>{totalDuration} seconds</strong> to earn your reward.
             </p>
             
-            {/* Using an <a> tag prevents popup blockers */}
+            {/* Using an <a> tag prevents browser popup blockers */}
             <a 
               href={adUrl} 
               target="_blank" 
@@ -122,7 +123,8 @@ export default function AdViewer({
             </a>
 
             <p className="ad-start-hint">
-              You must click to open the ad and keep it open.
+              <FaMousePointer className="inline mr-1" />
+              You must click to open the ad.
             </p>
           </div>
         ) : (
@@ -157,7 +159,9 @@ export default function AdViewer({
         <span className="ad-powered-by">Powered by {platform}</span>
         <span className="ad-footer-status">
           {canClose ? (
-            <span className="text-green-400"><FaCheck /> Click ✕ to claim 0.05 SPY</span>
+            <span className="text-green-400 flex items-center gap-1">
+              <FaCheck /> Click ✕ to claim 0.05 SPY
+            </span>
           ) : hasClicked ? (
             <span>Watch {timeLeft}s more</span>
           ) : (
