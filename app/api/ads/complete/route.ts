@@ -1,155 +1,156 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+// app/api/ads/complete/route.ts
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+
+const FIXED_REWARD = 0.05 // 0.05 SPY per ad
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = cookies()
+    const supabase = createClient()
+    const body = await request.json()
+    const { adTier, platform, fraudScore } = body
+    
+    console.log('📝 Ad completion request:', { adTier, platform })
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: '', ...options })
-          },
-        },
-      }
-    )
-
-    // 1. AUTH: Verify user server-side (no client-side timeout possible)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized. Please log in.' },
-        { status: 401 }
-      )
+    // Get session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError || !session) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Please log in to earn rewards' 
+      }, { status: 401 })
     }
+    
+    const userId = session.user.id
 
-    // 2. Parse request
-    const body = await request.json().catch(() => ({}))
-    const { adTier, platform, fraudSignals } = body
-
-    // 3. Get profile
+    // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('spy_balance, earned_spy, daily_ad_watch_count, last_ad_watch_at, is_premium')
-      .eq('id', user.id)
+      .select('is_premium, spy_balance')
+      .eq('id', userId)
       .single()
-
+    
     if (profileError || !profile) {
-      return NextResponse.json(
-        { success: false, message: 'User profile not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ 
+        success: false, 
+        message: 'User profile not found' 
+      }, { status: 404 })
     }
 
-    // 4. Check daily limit
+    // Check daily limit
     const today = new Date().toISOString().split('T')[0]
-    const lastWatchDate = profile.last_ad_watch_at
-      ? new Date(profile.last_ad_watch_at).toISOString().split('T')[0]
-      : null
+    const { count: todayCount } = await supabase
+      .from('ad_watches')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', today)
 
-    let dailyCount = profile.daily_ad_watch_count || 0
-    if (lastWatchDate !== today) {
-      dailyCount = 0
+    const dailyLimit = 20
+    if (todayCount && todayCount >= dailyLimit) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Daily limit reached. Come back tomorrow!' 
+      }, { status: 400 })
     }
 
-    const dailyLimit = adTier === 'video' ? 10 : 20
-    if (dailyCount >= dailyLimit) {
-      return NextResponse.json(
-        { success: false, message: 'Daily ad limit reached. Come back tomorrow!' },
-        { status: 429 }
-      )
-    }
+    // Fixed reward: 0.05 SPY (or 0.10 for premium)
+    const reward = profile.is_premium ? FIXED_REWARD * 2 : FIXED_REWARD
+    console.log('💰 Reward:', reward)
 
-    // 5. Calculate reward (server-side, never trust client)
-    const baseReward = adTier === 'video' ? 0.50 : 0.15
-    const reward = profile.is_premium ? baseReward * 2 : baseReward
-
-    // 6. Record ad watch
-    const { error: insertError } = await supabase.from('ad_watches').insert({
-      user_id: user.id,
-      reward_spy: reward,
-      duration_seconds: adTier === 'video' ? 60 : 75,
-      platform_used: platform || 'adsterra',
-      ad_tier: adTier || 'display',
-      fraud_score: fraudSignals?.fraudScore || 0,
-      verified: true,
-    })
+    // Record ad watch
+    const { error: insertError } = await supabase
+      .from('ad_watches')
+      .insert({
+        user_id: userId,
+        ad_tier: adTier || 'display',
+        platform_used: platform || 'adsterra',
+        reward_spy: reward,
+        duration_seconds: 20,
+        fraud_score: fraudScore || 0,
+        created_at: new Date().toISOString()
+      })
 
     if (insertError) {
-      console.error('ad_watches insert error:', insertError)
-      return NextResponse.json(
-        { success: false, message: `Failed to record ad watch: ${insertError.message}` },
-        { status: 500 }
-      )
+      console.error('❌ Insert error:', insertError)
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Failed to record ad watch' 
+      }, { status: 500 })
     }
 
-    // 7. Update profile balance
+    // Update balance
     const newBalance = (profile.spy_balance || 0) + reward
-    const newEarned = (profile.earned_spy || 0) + reward
-
-    await supabase
+    const { error: updateError } = await supabase
       .from('profiles')
-      .update({
-        spy_balance: newBalance,
-        earned_spy: newEarned,
-        daily_ad_watch_count: dailyCount + 1,
-        last_ad_watch_at: new Date().toISOString(),
-      })
-      .eq('id', user.id)
+      .update({ spy_balance: newBalance })
+      .eq('id', userId)
 
-    // 8. Update or create user_spy_breakdown
-    const { data: breakdown } = await supabase
-      .from('user_spy_breakdown')
-      .select('earned_spy')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (breakdown) {
-      await supabase
-        .from('user_spy_breakdown')
-        .update({ earned_spy: (breakdown.earned_spy || 0) + reward })
-        .eq('user_id', user.id)
-    } else {
-      await supabase.from('user_spy_breakdown').insert({
-        user_id: user.id,
-        earned_spy: reward,
-        deposited_spy: 0,
-        referral_spy: 0,
-        staking_rewards_spy: 0,
-      })
+    if (updateError) {
+      console.error('❌ Update error:', updateError)
     }
 
-    // 9. Log transaction (non-blocking)
-    try {
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'ad_watch',
-        amount_spy: reward,
-        balance_before: profile.spy_balance || 0,
-        balance_after: newBalance,
-        metadata: { ad_tier: adTier, platform: platform },
-      })
-    } catch (txErr) {
-      console.error('Transaction log failed:', txErr)
+    // Update streak
+    await updateStreak(userId)
+
+    return NextResponse.json({
+      success: true,
+      reward: reward,
+      platform: platform || 'adsterra',
+      userTier: profile.is_premium ? 'premium' : 'standard',
+      newBalance: newBalance,
+      message: `+${reward} SPY earned!`
+    })
+
+  } catch (error) {
+    console.error('❌ Complete API error:', error)
+    return NextResponse.json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to process'
+    }, { status: 500 })
+  }
+}
+
+async function updateStreak(userId: string) {
+  const supabase = createClient()
+  const today = new Date().toISOString().split('T')[0]
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  
+  try {
+    const { data: todayWatch } = await supabase
+      .from('ad_watches')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', today)
+      .limit(1)
+    
+    if (todayWatch && todayWatch.length > 0) {
+      const { data: yesterdayWatch } = await supabase
+        .from('ad_watches')
+        .select('id')
+        .eq('user_id', userId)
+        .gte('created_at', yesterday)
+        .lt('created_at', today)
+        .limit(1)
+      
+      if (yesterdayWatch && yesterdayWatch.length > 0) {
+        await supabase.rpc('increment_streak', { user_id: userId })
+      } else {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('daily_bonus_streak')
+          .eq('id', userId)
+          .single()
+        
+        if (profile?.daily_bonus_streak === 0 || profile?.daily_bonus_streak === null) {
+          await supabase
+            .from('profiles')
+            .update({ daily_bonus_streak: 1 })
+            .eq('id', userId)
+        }
+      }
     }
-
-    return NextResponse.json({ success: true, reward: reward.toFixed(2) })
-
-  } catch (error: any) {
-    console.error('API /ads/complete error:', error)
-    return NextResponse.json(
-      { success: false, message: error?.message || 'Internal server error' },
-      { status: 500 }
-    )
+  } catch (error) {
+    console.error('Streak error:', error)
   }
 }
