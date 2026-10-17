@@ -1,10 +1,8 @@
-// components/ads/AdViewer.tsx
 'use client'
 
 import './ad-viewer.css'
-
 import { useState, useEffect } from 'react'
-import { FaTimes, FaCheck, FaExternalLinkAlt, FaClock, FaMousePointer } from 'react-icons/fa'
+import { FaTimes, FaCheck, FaExternalLinkAlt, FaMousePointer } from 'react-icons/fa'
 
 interface AdViewerProps {
   userId: string
@@ -30,10 +28,8 @@ export default function AdViewer({
   const [canClose, setCanClose] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
 
-  // Get link from env variable
-  const adUrl = process.env.NEXT_PUBLIC_ADSTERRA_DIRECT_LINK || 'https://www.effectivenetwork.com'
+  const adUrl = process.env.NEXT_PUBLIC_ADSTERRA_DIRECT_LINK
 
-  // Timer only starts AFTER user clicks the ad link
   useEffect(() => {
     if (!hasClicked) return
 
@@ -80,7 +76,6 @@ export default function AdViewer({
 
   return (
     <div className="ad-viewer-overlay">
-      {/* Header */}
       <div className="ad-viewer-header">
         <div className="ad-viewer-status">
           {isComplete ? 'Complete!' : hasClicked ? `Watching... ${timeLeft}s` : 'Ready'}
@@ -94,7 +89,6 @@ export default function AdViewer({
         </button>
       </div>
 
-      {/* Main Content */}
       <div className="ad-viewer-content">
         {isComplete ? (
           <div className="ad-viewer-success">
@@ -111,16 +105,22 @@ export default function AdViewer({
               Keep it open for <strong>{totalDuration} seconds</strong> to earn your reward.
             </p>
             
-            {/* Using an <a> tag prevents browser popup blockers */}
-            <a 
-              href={adUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              onClick={() => setHasClicked(true)}
-              className="ad-open-btn"
-            >
-              <FaExternalLinkAlt /> Open Ad
-            </a>
+            {adUrl ? (
+              <a 
+                href={adUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={() => setHasClicked(true)}
+                className="ad-open-btn"
+              >
+                <FaExternalLinkAlt /> Open Ad
+              </a>
+            ) : (
+              <div className="ad-warning" style={{ position: 'relative', margin: '0 auto' }}>
+                <span className="ad-warning-icon">⚠️</span>
+                <span className="ad-warning-text">Ad link not configured. Please contact support.</span>
+              </div>
+            )}
 
             <p className="ad-start-hint">
               <FaMousePointer className="inline mr-1" />
@@ -154,7 +154,6 @@ export default function AdViewer({
         )}
       </div>
 
-      {/* Footer */}
       <div className="ad-viewer-footer">
         <span className="ad-powered-by">Powered by {platform}</span>
         <span className="ad-footer-status">
@@ -170,7 +169,6 @@ export default function AdViewer({
         </span>
       </div>
 
-      {/* Warning Popup */}
       {showWarning && (
         <div className="ad-warning-popup">
           ⏳ Please complete the ad first!
