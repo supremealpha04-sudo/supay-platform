@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import { 
   FaPlay, FaClock, FaCoins, FaStopwatch, FaFire, 
   FaAd, FaHistory, FaStar, FaChartLine,
-  FaVideo, FaDatabase, FaSync, FaExclamationCircle
+  FaSync, FaExclamationCircle, FaMousePointer
 } from 'react-icons/fa'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -28,52 +28,19 @@ const AdViewer = dynamic(() => import('@/components/ads/AdViewer'), {
   )
 })
 
-interface AdOption {
-  tier: 'display' | 'video'
-  title: string
-  description: string
-  totalDuration: number
-  adCount: number
-  icon: any
-  color: string
-  dailyLimit: number
-  estimatedReward: string
-}
-
-const AD_OPTIONS: AdOption[] = [
-  {
-    tier: 'display',
-    title: 'Display Ads',
-    description: 'Watch 3 display ads (25s each)',
-    totalDuration: 75,
-    adCount: 3,
-    icon: FaAd,
-    color: 'bg-blue-500',
-    dailyLimit: 20,
-    estimatedReward: '0.45 SPY'
-  },
-  {
-    tier: 'video',
-    title: 'Video Ads',
-    description: 'Watch 2 video ads (30s each)',
-    totalDuration: 60,
-    adCount: 2,
-    icon: FaVideo,
-    color: 'bg-purple-500',
-    dailyLimit: 10,
-    estimatedReward: '1.00 SPY'
-  }
-]
+// ===== SINGLE AD OPTION =====
+const REWARD_PER_AD = 0.05
+const AD_DURATION = 20 // seconds
+const DAILY_LIMIT = 20
 
 export default function EarnPage() {
   const router = useRouter()
   const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
   
   const [showAd, setShowAd] = useState(false)
-  const [selectedAd, setSelectedAd] = useState<AdOption | null>(null)
   const [stats, setStats] = useState({
     todayEarnings: 0,
-    dailyRemaining: 20,
+    dailyRemaining: DAILY_LIMIT,
     streak: 0,
     totalAds: 0
   })
@@ -113,7 +80,6 @@ export default function EarnPage() {
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      // Try to get today's watches - gracefully handle missing table/RLS
       let todayWatches: any[] = []
       let totalAds = 0
       let earnings = 0
@@ -127,7 +93,7 @@ export default function EarnPage() {
           .order('created_at', { ascending: false })
 
         if (error) {
-          console.warn('⚠️ ad_watches query failed (table missing or RLS):', error.message)
+          console.warn('⚠️ ad_watches query failed:', error.message)
           setStatsError('Stats temporarily unavailable')
         } else {
           todayWatches = data || []
@@ -139,7 +105,6 @@ export default function EarnPage() {
         setStatsError('Stats temporarily unavailable')
       }
 
-      // Try to get streak from profile - gracefully handle missing column
       let streak = 0
       try {
         const { data: profileData, error: profileError } = await supabase
@@ -157,7 +122,7 @@ export default function EarnPage() {
 
       setStats({
         todayEarnings: earnings,
-        dailyRemaining: Math.max(0, 20 - totalAds),
+        dailyRemaining: Math.max(0, DAILY_LIMIT - totalAds),
         streak,
         totalAds
       })
@@ -166,10 +131,9 @@ export default function EarnPage() {
     } catch (error) {
       console.error('❌ Unexpected error in fetchStats:', error)
       setStatsError('Failed to load stats')
-      // Keep default zero stats so page still works
       setStats({
         todayEarnings: 0,
-        dailyRemaining: 20,
+        dailyRemaining: DAILY_LIMIT,
         streak: 0,
         totalAds: 0
       })
@@ -178,7 +142,6 @@ export default function EarnPage() {
     }
   }, [profile, sessionUser])
 
-  // Load stats when user is available
   useEffect(() => {
     const userId = profile?.id || sessionUser?.id
     if (userId) {
@@ -192,35 +155,39 @@ export default function EarnPage() {
     setRetryCount(prev => prev + 1)
   }
 
-  const startAd = (option: AdOption) => {
+  // ===== OPEN AD (user must click this) =====
+  const handleOpenAd = () => {
     const userId = profile?.id || sessionUser?.id
     if (!userId) {
       toast.error('Please log in to watch ads')
       router.push('/login?redirect=/dashboard/earn')
       return
     }
-    setSelectedAd(option)
+
+    if (stats.dailyRemaining <= 0) {
+      toast.error('Daily limit reached. Come back tomorrow!')
+      return
+    }
+
     setShowAd(true)
   }
 
   // Resilient ad completion handler
   const handleAdComplete = async (reward: number, tier: string, fraudScore: any) => {
     setShowAd(false)
-    setSelectedAd(null)
 
     try {
       const res = await fetch('/api/ads/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adTier: tier,
+          adTier: 'display',
           platform: 'adsterra',
           fraudSignals: fraudScore,
           fraudScore,
         }),
       })
 
-      // Handle non-JSON responses
       const contentType = res.headers.get('content-type')
       if (!contentType?.includes('application/json')) {
         const text = await res.text()
@@ -249,7 +216,6 @@ export default function EarnPage() {
 
   const handleCancelAd = () => {
     setShowAd(false)
-    setSelectedAd(null)
     toast('Ad cancelled', { icon: '⚠️' })
   }
 
@@ -281,17 +247,17 @@ export default function EarnPage() {
     )
   }
 
-  // MAIN RENDER - Always show ad options, even if stats fail
+  // MAIN RENDER
   return (
     <div className="earn-container">
       <AnimatePresence>
-        {showAd && selectedAd && (
+        {showAd && (
           <AdViewer
             userId={profile?.id || sessionUser?.id || ''}
             platform="adsterra"
-            adTier={selectedAd.tier}
-            totalDuration={selectedAd.totalDuration}
-            adCount={selectedAd.adCount}
+            adTier="display"
+            totalDuration={AD_DURATION}
+            adCount={1}
             onComplete={handleAdComplete}
             onCancel={handleCancelAd}
           />
@@ -307,7 +273,7 @@ export default function EarnPage() {
         <div className="earn-header-top">
           <div>
             <h1 className="earn-header-title">Earn SPY</h1>
-            <p className="earn-header-subtitle">Watch ads from Adsterra</p>
+            <p className="earn-header-subtitle">Watch one ad and earn 0.05 SPY</p>
             {profile?.is_premium && (
               <div className="earn-premium-badge">
                 <FaStar /> Premium: 2x Rewards Active
@@ -324,7 +290,7 @@ export default function EarnPage() {
         </div>
       </motion.div>
 
-      {/* Stats Error Banner (non-blocking) */}
+      {/* Stats Error Banner */}
       {statsError && (
         <motion.div 
           initial={{ opacity: 0, height: 0 }}
@@ -367,57 +333,50 @@ export default function EarnPage() {
         ))}
       </div>
 
-      {/* Ad Options */}
-      <h2 className="earn-section-title">Available Ads</h2>
+      {/* Single Ad Option */}
+      <h2 className="earn-section-title">Watch & Earn</h2>
       <div className="grid gap-4 mb-6">
-        {AD_OPTIONS.map((option, index) => {
-          const Icon = option.icon
-          const iconWrapperClass = {
-            'bg-blue-500': 'earn-icon-wrapper-blue',
-            'bg-purple-500': 'earn-icon-wrapper-purple',
-          }[option.color] || 'earn-icon-wrapper-blue'
-
-          return (
-            <motion.button
-              key={option.tier}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => startAd(option)}
-              className="earn-ad-option"
-            >
-              <div className={iconWrapperClass}>
-                <Icon className="text-white text-2xl" />
-              </div>
-              <div className="earn-ad-content">
-                <div className="earn-ad-title">
-                  {option.title}
-                  {option.tier === 'video' && (
-                    <span className="earn-ad-badge-best-value">BEST VALUE</span>
-                  )}
-                </div>
-                <p className="earn-ad-description">{option.description}</p>
-                <div className="earn-ad-meta">
-                  <span className="earn-ad-meta-item">
-                    <FaClock className="inline" /> {option.totalDuration}s total
-                  </span>
-                  <span className="earn-ad-meta-item">{option.adCount} ads</span>
-                  <span className="earn-ad-meta-item">Limit: {option.dailyLimit}/day</span>
-                  <span className="earn-ad-reward-estimate">
-                    {option.estimatedReward}
-                  </span>
-                </div>
-              </div>
-              <div className="flex-shrink-0">
-                <div className="earn-ad-action-button">
-                  <FaPlay />
-                </div>
-              </div>
-            </motion.button>
-          )
-        })}
+        <motion.button
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleOpenAd}
+          disabled={stats.dailyRemaining <= 0}
+          className={`earn-ad-option ${stats.dailyRemaining <= 0 ? 'disabled' : ''}`}
+        >
+          <div className="earn-icon-wrapper-blue">
+            <FaAd className="text-white text-2xl" />
+          </div>
+          <div className="earn-ad-content">
+            <div className="earn-ad-title">
+              Watch Ad
+              <span className="earn-ad-badge-best-value">+0.05 SPY</span>
+            </div>
+            <p className="earn-ad-description">
+              Click to open ad • Watch for {AD_DURATION} seconds
+            </p>
+            <div className="earn-ad-meta">
+              <span className="earn-ad-meta-item">
+                <FaClock className="inline" /> {AD_DURATION}s
+              </span>
+              <span className="earn-ad-meta-item">
+                <FaMousePointer className="inline" /> Click to start
+              </span>
+              <span className="earn-ad-meta-item">
+                Limit: {DAILY_LIMIT}/day
+              </span>
+              <span className="earn-ad-reward-estimate">
+                +{REWARD_PER_AD} SPY
+              </span>
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <div className="earn-ad-action-button">
+              <FaPlay />
+            </div>
+          </div>
+        </motion.button>
       </div>
 
       {/* Recent Activity */}
