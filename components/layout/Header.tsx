@@ -3,11 +3,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, X, Bell, User, LogOut, Settings, Shield } from 'lucide-react'
+import { Menu, X, User, LogOut, Settings, Shield } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar } from '@/components/ui/Avatar'
-import { Button } from '@/components/ui/Button'
 import { Dropdown } from '@/components/ui/Dropdown'
+
+// Import the new NotificationBell
+import { NotificationBell } from './NotificationBell'
 
 export function Header() {
   const { profile, signOut } = useAuth()
@@ -62,9 +64,9 @@ export function Header() {
 
           {/* Right Section */}
           <div className="flex items-center gap-4">
-            <button className="p-2 rounded-lg hover:bg-white/10 transition">
-              <Bell className="w-5 h-5 text-gray-400" />
-            </button>
+            
+            {/* ✅ Replaced static bell with NotificationBell */}
+            <NotificationBell />
 
             <Dropdown
               trigger={
