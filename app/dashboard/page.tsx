@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
@@ -271,13 +272,13 @@ export default function DashboardPage() {
       if (transactions.data && transactions.data.length > 0) {
         setRecentActivities(transactions.data)
       } else {
-        setRecentActivities(getDemoActivities())
+        setRecentActivities([]) // ✅ REMOVED DEMO DATA
       }
       
     } catch (err) {
       console.error('Dashboard data fetch error:', err)
-      setError('Failed to load dashboard data. Showing demo data.')
-      setRecentActivities(getDemoActivities())
+      setError('Failed to load dashboard data.')
+      setRecentActivities([]) // ✅ REMOVED DEMO DATA
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -525,22 +526,26 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="act-list">
-            {recentActivities.slice(0, 3).map((activity) => {
-              const iconType = getActivityIcon(activity.type)
-              const icon = getActivityIconComponent(activity.type)
-              return (
-                <div key={activity.id} className="act-row">
-                  <div className={`act-icon ${iconType}`} aria-hidden="true">
-                    {icon}
+            {recentActivities.length === 0 ? (
+              <div className="act-empty">No recent activity yet.</div>
+            ) : (
+              recentActivities.slice(0, 3).map((activity) => {
+                const iconType = getActivityIcon(activity.type)
+                const icon = getActivityIconComponent(activity.type)
+                return (
+                  <div key={activity.id} className="act-row">
+                    <div className={`act-icon ${iconType}`} aria-hidden="true">
+                      {icon}
+                    </div>
+                    <div className="act-info">
+                      <span className="act-name">{getActivityLabel(activity.type)}</span>
+                      <span className="act-time">{timeAgo(activity.created_at)}</span>
+                    </div>
+                    <span className="act-amt">+{Math.abs(activity.amount_spy)}</span>
                   </div>
-                  <div className="act-info">
-                    <span className="act-name">{getActivityLabel(activity.type)}</span>
-                    <span className="act-time">{timeAgo(activity.created_at)}</span>
-                  </div>
-                  <span className="act-amt">+{Math.abs(activity.amount_spy)}</span>
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         </div>
       </div>
@@ -595,24 +600,30 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="modal-list">
-              {recentActivities.map((activity) => {
-                const iconType = getActivityIcon(activity.type)
-                const icon = getModalIcon(activity.type)
-                return (
-                  <div key={activity.id} className="modal-row">
-                    <div className={`act-icon ${iconType}`} aria-hidden="true">
-                      {icon}
+              {recentActivities.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+                  No activity recorded yet.
+                </div>
+              ) : (
+                recentActivities.map((activity) => {
+                  const iconType = getActivityIcon(activity.type)
+                  const icon = getModalIcon(activity.type)
+                  return (
+                    <div key={activity.id} className="modal-row">
+                      <div className={`act-icon ${iconType}`} aria-hidden="true">
+                        {icon}
+                      </div>
+                      <div className="modal-info">
+                        <span className="modal-name">{getActivityLabel(activity.type)}</span>
+                        <span className="modal-time">
+                          <Clock size={12} aria-hidden="true" /> {timeAgo(activity.created_at)}
+                        </span>
+                      </div>
+                      <span className="modal-amt">+{Math.abs(activity.amount_spy)} SPY</span>
                     </div>
-                    <div className="modal-info">
-                      <span className="modal-name">{getActivityLabel(activity.type)}</span>
-                      <span className="modal-time">
-                        <Clock size={12} aria-hidden="true" /> {timeAgo(activity.created_at)}
-                      </span>
-                    </div>
-                    <span className="modal-amt">+{Math.abs(activity.amount_spy)} SPY</span>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </div>
         </div>
