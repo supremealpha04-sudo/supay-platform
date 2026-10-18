@@ -1,3 +1,4 @@
+// app/api/ads/complete/route.ts
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -13,6 +14,7 @@ export async function POST(request: Request) {
       ? (fraudScore?.fraudScore || 0) 
       : (fraudScore || 0)
 
+    // 1. Authenticate user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
@@ -21,16 +23,38 @@ export async function POST(request: Request) {
     
     const userId = user.id
 
-    const { data: profile, error: profileError } = await supabase
+    // 2. Fetch Profile (with fallback if it doesn't exist)
+    let { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('spy_balance')
       .eq('id', userId)
       .single()
     
+    // ✅ FIX: If profile is missing, create it automatically
     if (profileError || !profile) {
-      return NextResponse.json({ success: false, message: 'User profile not found' }, { status: 404 })
+      console.log('⚠️ Profile missing for user, creating one now...')
+      
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: user.email,
+          username: user.email?.split('@')[0] || 'user',
+          spy_balance: 0,
+          is_premium: false
+        })
+        .select('spy_balance')
+        .single()
+
+      if (createError) {
+        console.error('Failed to auto-create profile:', createError)
+        return NextResponse.json({ success: false, message: 'Failed to create user profile' }, { status: 500 })
+      }
+      
+      profile = newProfile
     }
 
+    // 3. Check Daily Limit
     const today = new Date().toISOString().split('T')[0]
     const { count: todayCount } = await supabase
       .from('ad_watches')
@@ -43,6 +67,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'Daily limit reached. Come back tomorrow!' }, { status: 400 })
     }
 
+    // 4. Process Reward
     const reward = FIXED_REWARD
 
     const { error: insertError } = await supabase
@@ -61,12 +86,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: `DB Error: ${insertError.message}` }, { status: 500 })
     }
 
+    // 5. Update Balance
     const newBalance = (profile.spy_balance || 0) + reward
     await supabase
       .from('profiles')
       .update({ spy_balance: newBalance })
       .eq('id', userId)
 
+    // 6. Update Streak
     await updateStreak(userId)
 
     return NextResponse.json({
