@@ -404,8 +404,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <Link href="/dashboard/profile" className="menu-item" onClick={() => setProfileOpen(false)}>
                     <User size={14} /> Profile
                   </Link>
-                  <Link href="/dashboard/settings" className="menu-item" onClick={() => setProfileOpen(false)}>
+                  <Link href="/app/settings" className="menu-item" onClick={() => setProfileOpen(false)}>
                     <Settings size={14} /> Settings
+                  </Link>
+                   <Link href="/app/terms" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <Settings size={14} /> Terms & conditions
+                  </Link>
+                   <Link href="/app/privacy" className="menu-item" onClick={() => setProfileOpen(false)}>
+                    <Settings size={14} /> Privacy policy
                   </Link>
                   <Link href="/dashboard/help" className="menu-item" onClick={() => setProfileOpen(false)}>
                     <HelpCircle size={14} /> Help
