@@ -37,11 +37,10 @@ export function NotificationBell() {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20) // Fetch last 20
+        .limit(20)
 
-      if (!error && data) {
-        setNotifications(data)
-      }
+      if (error) throw error
+      setNotifications(data || [])
     } catch (err) {
       console.error('Failed to fetch notifications', err)
     } finally {
@@ -55,7 +54,7 @@ export function NotificationBell() {
     
     fetchNotifications()
 
-    // Subscribe to new notifications (Real-time)
+    // Listen for new notifications in real-time
     const channel = supabase
       .channel('schema-db-changes')
       .on(
@@ -91,30 +90,95 @@ export function NotificationBell() {
 
   // Mark single as read
   const markAsRead = async (id: string) => {
+    // Optimistic UI update
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Failed to mark as read:', error)
+      // Revert if failed
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: false } : n))
+      toast.error('Failed to mark as read')
+    }
   }
 
   // Mark all as read
   const markAllAsRead = async () => {
     if (unreadCount === 0) return
+    const previousNotifications = [...notifications]
+    
+    // Optimistic UI update
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user?.id).eq('is_read', false)
-    toast.success('All marked as read')
+    
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user?.id)
+      .eq('is_read', false)
+
+    if (error) {
+      console.error('Failed to mark all as read:', error)
+      setNotifications(previousNotifications) // Revert
+      toast.error('Failed to update notifications')
+    } else {
+      toast.success('All marked as read')
+    }
   }
 
-  // Clear all
-  const clearAll = async () => {
-    setNotifications([])
-    await supabase.from('notifications').delete().eq('user_id', user?.id)
-    toast.success('Notifications cleared')
-  }
-
-  // Delete single
+  // Delete single notification
   const deleteNotification = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
+    const previousNotifications = [...notifications]
+    
+    // Optimistic UI update
     setNotifications(prev => prev.filter(n => n.id !== id))
-    await supabase.from('notifications').delete().eq('id', id)
+    
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+    } catch (err) {
+      console.error('Failed to delete notification:', err)
+      setNotifications(previousNotifications) // Revert
+      toast.error('Failed to clear notification')
+    }
+  }
+
+  // Clear ALL notifications (Bulletproof check added)
+  const clearAll = async () => {
+    if (!user?.id) return
+    
+    const previousNotifications = [...notifications]
+    
+    // Optimistic UI update (clears instantly)
+    setNotifications([])
+    setIsOpen(false)
+    
+    try {
+      // Added .select() to confirm rows were actually deleted
+      const { data, error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id)
+        .select()
+
+      if (error) throw error
+      
+      console.log('Successfully deleted rows:', data)
+      toast.success('All notifications cleared')
+      
+    } catch (err: any) {
+      console.error('Failed to clear notifications:', err)
+      setNotifications(previousNotifications) // Revert UI if it failed
+      toast.error(`Failed to clear: ${err.message || 'Check console'}`)
+    }
   }
 
   // Format time
@@ -156,23 +220,27 @@ export function NotificationBell() {
             className="absolute right-0 mt-2 w-80 sm:w-96 bg-navy-800 border border-primary-500/20 rounded-xl shadow-2xl z-50 overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-primary-500/10">
+            <div className="flex items-center justify-between p-4 border-b border-primary-500/10 bg-navy-900/50">
               <h3 className="text-white font-semibold">Notifications</h3>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={markAllAsRead}
-                  className="text-xs text-primary-400 hover:text-white transition"
-                  title="Mark all as read"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={clearAll}
-                  className="text-xs text-red-400 hover:text-red-300 transition"
-                  title="Clear all"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={markAllAsRead}
+                    className="text-xs text-primary-400 hover:text-white transition flex items-center gap-1"
+                    title="Mark all as read"
+                  >
+                    <Check className="w-4 h-4" /> Read all
+                  </button>
+                )}
+                {notifications.length > 0 && (
+                  <button 
+                    onClick={clearAll}
+                    className="text-xs text-red-400 hover:text-red-300 transition flex items-center gap-1"
+                    title="Clear all"
+                  >
+                    <Trash2 className="w-4 h-4" /> Clear all
+                  </button>
+                )}
               </div>
             </div>
 
@@ -210,7 +278,8 @@ export function NotificationBell() {
                       
                       <button
                         onClick={(e) => deleteNotification(e, notif.id)}
-                        className="text-gray-500 hover:text-red-400 h-fit"
+                        className="text-gray-500 hover:text-red-400 h-fit p-1"
+                        title="Delete"
                       >
                         <X className="w-4 h-4" />
                       </button>
