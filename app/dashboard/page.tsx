@@ -38,7 +38,7 @@ interface DashboardStats {
 
 // ===== CONSTANTS =====
 const DAILY_GOAL_TARGET = 20
-const SPY_PRICE = 0.023
+const SPY_PRICE = 0.01
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const ACTIVITY_ICON_MAP = {
   ad_watch: 'blue',
@@ -54,16 +54,6 @@ const ACTIVITY_LABEL_MAP = {
   referral: 'Referral Joined'
 } as const
 
-// ===== DEMO DATA =====
-const getDemoActivities = (): Transaction[] => [
-  { id: '1', created_at: new Date(Date.now() - 120000).toISOString(), amount_spy: 22, type: 'ad_watch' },
-  { id: '2', created_at: new Date(Date.now() - 86400000).toISOString(), amount_spy: 18, type: 'task_complete' },
-  { id: '3', created_at: new Date(Date.now() - 172800000).toISOString(), amount_spy: 25, type: 'daily_bonus' },
-  { id: '4', created_at: new Date(Date.now() - 259200000).toISOString(), amount_spy: 10, type: 'referral' },
-  { id: '5', created_at: new Date(Date.now() - 345600000).toISOString(), amount_spy: 8, type: 'task_complete' },
-  { id: '6', created_at: new Date(Date.now() - 432000000).toISOString(), amount_spy: 35, type: 'ad_watch' },
-  { id: '7', created_at: new Date(Date.now() - 518400000).toISOString(), amount_spy: 15, type: 'daily_bonus' },
-]
 
 // ===== MAIN COMPONENT =====
 export default function DashboardPage() {
@@ -323,7 +313,7 @@ export default function DashboardPage() {
     { 
       title: 'Watch Ads', 
       desc: 'Earn SPY', 
-      extra: '+5 SPY', 
+      extra: '+0.05 SPY', 
       icon: Play, 
       color: 'blue', 
       link: '/dashboard/earn' 
