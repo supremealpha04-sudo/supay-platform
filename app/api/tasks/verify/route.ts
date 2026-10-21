@@ -2,44 +2,58 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-const MIN_INTERACTION_SECONDS = 120
-
 export async function POST(request: Request) {
   try {
     const supabase = createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
     
+    // 1. Get user
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { completionId, verified, actualDuration, clickedUrl, fraudScore } = await request.json()
+    // 2. Parse body
+    const body = await request.json()
+    const { completionId, actualDuration, clickedUrl, fraudScore } = body
 
-    // 1. Fetch the completion record
+    if (!completionId) {
+      return NextResponse.json({ success: false, error: 'Missing completion ID' }, { status: 400 })
+    }
+
+    // 3. Get completion record
     const { data: completion, error: fetchError } = await supabase
       .from('completed_tasks')
-      .select('*, tasks(*)')
+      .select('*')
       .eq('id', completionId)
-      .eq('user_id', user.id) // Security: ensure user owns this
+      .eq('user_id', user.id)
       .single()
 
     if (fetchError || !completion) {
-      return NextResponse.json({ error: 'Completion not found' }, { status: 404 })
+      console.error('Completion fetch error:', fetchError)
+      return NextResponse.json({ success: false, error: 'Completion not found' }, { status: 404 })
     }
 
-    // 2. Prevent double-verification
-    if (completion.status !== 'pending') {
+    // 4. If already verified, return success immediately (Idempotent)
+    if (completion.status === 'verified') {
       return NextResponse.json({ 
-        error: 'Task already verified', 
-        status: completion.status 
+        success: true, 
+        status: 'verified', 
+        reward: completion.reward_spy 
+      })
+    }
+
+    // 5. If already rejected, return error
+    if (completion.status === 'rejected') {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Task was rejected' 
       }, { status: 400 })
     }
 
-    // 3. Server-side Validation (The "Confirm Check")
+    // 6. Validate requirements
     const isValid = 
-      verified === true &&
-      actualDuration >= MIN_INTERACTION_SECONDS &&
-      clickedUrl === true &&
+      actualDuration >= 120 && 
+      clickedUrl === true && 
       (fraudScore || 0) < 60
 
     if (!isValid) {
@@ -50,12 +64,12 @@ export async function POST(request: Request) {
         .eq('id', completionId)
 
       return NextResponse.json({ 
-        error: 'Verification failed. You did not meet the requirements.',
-        status: 'rejected'
+        success: false, 
+        error: 'Requirements not met (duration or interaction)' 
       }, { status: 400 })
     }
 
-    // 4. Mark as Verified
+    // 7. Mark as verified
     const { error: updateError } = await supabase
       .from('completed_tasks')
       .update({ 
@@ -64,12 +78,13 @@ export async function POST(request: Request) {
       })
       .eq('id', completionId)
 
-    if (updateError) throw updateError
+    if (updateError) {
+      console.error('Verify update error:', updateError)
+      return NextResponse.json({ success: false, error: 'Database update failed' }, { status: 500 })
+    }
 
-    // 5. Credit the user (If it wasn't credited during completion)
-    // Note: If your /complete route already credits the balance, remove this block.
-    const reward = completion.reward_spy
-    
+    // 8. Credit User Balance (Important!)
+    // Get current profile
     const { data: profile } = await supabase
       .from('profiles')
       .select('spy_balance, earned_spy')
@@ -77,23 +92,36 @@ export async function POST(request: Request) {
       .single()
 
     if (profile) {
+      const newBalance = (profile.spy_balance || 0) + completion.reward_spy
+      const newEarned = (profile.earned_spy || 0) + completion.reward_spy
+
       await supabase
         .from('profiles')
-        .update({
-          spy_balance: (profile.spy_balance || 0) + reward,
-          earned_spy: (profile.earned_spy || 0) + reward
+        .update({ 
+          spy_balance: newBalance,
+          earned_spy: newEarned
         })
         .eq('id', user.id)
+        
+      // Log transaction
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'task_complete',
+        amount_spy: completion.reward_spy,
+        balance_after: newBalance,
+        description: `Completed task: ${completion.task_title || 'Task'}`,
+      })
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    // 9. Return success
+    return NextResponse.json({
+      success: true,
       status: 'verified',
-      reward: reward
+      reward: completion.reward_spy
     })
 
   } catch (error) {
-    console.error('Verification error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Verify API Error:', error)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
