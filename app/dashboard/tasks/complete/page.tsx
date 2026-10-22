@@ -15,7 +15,7 @@ import Link from 'next/link'
 
 const supabase = createClient()
 
-const MIN_INTERACTION_SECONDS = 120
+const MIN_INTERACTION_SECONDS = 60
 const CHECK_INTERVAL_MS = 3000
 const MAX_CHECKS = 20
 
