@@ -2,6 +2,8 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+const MIN_INTERACTION_SECONDS = 120
+
 export async function POST(request: Request) {
   try {
     const supabase = createServerSupabaseClient()
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Completion not found' }, { status: 404 })
     }
 
-    // 4. If already verified, return success immediately (Idempotent)
+    // 4. Already verified? Return success (idempotent)
     if (completion.status === 'verified') {
       return NextResponse.json({ 
         success: true, 
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
       })
     }
 
-    // 5. If already rejected, return error
+    // 5. Already rejected? Return error
     if (completion.status === 'rejected') {
       return NextResponse.json({ 
         success: false, 
@@ -52,12 +54,11 @@ export async function POST(request: Request) {
 
     // 6. Validate requirements
     const isValid = 
-      actualDuration >= 120 && 
+      actualDuration >= MIN_INTERACTION_SECONDS && 
       clickedUrl === true && 
       (fraudScore || 0) < 60
 
     if (!isValid) {
-      // Mark as rejected
       await supabase
         .from('completed_tasks')
         .update({ status: 'rejected', verified_at: new Date().toISOString() })
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ 
         success: false, 
-        error: 'Requirements not met (duration or interaction)' 
+        error: 'Requirements not met' 
       }, { status: 400 })
     }
 
@@ -80,11 +81,10 @@ export async function POST(request: Request) {
 
     if (updateError) {
       console.error('Verify update error:', updateError)
-      return NextResponse.json({ success: false, error: 'Database update failed' }, { status: 500 })
+      return NextResponse.json({ success: false, error: 'Database update failed: ' + updateError.message }, { status: 500 })
     }
 
-    // 8. Credit User Balance (Important!)
-    // Get current profile
+    // 8. Credit User Balance
     const { data: profile } = await supabase
       .from('profiles')
       .select('spy_balance, earned_spy')
@@ -122,6 +122,6 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Verify API Error:', error)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Internal server error: ' + (error as Error).message }, { status: 500 })
   }
 }
