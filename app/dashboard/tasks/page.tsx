@@ -6,12 +6,12 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { 
-  ArrowLeft, CheckCircle, Clock, DollarSign, Filter,
-  Search, Star, Zap, Globe, Smartphone, Share2,
-  Video, FileText, ChevronRight, Loader2, ExternalLink,
+  ArrowLeft, CheckCircle, Clock, Filter,
+  Search, Zap, Globe, Smartphone, Share2,
+  Video, FileText, ExternalLink,
   Play, BarChart3, TrendingUp, Users, Instagram, Twitter,
-  Linkedin, Youtube, Facebook, Award, Gift, Sparkles,
-  AlertCircle, RefreshCw, Check, X, ShieldAlert,
+  Youtube, Facebook, Sparkles,
+  RefreshCw, Check, X, ShieldAlert,
   ShieldCheck, Timer, Hourglass
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -20,9 +20,6 @@ import './tasks.css'
 
 const supabase = createClient()
 
-// ============================================
-// TYPES
-// ============================================
 interface Task {
   id: string
   title: string
@@ -90,9 +87,6 @@ interface TaskSignals {
   sessionToken?: string
 }
 
-// ============================================
-// CONSTANTS
-// ============================================
 const SOCIAL_TASKS: Task[] = [
   {
     id: 'social-whatsapp',
@@ -172,9 +166,6 @@ const socialColors: Record<string, string> = {
   facebook: '#1877F2'
 }
 
-// ============================================
-// ANTI-CHEAT SERVICE
-// ============================================
 class AntiCheatService {
   private mouseMoves = 0
   private keystrokes = 0
@@ -368,9 +359,6 @@ class AntiCheatService {
 
 const antiCheat = new AntiCheatService()
 
-// ============================================
-// MAIN COMPONENT
-// ============================================
 export default function TasksPage() {
   const { profile, user, refreshProfile } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
@@ -392,23 +380,31 @@ export default function TasksPage() {
 
   const taskTimerRef = useRef<NodeJS.Timeout | null>(null)
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const autoRefreshRef = useRef<NodeJS.Timeout | null>(null)
 
-  // ===== DATA FETCHING =====
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (showLoading = true) => {
     if (!user?.id) {
       setLoading(false)
       return
     }
 
-    setLoading(true)
+    if (showLoading) setLoading(true)
+    
     try {
+      const now = new Date().toISOString()
+      
+      await supabase
+        .from('completed_tasks')
+        .delete()
+        .eq('user_id', user.id)
+        .lt('expires_at', now)
+
       const { data: tasksData } = await supabase
         .from('tasks')
         .select('*')
         .eq('is_active', true)
         .order('reward_spy', { ascending: false })
 
-      const now = new Date().toISOString()
       const { data: completedData } = await supabase
         .from('completed_tasks')
         .select('*')
@@ -419,9 +415,13 @@ export default function TasksPage() {
       let allTasks: Task[] = []
       if (tasksData) allTasks = [...tasksData]
 
+      const completedTaskIds = new Set((completedData || []).map(ct => ct.task_id))
+      
       const existingSocialIds = new Set(allTasks.map(t => t.id))
       SOCIAL_TASKS.forEach(st => {
-        if (!existingSocialIds.has(st.id)) allTasks.push(st)
+        if (!existingSocialIds.has(st.id) && !completedTaskIds.has(st.id)) {
+          allTasks.push(st)
+        }
       })
 
       setTasks(allTasks)
@@ -434,13 +434,13 @@ export default function TasksPage() {
       )
 
       setStats({
-        available: Math.max(0, allTasks.length - completed),
+        available: allTasks.length,
         completed,
         totalEarned,
       })
     } catch (e) {
       console.error('Error fetching tasks:', e)
-      toast.error('Failed to load tasks')
+      if (showLoading) toast.error('Failed to load tasks')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -451,7 +451,28 @@ export default function TasksPage() {
     if (user) fetchTasks()
   }, [user, fetchTasks])
 
-  // ===== HELPERS =====
+  useEffect(() => {
+    if (!user) return
+
+    autoRefreshRef.current = setInterval(() => {
+      fetchTasks(false)
+    }, 30000)
+
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current)
+    }
+  }, [user, fetchTasks])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        fetchTasks(false)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [user, fetchTasks])
+
   const getTaskStatus = useCallback((taskId: string) => {
     const completed = userTasks.find(ct => ct.task_id === taskId)
     if (completed) return 'completed'
@@ -483,12 +504,11 @@ export default function TasksPage() {
 
   const getHoursUntilExpiry = useCallback((expiresAt: string) => {
     const diff = new Date(expiresAt).getTime() - Date.now()
-    if (diff <= 0) return 'Expiring'
+    if (diff <= 0) return 'Expired'
     const hours = Math.floor(diff / (1000 * 60 * 60))
     return `${hours}h left`
   }, [])
 
-  // ===== CANCEL SESSION =====
   const cancelSession = useCallback((showToast = true) => {
     antiCheat.stopTracking()
     if (taskTimerRef.current) clearInterval(taskTimerRef.current)
@@ -502,7 +522,6 @@ export default function TasksPage() {
     if (showToast) toast('Task cancelled', { icon: '⚠️' })
   }, [])
 
-  // ===== START TASK =====
   const startTask = useCallback(async (task: Task) => {
     if (!user?.id) return
 
@@ -569,7 +588,6 @@ export default function TasksPage() {
     }
   }, [user?.id, cancelSession])
 
-  // ===== CLICK TASK URL =====
   const handleClickTaskUrl = useCallback(() => {
     if (!activeSession) return
     window.open(activeSession.task.task_url, '_blank', 'noopener,noreferrer')
@@ -577,7 +595,6 @@ export default function TasksPage() {
     toast.success('Task opened! Return here after completing.')
   }, [activeSession])
 
-  // ===== RETURN TO APP =====
   const handleReturnToApp = useCallback(() => {
     if (!clickedUrl) {
       toast.error('Please click the task link first')
@@ -587,7 +604,6 @@ export default function TasksPage() {
     toast.success('Ready to verify!')
   }, [clickedUrl])
 
-  // ===== COMPLETE TASK =====
   const completeTask = useCallback(async () => {
     if (!activeSession || !user?.id) return
 
@@ -638,29 +654,14 @@ export default function TasksPage() {
 
       if (data.success) {
         toast.success(`✅ +${data.reward} SPY earned!`)
-
-        setTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
-
-        setUserTasks(prev => [
-          ...prev,
-          {
-            id: data.completionId,
-            task_id: activeSession.task.id,
-            reward_spy: data.reward,
-            status: 'verified',
-            verified_at: new Date().toISOString(),
-            expires_at: data.expiresAt,
-            task_title: activeSession.task.title,
-          },
-        ])
-
+        
         await refreshProfile()
+        await fetchTasks(false)
         cancelSession(false)
       } else {
         toast.error(data.error || 'Verification failed')
         if (data.error?.includes('already')) {
-          setTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
-          fetchTasks()
+          await fetchTasks()
         }
         cancelSession(false)
       }
@@ -672,7 +673,6 @@ export default function TasksPage() {
     }
   }, [activeSession, user?.id, clickedUrl, returnedToApp, taskTimer, formatCountdown, refreshProfile, fetchTasks, cancelSession])
 
-  // ===== VERIFY SOCIAL TASK =====
   const verifySocialTask = useCallback(async () => {
     if (!selectedSocialTask || !user?.id) return
 
@@ -717,22 +717,9 @@ export default function TasksPage() {
 
       if (data.success) {
         toast.success(`🎉 Follow verified! +${data.reward} SPY`)
-
-        setTasks(prev => prev.filter(t => t.id !== selectedSocialTask.id))
-        setUserTasks(prev => [
-          ...prev,
-          {
-            id: data.completionId,
-            task_id: selectedSocialTask.id,
-            reward_spy: data.reward,
-            status: 'verified',
-            verified_at: new Date().toISOString(),
-            expires_at: data.expiresAt,
-            task_title: selectedSocialTask.title,
-          },
-        ])
-
+        
         await refreshProfile()
+        await fetchTasks(false)
         setSelectedSocialTask(null)
       } else {
         toast.error(data.error || 'Verification failed')
@@ -743,25 +730,23 @@ export default function TasksPage() {
     } finally {
       setIsCompletingSocial(false)
     }
-  }, [selectedSocialTask, user?.id, refreshProfile])
+  }, [selectedSocialTask, user?.id, refreshProfile, fetchTasks])
 
-  // ===== REFRESH =====
   const refreshTasks = useCallback(async () => {
     setRefreshing(true)
-    await fetchTasks()
+    await fetchTasks(false)
     toast.success('Tasks refreshed!')
   }, [fetchTasks])
 
-  // ===== CLEANUP =====
   useEffect(() => {
     return () => {
       if (taskTimerRef.current) clearInterval(taskTimerRef.current)
       if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current)
       antiCheat.stopTracking()
     }
   }, [])
 
-  // ===== FILTERED TASKS =====
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
       const matchesType = activeType === 'all' || task.task_type === activeType
@@ -772,10 +757,8 @@ export default function TasksPage() {
     })
   }, [tasks, activeType, searchQuery])
 
-  // ===== RENDER =====
   return (
     <div className="tasks-page">
-      {/* ============ ACTIVE SESSION OVERLAY ============ */}
       <AnimatePresence>
         {activeSession && (
           <motion.div
@@ -887,7 +870,7 @@ export default function TasksPage() {
                 >
                   {isVerifying ? (
                     <>
-                      <Loader2 size={16} className="spin" />
+                      <RefreshCw size={16} className="spin" />
                       Verifying...
                     </>
                   ) : (
@@ -903,7 +886,6 @@ export default function TasksPage() {
         )}
       </AnimatePresence>
 
-      {/* ============ CANCEL CONFIRM MODAL ============ */}
       <AnimatePresence>
         {showCancelConfirm && (
           <motion.div
@@ -934,7 +916,6 @@ export default function TasksPage() {
         )}
       </AnimatePresence>
 
-      {/* ============ SOCIAL TASK MODAL ============ */}
       <AnimatePresence>
         {selectedSocialTask && (
           <motion.div
@@ -1014,7 +995,7 @@ export default function TasksPage() {
                   disabled={isCompletingSocial}
                 >
                   {isCompletingSocial ? (
-                    <Loader2 size={18} className="spin" />
+                    <RefreshCw size={18} className="spin" />
                   ) : (
                     <>
                       <Check size={18} />
@@ -1032,7 +1013,6 @@ export default function TasksPage() {
         )}
       </AnimatePresence>
 
-      {/* ============ MAIN PAGE ============ */}
       <div className="tasks-header">
         <div className="header-left">
           <Link href="/dashboard" className="back-link">
