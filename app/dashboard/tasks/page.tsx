@@ -242,9 +242,6 @@ class AntiCheatService {
       !navigator.mimeTypes || navigator.mimeTypes.length === 0,
       !!(window as any).Cypress,
       !!(window as any).__playwright,
-      !!(window as any).callPhantom,
-      !!(window as any)._phantom,
-      !!(window as any).__nightmare,
     ]
     return checks.filter(Boolean).length >= 3
   }
@@ -372,7 +369,7 @@ const antiCheat = new AntiCheatService()
 // MAIN COMPONENT
 // ============================================
 export default function TasksPage() {
-  const { profile, user, refreshProfile } = useAuth()
+  const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [userTasks, setUserTasks] = useState<CompletedTask[]>([])
   const [loading, setLoading] = useState(true)
@@ -400,41 +397,54 @@ export default function TasksPage() {
       return
     }
 
-    setLoading(true)
     try {
-      const { data: tasksData } = await supabase
+      // Fetch tasks from DB
+      const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('is_active', true)
         .order('reward_spy', { ascending: false })
 
+      if (tasksError) {
+        console.error('Tasks fetch error:', tasksError)
+      }
+
+      // Fetch verified completions only
       const now = new Date().toISOString()
-      const { data: completedData } = await supabase
+      const { data: completedData, error: completedError } = await supabase
         .from('completed_tasks')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'verified')
         .or(`expires_at.is.null,expires_at.gt.${now}`)
 
+      if (completedError) {
+        console.error('Completed fetch error:', completedError)
+      }
+
       let allTasks: Task[] = []
       if (tasksData) allTasks = [...tasksData]
 
+      // Add social tasks that aren't already in DB
       const existingSocialIds = new Set(allTasks.map(t => t.id))
       SOCIAL_TASKS.forEach(st => {
         if (!existingSocialIds.has(st.id)) allTasks.push(st)
       })
 
-      setTasks(allTasks)
+      // Filter out tasks that have been completed (verified)
+      const completedTaskIds = new Set((completedData || []).map(c => c.task_id))
+      const availableTasks = allTasks.filter(t => !completedTaskIds.has(t.id))
+
+      setTasks(availableTasks)
       setUserTasks(completedData || [])
 
       const completed = (completedData || []).length
       const totalEarned = (completedData || []).reduce(
-        (sum, c) => sum + (c.reward_spy || 0),
-        0
+        (sum, c) => sum + (c.reward_spy || 0), 0
       )
 
       setStats({
-        available: Math.max(0, allTasks.length - completed),
+        available: availableTasks.length,
         completed,
         totalEarned,
       })
@@ -447,9 +457,94 @@ export default function TasksPage() {
     }
   }, [user?.id])
 
+  // Initial fetch
   useEffect(() => {
     if (user) fetchTasks()
-  }, [user, fetchTasks])
+    else if (!authLoading) setLoading(false)
+  }, [user, fetchTasks, authLoading])
+
+  // ===== AUTO-REFRESH (Real-time subscription) =====
+  useEffect(() => {
+    if (!user?.id) return
+
+    // Subscribe to completed_tasks changes for this user
+    const completionsChannel = supabase
+      .channel('user-completions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'completed_tasks',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Completion change detected:', payload)
+          
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newRecord = payload.new as CompletedTask
+            // Only care about verified tasks
+            if (newRecord.status === 'verified') {
+              // Remove from available tasks
+              setTasks(prev => prev.filter(t => t.id !== newRecord.task_id))
+              // Add to completed tasks
+              setUserTasks(prev => {
+                const exists = prev.find(c => c.id === newRecord.id)
+                if (exists) return prev.map(c => c.id === newRecord.id ? newRecord : c)
+                return [newRecord, ...prev]
+              })
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const oldRecord = payload.old as CompletedTask
+            // Refresh full list
+            fetchTasks()
+          }
+        }
+      )
+      .subscribe()
+
+    // Subscribe to profile changes (balance updates)
+    const profileChannel = supabase
+      .channel('user-profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Profile updated:', payload)
+          // Refresh profile in context
+          refreshProfile()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to tasks table changes (new tasks added)
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+        },
+        (payload) => {
+          console.log('Tasks change:', payload)
+          fetchTasks()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(completionsChannel)
+      supabase.removeChannel(profileChannel)
+      supabase.removeChannel(tasksChannel)
+    }
+  }, [user?.id, refreshProfile, fetchTasks])
 
   // ===== HELPERS =====
   const getTaskStatus = useCallback((taskId: string) => {
@@ -587,7 +682,7 @@ export default function TasksPage() {
     toast.success('Ready to verify!')
   }, [clickedUrl])
 
-  // ===== COMPLETE TASK =====
+  // ===== COMPLETE TASK (with auto-refresh) =====
   const completeTask = useCallback(async () => {
     if (!activeSession || !user?.id) return
 
@@ -624,6 +719,7 @@ export default function TasksPage() {
         return
       }
 
+      // Step 1: Complete
       const response = await fetch('/api/tasks/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -636,32 +732,47 @@ export default function TasksPage() {
 
       const data = await response.json()
 
-      if (data.success) {
-        toast.success(`✅ +${data.reward} SPY earned!`)
-
-        setTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
-
-        setUserTasks(prev => [
-          ...prev,
-          {
-            id: data.completionId,
-            task_id: activeSession.task.id,
-            reward_spy: data.reward,
-            status: 'verified',
-            verified_at: new Date().toISOString(),
-            expires_at: data.expiresAt,
-            task_title: activeSession.task.title,
-          },
-        ])
-
-        await refreshProfile()
-        cancelSession(false)
-      } else {
-        toast.error(data.error || 'Verification failed')
+      if (!data.success) {
+        toast.error(data.error || 'Failed to complete task')
         if (data.error?.includes('already')) {
-          setTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
+          // Refresh to remove from list
           fetchTasks()
         }
+        cancelSession(false)
+        setIsVerifying(false)
+        return
+      }
+
+      // Step 2: Verify (this credits the balance)
+      const verifyRes = await fetch('/api/tasks/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          completionId: data.completionId,
+          verified: true,
+          actualDuration: signals.actualDuration,
+          clickedUrl: true,
+          fraudScore: signals.fraudScore,
+        }),
+      })
+
+      const verifyData = await verifyRes.json()
+
+      if (verifyData.success && verifyData.status === 'verified') {
+        toast.success(`✅ +${verifyData.reward} SPY earned!`)
+        
+        // Remove from available tasks immediately
+        setTasks(prev => prev.filter(t => t.id !== activeSession.task.id))
+        
+        // Refresh profile to update balance
+        await refreshProfile()
+        
+        // Refresh tasks to sync with DB
+        await fetchTasks()
+        
+        cancelSession(false)
+      } else {
+        toast.error(verifyData.error || 'Verification failed')
         cancelSession(false)
       }
     } catch (e) {
@@ -700,7 +811,7 @@ export default function TasksPage() {
       const signals: TaskSignals = {
         ...baseSignals,
         sessionToken: startData.sessionToken,
-        actualDuration: 120,
+        actualDuration: 120, // Social tasks count as completed immediately
       }
 
       const completeRes = await fetch('/api/tasks/complete', {
@@ -716,24 +827,37 @@ export default function TasksPage() {
       const data = await completeRes.json()
 
       if (data.success) {
-        toast.success(`🎉 Follow verified! +${data.reward} SPY`)
+        // Verify immediately
+        const verifyRes = await fetch('/api/tasks/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            completionId: data.completionId,
+            verified: true,
+            actualDuration: 120,
+            clickedUrl: true,
+            fraudScore: signals.fraudScore,
+          }),
+        })
 
-        setTasks(prev => prev.filter(t => t.id !== selectedSocialTask.id))
-        setUserTasks(prev => [
-          ...prev,
-          {
-            id: data.completionId,
-            task_id: selectedSocialTask.id,
-            reward_spy: data.reward,
-            status: 'verified',
-            verified_at: new Date().toISOString(),
-            expires_at: data.expiresAt,
-            task_title: selectedSocialTask.title,
-          },
-        ])
+        const verifyData = await verifyRes.json()
 
-        await refreshProfile()
-        setSelectedSocialTask(null)
+        if (verifyData.success && verifyData.status === 'verified') {
+          toast.success(`🎉 Follow verified! +${verifyData.reward} SPY`)
+
+          // Remove from tasks
+          setTasks(prev => prev.filter(t => t.id !== selectedSocialTask.id))
+          
+          // Update balance
+          await refreshProfile()
+          
+          // Refresh
+          await fetchTasks()
+          
+          setSelectedSocialTask(null)
+        } else {
+          toast.error(verifyData.error || 'Verification failed')
+        }
       } else {
         toast.error(data.error || 'Verification failed')
       }
@@ -743,7 +867,7 @@ export default function TasksPage() {
     } finally {
       setIsCompletingSocial(false)
     }
-  }, [selectedSocialTask, user?.id, refreshProfile])
+  }, [selectedSocialTask, user?.id, refreshProfile, fetchTasks])
 
   // ===== REFRESH =====
   const refreshTasks = useCallback(async () => {
@@ -915,366 +1039,3 @@ export default function TasksPage() {
             <motion.div
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              className="confirm-modal"
-            >
-              <ShieldAlert size={40} className="confirm-icon" />
-              <h3>Cancel Task?</h3>
-              <p>Your progress will be lost.</p>
-              <div className="confirm-actions">
-                <button onClick={() => setShowCancelConfirm(false)} className="btn-cancel">
-                  Keep Going
-                </button>
-                <button onClick={() => cancelSession()} className="btn-danger">
-                  Cancel Task
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ============ SOCIAL TASK MODAL ============ */}
-      <AnimatePresence>
-        {selectedSocialTask && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="modal-overlay"
-            onClick={() => setSelectedSocialTask(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="modal-content"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="modal-close"
-                onClick={() => setSelectedSocialTask(null)}
-              >
-                <ArrowLeft size={20} />
-              </button>
-
-              <div
-                className="modal-icon"
-                style={{
-                  background: `${getSocialColor(selectedSocialTask.social_platform)}20`,
-                  color: getSocialColor(selectedSocialTask.social_platform),
-                }}
-              >
-                {(() => {
-                  const Icon = getSocialIcon(selectedSocialTask.social_platform)
-                  return <Icon size={32} />
-                })()}
-              </div>
-
-              <h2>Follow & Earn</h2>
-              <p className="modal-desc">{selectedSocialTask.description}</p>
-
-              <div className="modal-social-info">
-                <div
-                  className="social-platform-badge"
-                  style={{
-                    borderColor: getSocialColor(selectedSocialTask.social_platform),
-                  }}
-                >
-                  {(() => {
-                    const Icon = getSocialIcon(selectedSocialTask.social_platform)
-                    return <Icon size={16} style={{ color: getSocialColor(selectedSocialTask.social_platform) }} />
-                  })()}
-                  <span style={{ color: getSocialColor(selectedSocialTask.social_platform) }}>
-                    {selectedSocialTask.social_platform?.toUpperCase()}
-                  </span>
-                </div>
-                <div className="social-username">{selectedSocialTask.social_username}</div>
-              </div>
-
-              <div className="modal-reward">
-                <Zap size={18} />
-                <span>+{selectedSocialTask.reward_spy} SPY</span>
-              </div>
-
-              <div className="modal-actions">
-                <a
-                  href={selectedSocialTask.task_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="modal-follow-btn"
-                  style={{ background: getSocialColor(selectedSocialTask.social_platform) }}
-                >
-                  <ExternalLink size={18} />
-                  Follow Now
-                </a>
-                <button
-                  className="modal-verify-btn"
-                  onClick={verifySocialTask}
-                  disabled={isCompletingSocial}
-                >
-                  {isCompletingSocial ? (
-                    <Loader2 size={18} className="spin" />
-                  ) : (
-                    <>
-                      <Check size={18} />
-                      I Followed, Verify!
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <p className="modal-hint">
-                ⚡ Follow the page, then click "I Verified" to claim your reward
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ============ MAIN PAGE ============ */}
-      <div className="tasks-header">
-        <div className="header-left">
-          <Link href="/dashboard" className="back-link">
-            <ArrowLeft size={18} />
-            Back to Dashboard
-          </Link>
-          <h1 className="page-title">Earn Tasks</h1>
-          <p className="page-subtitle">Complete tasks and earn SPY instantly</p>
-        </div>
-        <div className="header-stats">
-          <div className="header-stat">
-            <div className="stat-icon-wrap blue">
-              <Zap size={18} />
-            </div>
-            <div>
-              <span className="stat-value">{stats.available}</span>
-              <span className="stat-label">Available</span>
-            </div>
-          </div>
-          <div className="header-stat">
-            <div className="stat-icon-wrap green">
-              <CheckCircle size={18} />
-            </div>
-            <div>
-              <span className="stat-value">{stats.completed}</span>
-              <span className="stat-label">Completed</span>
-            </div>
-          </div>
-          <div className="header-stat">
-            <div className="stat-icon-wrap purple">
-              <TrendingUp size={18} />
-            </div>
-            <div>
-              <span className="stat-value">{stats.totalEarned.toFixed(0)}</span>
-              <span className="stat-label">SPY Earned</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="social-banner">
-        <div className="banner-content">
-          <Sparkles size={20} className="banner-icon" />
-          <div>
-            <h4>Follow & Earn SPY!</h4>
-            <p>Quick rewards from our social channels</p>
-          </div>
-        </div>
-        <div className="banner-social-icons">
-          {SOCIAL_TASKS.map(task => {
-            const Icon = getSocialIcon(task.social_platform)
-            const color = getSocialColor(task.social_platform)
-            const status = getTaskStatus(task.id)
-            const isCompleted = status === 'completed'
-            return (
-              <div
-                key={task.id}
-                className={`banner-social-item ${isCompleted ? 'completed' : ''}`}
-                style={{ borderColor: isCompleted ? '#4ade80' : color }}
-                title={isCompleted ? 'Completed!' : task.title}
-                onClick={() => !isCompleted && setSelectedSocialTask(task)}
-              >
-                <Icon size={18} style={{ color: isCompleted ? '#4ade80' : color }} />
-                {isCompleted && <Check size={12} className="check-badge" />}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="tasks-toolbar">
-        <div className="search-box">
-          <Search size={18} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
-        </div>
-        <button
-          className="refresh-btn"
-          onClick={refreshTasks}
-          disabled={refreshing}
-        >
-          <RefreshCw size={18} className={refreshing ? 'spin' : ''} />
-        </button>
-      </div>
-
-      <div className="type-filters">
-        {[
-          { id: 'all', label: 'All Tasks', icon: BarChart3 },
-          { id: 'link', label: 'Link Visit', icon: Globe },
-          { id: 'survey', label: 'Surveys', icon: FileText },
-          { id: 'video', label: 'Videos', icon: Video },
-          { id: 'install', label: 'App Installs', icon: Smartphone },
-          { id: 'social_follow', label: 'Social Follow', icon: Users },
-        ].map(t => {
-          const Icon = t.icon
-          return (
-            <button
-              key={t.id}
-              className={`type-pill ${activeType === t.id ? 'active' : ''}`}
-              onClick={() => setActiveType(t.id)}
-            >
-              <Icon size={14} />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {loading ? (
-        <div className="tasks-loading">
-          <div className="loading-spinner" />
-          <p>Loading available tasks...</p>
-        </div>
-      ) : (
-        <div className="tasks-grid">
-          {filteredTasks.map(task => {
-            const status = getTaskStatus(task.id)
-            const TypeIcon = typeIcons[task.task_type] || Zap
-            const colorClass = typeColors[task.task_type] || 'blue'
-            const isSocial = task.task_type === 'social_follow'
-            const SocialIcon = isSocial ? getSocialIcon(task.social_platform) : null
-            const socialColor = isSocial ? getSocialColor(task.social_platform) : null
-
-            return (
-              <motion.div
-                key={task.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`task-card ${status}`}
-              >
-                <div className="task-card-top">
-                  <div className={`task-type-icon ${colorClass}`}>
-                    {isSocial && SocialIcon ? (
-                      <SocialIcon size={22} style={{ color: socialColor || undefined }} />
-                    ) : (
-                      <TypeIcon size={22} />
-                    )}
-                  </div>
-                  <div className="task-reward-badge">
-                    <Zap size={14} />
-                    +{task.reward_spy} SPY
-                  </div>
-                </div>
-
-                <h3 className="task-title">{task.title}</h3>
-                <p className="task-description">{task.description}</p>
-
-                {isSocial && task.social_platform && (
-                  <div
-                    className="social-platform-tag"
-                    style={{ borderColor: socialColor || undefined }}
-                  >
-                    <span style={{ color: socialColor || undefined }}>
-                      Follow on {task.social_platform.toUpperCase()}
-                    </span>
-                  </div>
-                )}
-
-                <div className="task-meta-row">
-                  <span className={`task-type-tag ${colorClass}`}>
-                    {task.task_type === 'social_follow' ? 'Social' : task.task_type}
-                  </span>
-                  <span className="task-time">
-                    <Clock size={12} />
-                    {formatTime(task.required_time_seconds)}
-                  </span>
-                  <span className="task-slots">
-                    <Users size={12} />
-                    {task.max_completions} slots
-                  </span>
-                </div>
-
-                <div className="task-footer">
-                  {status === 'completed' ? (
-                    <button className="task-btn done" disabled>
-                      <CheckCircle size={16} />
-                      Completed
-                    </button>
-                  ) : status === 'active' ? (
-                    <button className="task-btn verify" disabled>
-                      <Hourglass size={16} />
-                      In Progress
-                    </button>
-                  ) : (
-                    <button
-                      className={`task-btn start ${isSocial ? 'social' : ''}`}
-                      onClick={() => startTask(task)}
-                      style={
-                        isSocial
-                          ? {
-                              background: socialColor || undefined,
-                              borderColor: socialColor || undefined,
-                            }
-                          : undefined
-                      }
-                    >
-                      {isSocial ? <Users size={16} /> : <ExternalLink size={16} />}
-                      {isSocial ? 'Follow & Earn' : 'Start Task'}
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-      )}
-
-      {filteredTasks.length === 0 && !loading && (
-        <div className="empty-state">
-          <Search size={48} className="empty-icon" />
-          <h3>No tasks available</h3>
-          <p>Check back later for new earning opportunities</p>
-        </div>
-      )}
-
-      {userTasks.length > 0 && (
-        <div className="completed-section">
-          <h2>
-            Recently Completed ({userTasks.length})
-            <span className="auto-delete-note">Auto-deletes after 72 hours</span>
-          </h2>
-          <div className="completed-grid">
-            {userTasks.slice(0, 6).map(ct => (
-              <div key={ct.id} className="completed-card">
-                <CheckCircle size={20} className="completed-check" />
-                <div>
-                  <h4>{ct.task_title || 'Task Completed'}</h4>
-                  <p>+{ct.reward_spy} SPY</p>
-                  <span className="expires-tag">
-                    <Timer size={10} /> {getHoursUntilExpiry(ct.expires_at)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
