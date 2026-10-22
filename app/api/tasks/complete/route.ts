@@ -1,117 +1,162 @@
 // app/api/tasks/complete/route.ts
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
-
-const MIN_INTERACTION_SECONDS = 120
-const CLEANUP_HOURS = 72
 
 export async function POST(request: Request) {
   try {
-    const supabase = createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = createClient()
+    const body = await request.json()
+    const { taskId, signals, taskData } = body
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    console.log('📝 Task completion request:', { taskId, fraudScore: signals?.fraudScore })
+
+    // 1. Validate Fraud Score
+    if (signals?.fraudScore >= 60) {
+      console.log('🚫 Fraud detected:', signals.fraudScore)
+      return NextResponse.json({ success: false, error: 'Fraud detected' }, { status: 400 })
     }
 
-    const { taskId, signals, taskData } = await request.json()
-
-    // 1. Verify duration
-    if (signals.actualDuration < MIN_INTERACTION_SECONDS) {
-      return NextResponse.json(
-        { error: `You must spend at least ${MIN_INTERACTION_SECONDS / 60} minutes on this task` },
-        { status: 400 }
-      )
+    // 2. Get Session (Critical for Vercel)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError) {
+      console.error('❌ Session error:', sessionError)
+      return NextResponse.json({ success: false, error: 'Session error' }, { status: 401 })
+    }
+    
+    if (!session) {
+      console.error('❌ No session found')
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Verify clicked
-    if (!signals.clickedUrl) {
-      return NextResponse.json({ error: 'You must click the task link first' }, { status: 400 })
-    }
+    const userId = session.user.id
+    console.log('✅ Authenticated user:', userId)
 
-    // 3. Check if already completed
-    const { data: existing } = await supabase
+    // 3. Check if task already completed
+    const { data: existing, error: checkError } = await supabase
       .from('completed_tasks')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('task_id', taskId)
       .maybeSingle()
 
+    if (checkError) {
+      console.error('❌ Check existing error:', checkError)
+    }
+
     if (existing) {
-      return NextResponse.json({ error: 'Task already completed' }, { status: 400 })
+      console.log('⚠️ Task already completed')
+      return NextResponse.json({ success: false, error: 'Task already completed' }, { status: 400 })
     }
 
-    // 4. Get task details
-    let taskReward = 10
-    let taskTitle = 'Task'
+    // 4. Prepare data
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+    const reward = taskData?.reward_spy || 10
 
-    const { data: task } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('id', taskId)
-      .maybeSingle()
+    console.log('💾 Inserting completion record...', { userId, taskId, reward })
 
-    if (task) {
-      taskReward = task.reward_spy
-      taskTitle = task.title
-    } else if (taskData) {
-      taskReward = taskData.reward_spy || 10
-      taskTitle = taskData.title || 'Social Task'
-    }
-
-    // 5. Get Profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_premium, spy_balance, earned_spy')
-      .eq('id', user.id)
-      .single()
-
-    // 6. Calculate reward
-    const multiplier = profile?.is_premium ? 2 : 1
-    const reward = Math.round((taskReward * multiplier) * 100) / 100
-
-    // 7. Insert pending completion
-    const expiresAt = new Date(Date.now() + CLEANUP_HOURS * 60 * 60 * 1000).toISOString()
-
+    // 5. Insert Completion Record
     const { data: completion, error: insertError } = await supabase
       .from('completed_tasks')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         task_id: taskId,
         reward_spy: reward,
-        status: 'pending', // Starts as pending!
-        verified_at: null,
+        status: 'verified',
+        verified_at: new Date().toISOString(),
         expires_at: expiresAt,
-        fraud_score: signals.fraudScore || 0,
-        signals,
-        task_title: taskTitle,
+        task_title: taskData?.title || 'Task',
+        signals: signals
       })
       .select()
       .single()
 
     if (insertError) {
-      console.error('Insert error:', insertError)
-      return NextResponse.json({ error: 'Failed to record completion' }, { status: 500 })
+      console.error('❌ Insert error details:', {
+        message: insertError.message,
+        code: insertError.code,
+        details: insertError.details,
+        hint: insertError.hint
+      })
+      
+      // Check for specific constraint errors
+      if (insertError.code === '23503') {
+        return NextResponse.json({ success: false, error: 'User profile not found. Please log out and log in again.' }, { status: 500 })
+      }
+      
+      return NextResponse.json({ success: false, error: 'Failed to save completion: ' + insertError.message }, { status: 500 })
     }
 
-    // 8. Update task counter
-    if (task) {
-      await supabase
-        .from('tasks')
-        .update({ total_completions: (task.total_completions || 0) + 1 })
-        .eq('id', taskId)
+    console.log('✅ Completion saved:', completion.id)
+
+    // 6. Update User Balance
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('spy_balance, earned_spy')
+      .eq('id', userId)
+      .single()
+
+    if (profileError || !profile) {
+      console.error('❌ Profile fetch error:', profileError)
+      // Still return success for the task, but log the balance error
+      return NextResponse.json({ 
+        success: true, 
+        reward, 
+        completionId: completion.id, 
+        expiresAt,
+        message: 'Task saved but balance update failed'
+      })
     }
 
-    // 9. Return completion ID to the frontend so it can verify
+    const newBalance = (profile.spy_balance || 0) + reward
+    const newEarned = (profile.earned_spy || 0) + reward
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ 
+        spy_balance: newBalance,
+        earned_spy: newEarned
+      })
+      .eq('id', userId)
+
+    if (updateError) {
+      console.error('❌ Profile update error:', updateError)
+      return NextResponse.json({ 
+        success: true, 
+        reward, 
+        completionId: completion.id, 
+        expiresAt,
+        message: 'Task saved but balance update failed'
+      })
+    }
+
+    console.log('✅ Balance updated:', newBalance)
+
+    // 7. Log Transaction
+    const { error: txError } = await supabase.from('transactions').insert({
+      user_id: userId,
+      type: 'task_reward',
+      amount_spy: reward,
+      balance_before: profile.spy_balance || 0,
+      balance_after: newBalance,
+      description: `Completed task: ${taskData?.title || 'Task'}`,
+    })
+
+    if (txError) {
+      console.error('❌ Transaction log error:', txError)
+      // Don't fail the request, just log it
+    }
+
     return NextResponse.json({
       success: true,
+      reward,
       completionId: completion.id,
-      message: 'Task submitted for verification'
+      expiresAt,
+      newBalance
     })
 
   } catch (error) {
-    console.error('Task completion error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('❌ Task completion error:', error)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
