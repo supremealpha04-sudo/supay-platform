@@ -2,7 +2,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-const MIN_INTERACTION_SECONDS = 120
+const MIN_INTERACTION_SECONDS = 60
 
 export async function POST(request: Request) {
   try {
