@@ -1932,3 +1932,73 @@
 
   .txRow { break-inside: avoid; }
 }
+/* ===== Held balance line ===== */
+.balanceHeld {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  color: var(--w-amber);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ===== Pending rows ===== */
+.txPending {
+  background: rgba(251, 191, 36, 0.05);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.txIconWrapperPending {
+  background: rgba(251, 191, 36, 0.14);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.15);
+}
+
+.txMuted {
+  color: var(--w-text-dim);
+  font-weight: 700;
+}
+
+/* ===== Cancel pending button ===== */
+.cancelTxBtn {
+  margin-top: 0.25rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 0.45rem;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--w-red);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cancelTxBtn:hover {
+  background: rgba(248, 113, 113, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ===== Hide (soft-delete) icon ===== */
+.hideTxBtn {
+  margin-top: 0.25rem;
+  margin-left: auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.4rem;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--w-text-faint);
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: all 0.2s ease;
+}
+.hideTxBtn:hover {
+  color: var(--w-red);
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.2);
+}
