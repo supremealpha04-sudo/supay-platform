@@ -7,76 +7,36 @@ import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FaWallet, FaArrowUp, FaArrowDown, FaClock, FaBitcoin, FaSpinner,
-  FaExclamationTriangle, FaInfoCircle, FaEye, FaEyeSlash,
-  FaPaperPlane, FaQrcode, FaHistory, FaCoins, FaTimes,
-  FaCopy, FaLink, FaUnlink, FaNetworkWired, FaExternalLinkAlt
+  FaExclamationTriangle, FaEye, FaEyeSlash, FaPaperPlane,
+  FaHistory, FaCoins, FaTimes, FaLock, FaTrashAlt
 } from 'react-icons/fa'
-import QRCode from 'qrcode'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import styles from './page.module.css'
 
 const supabase = createClient()
 
-// ============================================
-// TYPES
-// ============================================
 interface Transaction {
   id: string
   type: string
   amount_spy: number
-  balance_after: number
+  balance_after: number | null
   status: string
   created_at: string
   description?: string
+  hidden_by_user?: boolean
+  related_withdrawal_id?: string | null
 }
 
-// ============================================
-// CONSTANTS
-// ============================================
 const SPY_TO_USD = 0.01
 const MINIMUM_WITHDRAW_SPY = 200
 const WITHDRAW_FEE_PERCENT = 2
 const WITHDRAW_FEE_MIN_SPY = 10
 const MAX_WITHDRAW_SPY = 500000
-const BSC_CHAIN_ID = '0x38'
-const BSC_EXPLORER = 'https://bscscan.com'
 
-// ============================================
-// HELPERS
-// ============================================
-function shortenAddress(addr?: string | null): string {
-  if (!addr) return ''
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
-
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    toast.success('Copied to clipboard')
-  } catch {
-    toast.error('Copy failed')
-  }
-}
-
-type EthereumProvider = {
-  request: (args: { method: string; params?: any[] }) => Promise<any>
-  on?: (event: string, cb: (...args: any[]) => void) => void
-  removeListener?: (event: string, cb: (...args: any[]) => void) => void
-}
-
-function getEthereum(): EthereumProvider | null {
-  if (typeof window === 'undefined') return null
-  return (window as any).ethereum ?? null
-}
-
-// ============================================
-// MAIN COMPONENT
-// ============================================
 export default function WalletPage() {
-  const { profile, user, refreshProfile, isLoading: authLoading } = useAuth()
+  const { profile, refreshProfile, isLoading: authLoading } = useAuth()
 
-  // ===== STATE =====
   const [showBalance, setShowBalance] = useState(true)
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawAddress, setWithdrawAddress] = useState('')
@@ -84,38 +44,26 @@ export default function WalletPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
-
-  // Wallet connection
-  const [connectedAddress, setConnectedAddress] = useState<string | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [chainId, setChainId] = useState<string | null>(null)
-
-  // Modals
   const [showSendModal, setShowSendModal] = useState(false)
-  const [showReceiveModal, setShowReceiveModal] = useState(false)
 
   // ===== COMPUTED =====
   const spyBalance = Number(profile?.spy_balance) || 0
+  const spyHeld = Number((profile as any)?.spy_held) || 0
+  const totalSpy = spyBalance + spyHeld
   const usdBalance = spyBalance * SPY_TO_USD
+  const usdHeld = spyHeld * SPY_TO_USD
 
-  const walletAddress: string | null =
-    connectedAddress || (profile as any)?.wallet_address || null
-
-  const isCorrectChain = chainId === BSC_CHAIN_ID
+  const walletAddress: string | null = (profile as any)?.wallet_address || null
 
   const withdrawAmountNum = useMemo(() => parseFloat(withdrawAmount) || 0, [withdrawAmount])
-
   const withdrawFee = useMemo(() => {
     if (withdrawAmountNum <= 0) return 0
     return Math.max(Math.ceil(withdrawAmountNum * (WITHDRAW_FEE_PERCENT / 100)), WITHDRAW_FEE_MIN_SPY)
   }, [withdrawAmountNum])
-
   const withdrawFinalAmount = useMemo(
     () => Math.max(withdrawAmountNum - withdrawFee, 0),
     [withdrawAmountNum, withdrawFee]
   )
-
   const isWithdrawValid = useMemo(
     () =>
       withdrawAmountNum >= MINIMUM_WITHDRAW_SPY &&
@@ -125,25 +73,17 @@ export default function WalletPage() {
     [withdrawAmountNum, spyBalance, withdrawAddress]
   )
 
-  // ===== QR CODE (uses existing `qrcode` package) =====
-  useEffect(() => {
-    let cancelled = false
-    if (!walletAddress) {
-      setQrDataUrl(null)
-      return
-    }
-    QRCode.toDataURL(walletAddress, {
-      width: 360,
-      margin: 1,
-      color: { dark: '#ffffff', light: '#00000000' },
-      errorCorrectionLevel: 'M',
-    })
-      .then((url) => { if (!cancelled) setQrDataUrl(url) })
-      .catch(() => { if (!cancelled) setQrDataUrl(null) })
-    return () => { cancelled = true }
-  }, [walletAddress])
+  // Split: completed (visible) vs pending
+  const completedTx = useMemo(
+    () => transactions.filter(t => t.status === 'completed' && !t.hidden_by_user),
+    [transactions]
+  )
+  const pendingTx = useMemo(
+    () => transactions.filter(t => t.status === 'pending'),
+    [transactions]
+  )
 
-  // ===== DATA FETCHING =====
+  // ===== FETCH =====
   const fetchTransactions = useCallback(async () => {
     if (!profile?.id) return
     const { data, error } = await supabase
@@ -151,121 +91,69 @@ export default function WalletPage() {
       .select('*')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
-      .limit(20)
-    if (error) {
-      console.error('Error fetching transactions:', error)
-      return
-    }
+      .limit(50)
+    if (error) { console.error(error); return }
     setTransactions(data || [])
   }, [profile?.id])
 
   const fetchAllData = useCallback(async () => {
-    setRefreshing(true)
-    setError(null)
-    try {
-      await Promise.all([fetchTransactions(), refreshProfile()])
-    } catch {
-      setError('Failed to load wallet data')
-    } finally {
-      setRefreshing(false)
-    }
+    setRefreshing(true); setError(null)
+    try { await Promise.all([fetchTransactions(), refreshProfile()]) }
+    catch { setError('Failed to load wallet data') }
+    finally { setRefreshing(false) }
   }, [fetchTransactions, refreshProfile])
 
-  useEffect(() => {
-    if (profile?.id) fetchAllData()
-  }, [profile?.id, fetchAllData])
+  useEffect(() => { if (profile?.id) fetchAllData() }, [profile?.id, fetchAllData])
 
-  // ===== WALLET CONNECT =====
-  const connectWallet = useCallback(async () => {
-    const eth = getEthereum()
-    if (!eth) {
-      toast.error('No Web3 wallet found. Install MetaMask.')
-      return
-    }
-    setIsConnecting(true)
+  // ===== HIDE (soft delete) =====
+  const hideTransaction = useCallback(async (txId: string) => {
+    const { error } = await supabase
+      .from('transactions')
+      .update({ hidden_by_user: true })
+      .eq('id', txId)
+    if (error) { toast.error('Could not hide'); return }
+    setTransactions(prev => prev.map(t => t.id === txId ? { ...t, hidden_by_user: true } : t))
+    toast.success('Removed from your view')
+  }, [])
+
+  // ===== CANCEL PENDING WITHDRAWAL =====
+  const cancelWithdrawal = useCallback(async (tx: Transaction) => {
+    if (!tx.related_withdrawal_id) return
+    if (!confirm('Cancel this withdrawal and return the funds to your available balance?')) return
     try {
-      const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' })
-      const addr = accounts?.[0]
-      if (!addr) throw new Error('No account returned')
-      const cid: string = await eth.request({ method: 'eth_chainId' })
-      setConnectedAddress(addr)
-      setChainId(cid)
-      if (profile?.id) {
-        await supabase
-          .from('profiles')
-          .update({ wallet_address: addr.toLowerCase() })
-          .eq('id', profile.id)
-        await refreshProfile()
-      }
-      toast.success(`Connected ${shortenAddress(addr)}`)
-    } catch (err: any) {
-      if (err?.code === 4001) toast.error('Connection rejected')
-      else toast.error('Failed to connect wallet')
-    } finally {
-      setIsConnecting(false)
+      const res = await fetch('/api/withdraw/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ withdrawalId: tx.related_withdrawal_id }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error || 'Cancel failed')
+      toast.success('Withdrawal cancelled — funds returned')
+      await fetchAllData()
+    } catch (e: any) {
+      toast.error(e.message || 'Cancel failed')
     }
-  }, [profile?.id, refreshProfile])
+  }, [fetchAllData])
 
-  const disconnectWallet = useCallback(() => {
-    setConnectedAddress(null)
-    setChainId(null)
-    toast.success('Disconnected')
-  }, [])
-
-  useEffect(() => {
-    const eth = getEthereum()
-    if (!eth?.on) return
-    const onAccounts = (accounts: string[]) => setConnectedAddress(accounts?.[0] ?? null)
-    const onChain = (cid: string) => setChainId(cid)
-    eth.on('accountsChanged', onAccounts)
-    eth.on('chainChanged', onChain)
-    return () => {
-      eth.removeListener?.('accountsChanged', onAccounts)
-      eth.removeListener?.('chainChanged', onChain)
-    }
-  }, [])
-
-  useEffect(() => {
-    const eth = getEthereum()
-    if (!eth) return
-    ;(async () => {
-      try {
-        const accounts: string[] = await eth.request({ method: 'eth_accounts' })
-        if (accounts?.[0]) {
-          setConnectedAddress(accounts[0])
-          const cid: string = await eth.request({ method: 'eth_chainId' })
-          setChainId(cid)
-        }
-      } catch { /* ignore */ }
-    })()
-  }, [])
-
-  // ===== WITHDRAW =====
+  // ===== WITHDRAW SUBMIT =====
   const handleWithdraw = useCallback(async () => {
-    if (!isWithdrawValid) {
-      toast.error('Please check your withdrawal details')
-      return
-    }
-    setIsLoading(true)
-    setError(null)
+    if (!isWithdrawValid) { toast.error('Please check your details'); return }
+    setIsLoading(true); setError(null)
     try {
-      const response = await fetch('/api/withdraw/create', {
+      const res = await fetch('/api/withdraw/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amountSpy: withdrawAmountNum,
           method: 'usdt',
           address: withdrawAddress,
-          userId: profile?.id,
         }),
       })
-      const data = await response.json()
+      const data = await res.json()
       if (data.success) {
-        toast.success('Withdrawal request submitted! 🎉')
-        setWithdrawAmount('')
-        setWithdrawAddress('')
-        setShowSendModal(false)
-        await Promise.all([fetchTransactions(), refreshProfile()])
+        toast.success('Withdrawal submitted — pending approval')
+        setWithdrawAmount(''); setWithdrawAddress(''); setShowSendModal(false)
+        await fetchAllData()
       } else {
         toast.error(data.error || 'Withdrawal failed')
       }
@@ -274,17 +162,17 @@ export default function WalletPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [isWithdrawValid, withdrawAmountNum, withdrawAddress, profile?.id, fetchTransactions, refreshProfile])
+  }, [isWithdrawValid, withdrawAmountNum, withdrawAddress, fetchAllData])
 
-  const formatDate = useCallback((dateString: string) => {
+  const formatDate = useCallback((s: string) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
+      return new Date(s).toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
       })
-    } catch { return dateString }
+    } catch { return s }
   }, [])
 
-  const getTransactionIcon = useCallback((type: string) => {
+  const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'deposit': return FaArrowDown
       case 'withdrawal': return FaArrowUp
@@ -293,18 +181,13 @@ export default function WalletPage() {
       case 'referral_bonus': return FaCoins
       default: return FaClock
     }
-  }, [])
+  }
 
-  const getTransactionColor = useCallback((type: string) => {
-    switch (type) {
-      case 'deposit':
-      case 'task_reward':
-      case 'ad_reward':
-      case 'referral_bonus': return 'success'
-      case 'withdrawal': return 'danger'
-      default: return 'muted'
-    }
-  }, [])
+  const getColor = (type: string, status: string) => {
+    if (status === 'pending') return 'muted'
+    if (type === 'withdrawal') return 'danger'
+    return 'success'
+  }
 
   // ===== RENDER =====
   if (authLoading) {
@@ -317,72 +200,49 @@ export default function WalletPage() {
 
   return (
     <div className={styles.walletPage}>
-      {/* MAIN BALANCE CARD */}
+      {/* BALANCE CARD */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className={styles.balanceCard}
       >
         <div className={styles.balanceCardHeader}>
           <div>
-            <p className={styles.balanceCardTitle}>Main Wallet</p>
+            <p className={styles.balanceCardTitle}>Available Balance</p>
             <p className={styles.balanceAmount}>
               {showBalance ? `$${usdBalance.toFixed(2)}` : '••••••'}
             </p>
             <p className={styles.balanceSubtitle}>
               {showBalance ? `${spyBalance.toLocaleString()} SPY` : '•••• SPY'}
             </p>
+            {spyHeld > 0 && (
+              <p className={styles.balanceHeld}>
+                <FaLock /> On hold: {showBalance ? `${spyHeld.toLocaleString()} SPY ($${usdHeld.toFixed(2)})` : '••••'}
+              </p>
+            )}
           </div>
           <button
             className={styles.visibilityToggle}
-            onClick={() => setShowBalance((v) => !v)}
-            aria-label="Toggle balance visibility"
+            onClick={() => setShowBalance(v => !v)}
+            aria-label="Toggle balance"
           >
             {showBalance ? <FaEyeSlash /> : <FaEye />}
           </button>
         </div>
 
-        {/* WALLET ADDRESS / CONNECT BAR */}
-        <div className={styles.walletAddressBar}>
-          {walletAddress ? (
-            <>
-              <div className={styles.walletAddressChip}>
-                <FaLink className={styles.chipIcon} />
-                <span title={walletAddress}>{shortenAddress(walletAddress)}</span>
-                <button
-                  className={styles.chipCopy}
-                  onClick={() => copyToClipboard(walletAddress)}
-                  aria-label="Copy address"
-                >
-                  <FaCopy />
-                </button>
-              </div>
+        {/* Address (read-only) — no connect button */}
+        {walletAddress && (
+          <div className={styles.walletAddressBar}>
+            <div className={styles.walletAddressChip}>
+              <FaWallet className={styles.chipIcon} />
+              <span title={walletAddress}>{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</span>
+            </div>
+          </div>
+        )}
 
-              <div className={`${styles.networkChip} ${isCorrectChain ? styles.networkOk : styles.networkWarn}`}>
-                <FaNetworkWired />
-                {isCorrectChain ? 'BNB Chain' : 'Wrong network'}
-              </div>
-
-              <button className={styles.disconnectBtn} onClick={disconnectWallet}>
-                <FaUnlink /> Disconnect
-              </button>
-            </>
-          ) : (
-            <button className={styles.connectBtn} onClick={connectWallet} disabled={isConnecting}>
-              {isConnecting ? <><FaSpinner className={styles.spinning} /> Connecting…</> : <><FaWallet /> Connect Wallet</>}
-            </button>
-          )}
-        </div>
-
-        {/* ACTION BUTTONS */}
         <div className={styles.actionButtons}>
           <button className={styles.actionBtn} onClick={() => setShowSendModal(true)}>
             <div className={styles.actionBtnIcon}><FaPaperPlane /></div>
-            <span>Send</span>
-          </button>
-          <button className={styles.actionBtn} onClick={() => setShowReceiveModal(true)}>
-            <div className={styles.actionBtnIcon}><FaQrcode /></div>
-            <span>Receive</span>
+            <span>Withdraw</span>
           </button>
           <Link href="/dashboard/earn" className={styles.actionBtn}>
             <div className={styles.actionBtnIcon}><FaCoins /></div>
@@ -406,8 +266,7 @@ export default function WalletPage() {
           {refreshing && <FaSpinner className={styles.spinning} />}
         </div>
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className={styles.assetCard}
         >
           <div className={styles.assetIconWrapper}>
@@ -418,24 +277,60 @@ export default function WalletPage() {
             <p className={styles.assetNetwork}>BNB Chain • BEP-20</p>
           </div>
           <div className={styles.assetBalance}>
-            <p className={styles.assetAmount}>{showBalance ? spyBalance.toLocaleString() : '••••'}</p>
-            <p className={styles.assetUsd}>{showBalance ? `$${usdBalance.toFixed(2)}` : '••••'}</p>
+            <p className={styles.assetAmount}>{showBalance ? totalSpy.toLocaleString() : '••••'}</p>
+            <p className={styles.assetUsd}>
+              {showBalance ? `$${(totalSpy * SPY_TO_USD).toFixed(2)}` : '••••'}
+            </p>
           </div>
         </motion.div>
       </div>
 
-      {/* RECENT ACTIVITY */}
+      {/* PENDING WITHDRAWALS — only if any */}
+      {pendingTx.length > 0 && (
+        <div className={styles.historyCard}>
+          <div className={styles.historyHeader}>
+            <h2 className={styles.historyTitle}><FaClock /> Pending Withdrawals</h2>
+            <span className={styles.txCount}>{pendingTx.length}</span>
+          </div>
+          <div className={styles.transactionList}>
+            {pendingTx.map(tx => (
+              <div key={tx.id} className={`${styles.txRow} ${styles.txPending}`}>
+                <div className={`${styles.txIconWrapper} ${styles.txIconWrapperPending}`}>
+                  <FaClock className={`${styles.txIcon} ${styles.muted}`} />
+                </div>
+                <div className={styles.txDetails}>
+                  <p className={styles.txTitle}>Withdrawal — pending</p>
+                  <p className={styles.txSubtitle}>{formatDate(tx.created_at)}</p>
+                </div>
+                <div className={styles.txAmountWrapper}>
+                  <p className={`${styles.txAmount} ${styles.txMuted}`}>
+                    {Math.abs(tx.amount_spy).toLocaleString()} SPY
+                  </p>
+                  <button
+                    className={styles.cancelTxBtn}
+                    onClick={() => cancelWithdrawal(tx)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* COMPLETED ACTIVITY */}
       <div className={styles.historyCard}>
         <div className={styles.historyHeader}>
           <h2 className={styles.historyTitle}><FaHistory /> Recent Activity</h2>
-          {transactions.length > 0 && <span className={styles.txCount}>{transactions.length}</span>}
+          {completedTx.length > 0 && <span className={styles.txCount}>{completedTx.length}</span>}
         </div>
 
-        {transactions.length > 0 ? (
+        {completedTx.length > 0 ? (
           <div className={styles.transactionList}>
-            {transactions.map((tx) => {
+            {completedTx.map(tx => {
               const Icon = getTransactionIcon(tx.type)
-              const color = getTransactionColor(tx.type)
+              const color = getColor(tx.type, tx.status)
               return (
                 <div key={tx.id} className={styles.txRow}>
                   <div className={`${styles.txIconWrapper} ${color === 'success' ? styles.txIconWrapperSuccess : color === 'danger' ? styles.txIconWrapperDanger : ''}`}>
@@ -443,7 +338,7 @@ export default function WalletPage() {
                   </div>
                   <div className={styles.txDetails}>
                     <p className={styles.txTitle}>
-                      {tx.type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                      {tx.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </p>
                     <p className={styles.txSubtitle}>{formatDate(tx.created_at)}</p>
                   </div>
@@ -451,9 +346,14 @@ export default function WalletPage() {
                     <p className={`${styles.txAmount} ${tx.amount_spy > 0 ? styles.txPositive : styles.txNegative}`}>
                       {tx.amount_spy > 0 ? '+' : ''}{tx.amount_spy.toLocaleString()} SPY
                     </p>
-                    <p className={styles.txBalance}>
-                      {tx.balance_after?.toLocaleString() || '0'} SPY
-                    </p>
+                    <button
+                      className={styles.hideTxBtn}
+                      onClick={() => hideTransaction(tx.id)}
+                      title="Hide from your view (still kept on record)"
+                      aria-label="Hide transaction"
+                    >
+                      <FaTrashAlt />
+                    </button>
                   </div>
                 </div>
               )
@@ -469,7 +369,7 @@ export default function WalletPage() {
         )}
       </div>
 
-      {/* SEND MODAL */}
+      {/* WITHDRAW MODAL */}
       <AnimatePresence>
         {showSendModal && (
           <motion.div
@@ -481,34 +381,32 @@ export default function WalletPage() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className={styles.modalContent}
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             >
               <div className={styles.modalHeader}>
-                <h2>Send USDT</h2>
+                <h2>Withdraw USDT</h2>
                 <button className={styles.modalClose} onClick={() => setShowSendModal(false)} disabled={isLoading}>
                   <FaTimes />
                 </button>
               </div>
-
               <div className={styles.modalBody}>
                 <div className={styles.modalInputGroup}>
                   <label>Recipient Address (BEP-20)</label>
                   <input
                     type="text"
                     value={withdrawAddress}
-                    onChange={(e) => setWithdrawAddress(e.target.value)}
+                    onChange={e => setWithdrawAddress(e.target.value)}
                     placeholder="0x..."
                     className={styles.modalInput}
                   />
                 </div>
-
                 <div className={styles.modalInputGroup}>
                   <label>Amount (SPY)</label>
                   <div className={styles.modalAmountWrapper}>
                     <input
                       type="number"
                       value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      onChange={e => setWithdrawAmount(e.target.value)}
                       placeholder="0.00"
                       className={styles.modalInput}
                     />
@@ -518,104 +416,33 @@ export default function WalletPage() {
                   </div>
                   <p className={styles.modalHelper}>Available: {spyBalance.toLocaleString()} SPY</p>
                 </div>
-
                 {withdrawAmountNum > 0 && (
                   <div className={styles.modalSummary}>
                     <div className={styles.modalSummaryRow}>
-                      <span>Amount</span>
-                      <span>{withdrawAmountNum.toLocaleString()} SPY</span>
+                      <span>Amount</span><span>{withdrawAmountNum.toLocaleString()} SPY</span>
                     </div>
                     <div className={styles.modalSummaryRow}>
                       <span>Network Fee (2%)</span>
                       <span className={styles.modalFee}>-{withdrawFee} SPY</span>
                     </div>
                     <div className={styles.modalSummaryRowTotal}>
-                      <span>You Receive</span>
-                      <span>{withdrawFinalAmount.toLocaleString()} SPY</span>
+                      <span>You Receive</span><span>{withdrawFinalAmount.toLocaleString()} SPY</span>
                     </div>
                     <p className={styles.modalUsdValue}>
                       ≈ ${(withdrawFinalAmount * SPY_TO_USD).toFixed(2)} USD
                     </p>
                   </div>
                 )}
-
                 <button
                   onClick={handleWithdraw}
                   disabled={isLoading || !isWithdrawValid}
                   className={styles.modalSubmitBtn}
                 >
-                  {isLoading ? <><FaSpinner className={styles.spinning} /> Processing…</> : <><FaPaperPlane /> Send Now</>}
+                  {isLoading ? <><FaSpinner className={styles.spinning} /> Processing…</> : <><FaPaperPlane /> Submit Withdrawal</>}
                 </button>
-
                 <p className={styles.modalMinNote}>
-                  Minimum: {MINIMUM_WITHDRAW_SPY} SPY (${(MINIMUM_WITHDRAW_SPY * SPY_TO_USD).toFixed(2)})
+                  Minimum: {MINIMUM_WITHDRAW_SPY} SPY (${(MINIMUM_WITHDRAW_SPY * SPY_TO_USD).toFixed(2)}) — processing may take up to 24h
                 </p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* RECEIVE MODAL — QR via `qrcode` data URL */}
-      <AnimatePresence>
-        {showReceiveModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className={styles.modalOverlay}
-            onClick={() => setShowReceiveModal(false)}
-          >
-            <motion.div
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className={styles.modalContent}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className={styles.modalHeader}>
-                <h2>Receive SPY</h2>
-                <button className={styles.modalClose} onClick={() => setShowReceiveModal(false)}>
-                  <FaTimes />
-                </button>
-              </div>
-
-              <div className={styles.modalBody}>
-                <div className={styles.receiveContent}>
-                  <div className={styles.qrPlaceholder}>
-                    {qrDataUrl ? (
-                      <img
-                        src={qrDataUrl}
-                        alt={`QR code for ${walletAddress}`}
-                        width={180}
-                        height={180}
-                        style={{ borderRadius: '0.5rem', display: 'block' }}
-                      />
-                    ) : (
-                      <FaQrcode />
-                    )}
-                  </div>
-                  <p className={styles.receiveLabel}>Your SPY Wallet Address</p>
-                  <div className={styles.receiveAddress}>
-                    <code>{walletAddress || 'Connect wallet first'}</code>
-                    {walletAddress && (
-                      <button className={styles.copyBtn} onClick={() => copyToClipboard(walletAddress)}>
-                        <FaCopy /> Copy
-                      </button>
-                    )}
-                  </div>
-                  {walletAddress && (
-                    <a
-                      href={`${BSC_EXPLORER}/address/${walletAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.explorerLink}
-                    >
-                      View on BscScan <FaExternalLinkAlt />
-                    </a>
-                  )}
-                  <p className={styles.receiveNote}>
-                    <FaInfoCircle />
-                    Send only SPY (BEP-20) to this address. Sending other assets may result in loss of funds.
-                  </p>
-                </div>
               </div>
             </motion.div>
           </motion.div>
