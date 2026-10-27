@@ -6,13 +6,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  FaWallet, FaArrowUp, FaArrowDown, FaClock, FaLock, FaUnlockAlt,
-  FaBitcoin, FaSpinner, FaExclamationTriangle, FaInfoCircle,
-  FaCheckCircle, FaEye, FaEyeSlash, FaPaperPlane, FaQrcode,
-  FaHistory, FaCoins, FaTimes, FaCopy, FaLink, FaUnlink,
-  FaNetworkWired, FaExternalLinkAlt
+  FaWallet, FaArrowUp, FaArrowDown, FaClock, FaBitcoin, FaSpinner,
+  FaExclamationTriangle, FaInfoCircle, FaEye, FaEyeSlash,
+  FaPaperPlane, FaQrcode, FaHistory, FaCoins, FaTimes,
+  FaCopy, FaLink, FaUnlink, FaNetworkWired, FaExternalLinkAlt
 } from 'react-icons/fa'
-import { QRCodeSVG } from 'qrcode.react'
+import QRCode from 'qrcode'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import styles from './page.module.css'
@@ -40,7 +39,7 @@ const MINIMUM_WITHDRAW_SPY = 200
 const WITHDRAW_FEE_PERCENT = 2
 const WITHDRAW_FEE_MIN_SPY = 10
 const MAX_WITHDRAW_SPY = 500000
-const BSC_CHAIN_ID = '0x38' // 56 decimal
+const BSC_CHAIN_ID = '0x38'
 const BSC_EXPLORER = 'https://bscscan.com'
 
 // ============================================
@@ -60,7 +59,6 @@ async function copyToClipboard(text: string) {
   }
 }
 
-// Minimal EIP-1193 typing (avoid hard dependency on wagmi)
 type EthereumProvider = {
   request: (args: { method: string; params?: any[] }) => Promise<any>
   on?: (event: string, cb: (...args: any[]) => void) => void
@@ -86,13 +84,14 @@ export default function WalletPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
 
-  // Wallet connection state (Web3)
+  // Wallet connection
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [chainId, setChainId] = useState<string | null>(null)
 
-  // Modal state
+  // Modals
   const [showSendModal, setShowSendModal] = useState(false)
   const [showReceiveModal, setShowReceiveModal] = useState(false)
 
@@ -100,7 +99,6 @@ export default function WalletPage() {
   const spyBalance = Number(profile?.spy_balance) || 0
   const usdBalance = spyBalance * SPY_TO_USD
 
-  // Prefer the on-chain connected address, fall back to saved profile wallet
   const walletAddress: string | null =
     connectedAddress || (profile as any)?.wallet_address || null
 
@@ -126,6 +124,24 @@ export default function WalletPage() {
       withdrawAddress.length > 10,
     [withdrawAmountNum, spyBalance, withdrawAddress]
   )
+
+  // ===== QR CODE (uses existing `qrcode` package) =====
+  useEffect(() => {
+    let cancelled = false
+    if (!walletAddress) {
+      setQrDataUrl(null)
+      return
+    }
+    QRCode.toDataURL(walletAddress, {
+      width: 360,
+      margin: 1,
+      color: { dark: '#ffffff', light: '#00000000' },
+      errorCorrectionLevel: 'M',
+    })
+      .then((url) => { if (!cancelled) setQrDataUrl(url) })
+      .catch(() => { if (!cancelled) setQrDataUrl(null) })
+    return () => { cancelled = true }
+  }, [walletAddress])
 
   // ===== DATA FETCHING =====
   const fetchTransactions = useCallback(async () => {
@@ -159,7 +175,7 @@ export default function WalletPage() {
     if (profile?.id) fetchAllData()
   }, [profile?.id, fetchAllData])
 
-  // ===== WALLET CONNECT (MetaMask / injected) =====
+  // ===== WALLET CONNECT =====
   const connectWallet = useCallback(async () => {
     const eth = getEthereum()
     if (!eth) {
@@ -171,12 +187,9 @@ export default function WalletPage() {
       const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' })
       const addr = accounts?.[0]
       if (!addr) throw new Error('No account returned')
-
       const cid: string = await eth.request({ method: 'eth_chainId' })
       setConnectedAddress(addr)
       setChainId(cid)
-
-      // Persist to profile so server-side withdrawals know the address
       if (profile?.id) {
         await supabase
           .from('profiles')
@@ -193,22 +206,17 @@ export default function WalletPage() {
     }
   }, [profile?.id, refreshProfile])
 
-  const disconnectWallet = useCallback(async () => {
+  const disconnectWallet = useCallback(() => {
     setConnectedAddress(null)
     setChainId(null)
-    // Note: injected wallets don't support programmatic disconnect;
-    // this just clears local UI state.
     toast.success('Disconnected')
   }, [])
 
-  // Listen for account/chain changes
   useEffect(() => {
     const eth = getEthereum()
     if (!eth?.on) return
-
     const onAccounts = (accounts: string[]) => setConnectedAddress(accounts?.[0] ?? null)
     const onChain = (cid: string) => setChainId(cid)
-
     eth.on('accountsChanged', onAccounts)
     eth.on('chainChanged', onChain)
     return () => {
@@ -217,7 +225,6 @@ export default function WalletPage() {
     }
   }, [])
 
-  // Auto-detect already-authorized wallet on mount
   useEffect(() => {
     const eth = getEthereum()
     if (!eth) return
@@ -229,9 +236,7 @@ export default function WalletPage() {
           const cid: string = await eth.request({ method: 'eth_chainId' })
           setChainId(cid)
         }
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     })()
   }, [])
 
@@ -274,14 +279,9 @@ export default function WalletPage() {
   const formatDate = useCallback((dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
       })
-    } catch {
-      return dateString
-    }
+    } catch { return dateString }
   }, [])
 
   const getTransactionIcon = useCallback((type: string) => {
@@ -317,7 +317,7 @@ export default function WalletPage() {
 
   return (
     <div className={styles.walletPage}>
-      {/* ===== WEB3 MAIN BALANCE CARD ===== */}
+      {/* MAIN BALANCE CARD */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -342,7 +342,7 @@ export default function WalletPage() {
           </button>
         </div>
 
-        {/* ===== WALLET ADDRESS / CONNECT BAR ===== */}
+        {/* WALLET ADDRESS / CONNECT BAR */}
         <div className={styles.walletAddressBar}>
           {walletAddress ? (
             <>
@@ -374,7 +374,7 @@ export default function WalletPage() {
           )}
         </div>
 
-        {/* Action Buttons */}
+        {/* ACTION BUTTONS */}
         <div className={styles.actionButtons}>
           <button className={styles.actionBtn} onClick={() => setShowSendModal(true)}>
             <div className={styles.actionBtnIcon}><FaPaperPlane /></div>
@@ -399,7 +399,7 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* ===== ASSETS ===== */}
+      {/* ASSETS */}
       <div className={styles.assetsSection}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Your Assets</h2>
@@ -424,7 +424,7 @@ export default function WalletPage() {
         </motion.div>
       </div>
 
-      {/* ===== RECENT ACTIVITY ===== */}
+      {/* RECENT ACTIVITY */}
       <div className={styles.historyCard}>
         <div className={styles.historyHeader}>
           <h2 className={styles.historyTitle}><FaHistory /> Recent Activity</h2>
@@ -438,7 +438,7 @@ export default function WalletPage() {
               const color = getTransactionColor(tx.type)
               return (
                 <div key={tx.id} className={styles.txRow}>
-                  <div className={`${styles.txIconWrapper} ${styles[`txIconWrapper${color[0].toUpperCase()}${color.slice(1)}`] || ''}`}>
+                  <div className={`${styles.txIconWrapper} ${color === 'success' ? styles.txIconWrapperSuccess : color === 'danger' ? styles.txIconWrapperDanger : ''}`}>
                     <Icon className={`${styles.txIcon} ${styles[color] || ''}`} />
                   </div>
                   <div className={styles.txDetails}>
@@ -469,7 +469,7 @@ export default function WalletPage() {
         )}
       </div>
 
-      {/* ===== SEND MODAL ===== */}
+      {/* SEND MODAL */}
       <AnimatePresence>
         {showSendModal && (
           <motion.div
@@ -556,7 +556,7 @@ export default function WalletPage() {
         )}
       </AnimatePresence>
 
-      {/* ===== RECEIVE MODAL — real QR ===== */}
+      {/* RECEIVE MODAL — QR via `qrcode` data URL */}
       <AnimatePresence>
         {showReceiveModal && (
           <motion.div
@@ -580,8 +580,14 @@ export default function WalletPage() {
               <div className={styles.modalBody}>
                 <div className={styles.receiveContent}>
                   <div className={styles.qrPlaceholder}>
-                    {walletAddress ? (
-                      <QRCodeSVG value={walletAddress} size={180} bgColor="transparent" fgColor="#ffffff" />
+                    {qrDataUrl ? (
+                      <img
+                        src={qrDataUrl}
+                        alt={`QR code for ${walletAddress}`}
+                        width={180}
+                        height={180}
+                        style={{ borderRadius: '0.5rem', display: 'block' }}
+                      />
                     ) : (
                       <FaQrcode />
                     )}
