@@ -1,48 +1,79 @@
-/* Referrals page styles */
+/* ============================================
+   Referrals page
+   ============================================ */
 
 .referralsPage {
-  display: grid;
-  gap: 1.5rem;
-  --surface-strong: rgba(255,255,255,0.12);
-  --border: rgba(96,165,250,0.18);
+  --surface: rgba(8, 18, 40, 0.88);
+  --surface-soft: rgba(255, 255, 255, 0.03);
+  --border: rgba(96, 165, 250, 0.16);
   --text: #eef2ff;
-  --muted: rgba(226,232,240,0.72);
+  --muted: rgba(226, 232, 240, 0.72);
   --accent: #60a5fa;
   --accent-strong: #38bdf8;
   --success: #4ade80;
+  --gold: #facc15;
+  --silver: #cbd5e1;
+  --bronze: #fb923c;
   --radius: 24px;
+
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  color: var(--text);
 }
 
+/* Shared card */
 .heroCard,
-.sectionCard,
-.leaderboardCard,
-.statsCard,
+.linkCard,
 .historyCard,
-.linkCard {
-  background: rgba(8,18,40,0.88);
-  border: 1px solid rgba(96,165,250,0.16);
+.leaderboardCard,
+.statsCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
   padding: 1.5rem;
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }
 
-.heroCard h1,
-.sectionTitle,
-.leaderTitle {
-  color: white;
+/* ===== HERO ===== */
+.heroCard {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 90% at 100% 0%, rgba(56, 189, 248, 0.22), transparent 60%),
+    linear-gradient(135deg, rgba(37, 99, 235, 0.28) 0%, rgba(15, 23, 42, 0.55) 100%);
+  border-color: rgba(96, 165, 250, 0.28);
+}
+
+.heroCard::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.55), transparent);
+}
+
+.heroTitle {
   margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
 }
 
-.heroCard p,
-.sectionDescription,
-.statLabel,
-.historyMeta,
-.leaderSubtext {
-  color: var(--muted);
+.heroDescription {
+  margin: 0.6rem 0 0;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  max-width: 640px;
 }
 
+/* ===== STATS ===== */
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -50,10 +81,16 @@
 }
 
 .statsCard {
-  display: grid;
-  gap: 1rem;
+  background: var(--surface-soft);
+  border: 1px solid rgba(96, 165, 250, 0.12);
   border-radius: 1.5rem;
-  background: rgba(255,255,255,0.03);
+  padding: 1.1rem;
+  transition: transform 0.25s ease, border-color 0.25s ease;
+}
+
+.statsCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(96, 165, 250, 0.35);
 }
 
 .statsCardHeader {
@@ -69,172 +106,308 @@
   border-radius: 1rem;
   display: grid;
   place-items: center;
-  background: rgba(96,165,250,0.15);
+  background: rgba(96, 165, 250, 0.15);
   color: var(--accent);
+  font-size: 1.15rem;
 }
 
 .statText {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .statLabel {
-  font-size: 0.95rem;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
 }
 
 .statValue {
-  font-size: 1.7rem;
-  font-weight: 700;
-  color: white;
   margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== LINK CARD ===== */
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .linkFieldRow {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
 }
 
-.textInput,
-.selectInput {
+.textInput {
   width: 100%;
   min-width: 0;
-  padding: 1rem 1.1rem;
+  padding: 0.95rem 1.1rem;
   border-radius: 1rem;
-  border: 1px solid rgba(96,165,250,0.18);
-  background: rgba(255,255,255,0.04);
-  color: white;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  font-family: 'SFMono-Regular', ui-monospace, Menlo, monospace;
+  font-size: 0.85rem;
   outline: none;
+  transition: border-color 0.2s ease;
 }
 
-.textInput::placeholder,
-.selectInput::placeholder {
-  color: rgba(226,232,240,0.55);
+.textInput:focus {
+  border-color: var(--accent);
+  background: rgba(96, 165, 250, 0.06);
 }
 
-.copyButton,
-.actionButton {
-  min-width: 4rem;
-  padding: 0.95rem 1rem;
+.copyButton {
+  display: grid;
+  place-items: center;
+  min-width: 3.4rem;
+  height: 3.4rem;
+  padding: 0;
   border-radius: 1rem;
   border: none;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: white;
+  color: #ffffff;
   cursor: pointer;
-  transition: transform 160ms ease, opacity 160ms ease;
+  transition: transform 0.2s ease, filter 0.2s ease;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
 }
 
-.copyButton:hover,
-.actionButton:hover {
+.copyButton:hover {
   transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.copyButton:active { transform: translateY(0) scale(0.97); }
+
+.copyButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .tipBox {
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 1rem 1.1rem;
   border-radius: 1.25rem;
-  background: rgba(96,165,250,0.08);
-  border: 1px solid rgba(96,165,250,0.14);
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.14);
 }
 
 .tipTitle {
   color: #93c5fd;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .tipList {
   margin: 0.75rem 0 0;
-  padding-left: 1.25rem;
-  color: rgba(226,232,240,0.72);
+  padding-left: 1.1rem;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 0.88rem;
+  line-height: 1.6;
 }
 
-.tipList li {
-  margin-bottom: 0.4rem;
-}
+.tipList li { margin-bottom: 0.35rem; }
+.tipList strong { color: #ffffff; }
 
-.historyCard {
+/* ===== HISTORY ===== */
+.historyList {
   display: grid;
-  gap: 1rem;
+  gap: 0.65rem;
 }
 
-.historyItem,
+.historyItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface-soft);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.historyItem:hover {
+  border-color: rgba(96, 165, 250, 0.28);
+  transform: translateX(3px);
+}
+
+.historyContent {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.historyName {
+  margin: 0;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyMeta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.historyEarnings {
+  margin: 0;
+  color: var(--success);
+  font-weight: 800;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 14px rgba(74, 222, 128, 0.25);
+  white-space: nowrap;
+}
+
+/* ===== LEADERBOARD ===== */
+.leaderboardList {
+  display: grid;
+  gap: 0.6rem;
+}
+
 .leaderboardRow {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem;
-  background: rgba(255,255,255,0.03);
-  border-radius: 1rem;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.historyContent,
-.leaderText {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.historyMeta,
-.leaderSubtext,
-.leaderDate {
-  margin: 0;
-  color: rgba(226,232,240,0.7);
-  font-size: 0.85rem;
-}
-
-.historyEarnings,
-.leaderBadge {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.leaderboardCard {
-  display: grid;
-  gap: 1rem;
-}
-
-.leaderboardRow {
   align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface-soft);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.leaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
 }
 
 .rankTag {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.2rem;
+  height: 2.2rem;
   border-radius: 999px;
   display: grid;
   place-items: center;
-  color: white;
-  font-weight: 700;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
-.rankGold {
-  background: #facc15;
-}
+.rankGold    { background: var(--gold);   color: #0f172a; box-shadow: 0 0 18px rgba(250, 204, 21, 0.4); }
+.rankSilver  { background: var(--silver); color: #0f172a; }
+.rankBronze  { background: var(--bronze); }
+.rankDefault { background: rgba(96, 165, 250, 0.18); }
 
-.rankSilver {
-  background: #cbd5e1;
-  color: #0f172a;
-}
-
-.rankBronze {
-  background: #fb923c;
-}
-
-.rankDefault {
-  background: rgba(96,165,250,0.18);
-}
-
-.leaderboardText {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.leaderboardRow span {
-  color: white;
+.leaderName {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .leaderboardInfo {
   text-align: right;
+  flex-shrink: 0;
+}
+
+.leaderDate {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .referralsPage {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .heroCard,
+  .linkCard,
+  .historyCard,
+  .leaderboardCard {
+    padding: 1.15rem;
+    border-radius: 1.25rem;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statIcon {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    font-size: 1rem;
+  }
+
+  .statValue { font-size: 1.15rem; }
+
+  .linkFieldRow {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .copyButton {
+    width: 100%;
+    height: 3rem;
+    border-radius: 0.85rem;
+  }
+
+  .textInput { font-size: 0.75rem; padding: 0.8rem 0.9rem; }
+
+  .historyItem,
+  .leaderboardRow {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .historyName,
+  .leaderName { font-size: 0.85rem; }
+
+  .historyEarnings { font-size: 0.85rem; }
+}
+
+@media (max-width: 380px) {
+  .referralsPage { padding: 0.75rem; }
+  .statValue { font-size: 1rem; }
+  .statLabel { font-size: 0.7rem; }
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .statsCard,
+  .copyButton,
+  .historyItem,
+  .leaderboardRow {
+    transition: none !important;
+  }
+  .statsCard:hover,
+  .copyButton:hover,
+  .historyItem:hover {
+    transform: none !important;
+  }
 }
