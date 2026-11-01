@@ -1,413 +1,280 @@
-/* ============================================
-   Referrals page
-   ============================================ */
+'use client'
 
-.referralsPage {
-  --surface: rgba(8, 18, 40, 0.88);
-  --surface-soft: rgba(255, 255, 255, 0.03);
-  --border: rgba(96, 165, 250, 0.16);
-  --text: #eef2ff;
-  --muted: rgba(226, 232, 240, 0.72);
-  --accent: #60a5fa;
-  --accent-strong: #38bdf8;
-  --success: #4ade80;
-  --gold: #facc15;
-  --silver: #cbd5e1;
-  --bronze: #fb923c;
-  --radius: 24px;
+import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { createClient } from '@/lib/supabase/client'
+import { motion } from 'framer-motion'
+import {
+  FaUsers, FaCopy, FaCheck, FaTrophy, FaChartLine, FaCoins, FaLink,
+} from 'react-icons/fa'
+import toast from 'react-hot-toast'
+import styles from './page.module.css'
 
-  display: grid;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  max-width: 1100px;
-  margin: 0 auto;
-  color: var(--text);
+const supabase = createClient()
+
+interface RefHistory {
+  id: string
+  level: number
+  bonus_spy: number
+  created_at: string
+  referred?: { username: string | null; created_at: string } | null
 }
 
-/* Shared card */
-.heroCard,
-.linkCard,
-.historyCard,
-.leaderboardCard,
-.statsCard {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
-  padding: 1.5rem;
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+interface LeaderRow {
+  username: string | null
+  referral_count: number
+  referral_earnings: number
 }
 
-/* ===== HERO ===== */
-.heroCard {
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse 70% 90% at 100% 0%, rgba(56, 189, 248, 0.22), transparent 60%),
-    linear-gradient(135deg, rgba(37, 99, 235, 0.28) 0%, rgba(15, 23, 42, 0.55) 100%);
-  border-color: rgba(96, 165, 250, 0.28);
-}
+export default function ReferralsPage() {
+  const { profile } = useAuth()
 
-.heroCard::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.55), transparent);
-}
+  const [referralLink, setReferralLink] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [history, setHistory] = useState<RefHistory[]>([])
+  const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([])
+  const [stats, setStats] = useState({
+    total: 0,
+    earned: 0,
+    l1: 0,
+    l2: 0,
+    l3: 0,
+  })
 
-.heroTitle {
-  margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.02em;
-}
+  const buildLink = useCallback((code?: string | null) => {
+    if (!code) return ''
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : '')
+    return `${base}/register?ref=${code}`
+  }, [])
 
-.heroDescription {
-  margin: 0.6rem 0 0;
-  color: rgba(226, 232, 240, 0.78);
-  font-size: 0.95rem;
-  line-height: 1.6;
-  max-width: 640px;
-}
+  useEffect(() => {
+    if (!profile) return
+    const code = (profile as any).referral_code as string | undefined
+    setReferralLink(buildLink(code))
+  }, [profile, buildLink])
 
-/* ===== STATS ===== */
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
+  const fetchAll = useCallback(async () => {
+    if (!profile?.id) return
+    setLoading(true)
+    try {
+      const [refsRes, leaderRes] = await Promise.all([
+        supabase
+          .from('referrals')
+          .select('id, level, bonus_spy, created_at, referred:referred_id(username, created_at)')
+          .eq('referrer_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('profiles')
+          .select('username, referral_count, referral_earnings')
+          .order('referral_count', { ascending: false })
+          .limit(10),
+      ])
 
-.statsCard {
-  background: var(--surface-soft);
-  border: 1px solid rgba(96, 165, 250, 0.12);
-  border-radius: 1.5rem;
-  padding: 1.1rem;
-  transition: transform 0.25s ease, border-color 0.25s ease;
-}
+      const refs = (refsRes.data || []) as RefHistory[]
+      setHistory(refs)
 
-.statsCard:hover {
-  transform: translateY(-2px);
-  border-color: rgba(96, 165, 250, 0.35);
-}
+      const total = refs.length
+      const earned = refs.reduce((s, r) => s + Number(r.bonus_spy || 0), 0)
+      const l1 = refs.filter((r) => r.level === 1).length
+      const l2 = refs.filter((r) => r.level === 2).length
+      const l3 = refs.filter((r) => r.level === 3).length
+      setStats({ total, earned, l1, l2, l3 })
 
-.statsCardHeader {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
+      setLeaderboard((leaderRes.data || []) as LeaderRow[])
+    } catch (err) {
+      console.error('Referrals fetch error:', err)
+      toast.error('Could not load referral data')
+    } finally {
+      setLoading(false)
+    }
+  }, [profile?.id])
 
-.statIcon {
-  width: 3rem;
-  height: 3rem;
-  min-width: 3rem;
-  border-radius: 1rem;
-  display: grid;
-  place-items: center;
-  background: rgba(96, 165, 250, 0.15);
-  color: var(--accent);
-  font-size: 1.15rem;
-}
+  useEffect(() => {
+    if (profile?.id) fetchAll()
+  }, [profile?.id, fetchAll])
 
-.statText {
-  display: grid;
-  gap: 0.2rem;
-  min-width: 0;
-}
+  const copyToClipboard = useCallback(async () => {
+    if (!referralLink) {
+      toast.error('Referral link not ready yet')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(referralLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      toast.success('Referral link copied!')
+    } catch {
+      toast.error('Copy failed — long-press to copy')
+    }
+  }, [referralLink])
 
-.statLabel {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
+  return (
+    <div className={styles.referralsPage}>
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={styles.heroCard}
+      >
+        <h1 className={styles.heroTitle}>Refer &amp; Earn</h1>
+        <p className={styles.heroDescription}>
+          Invite friends and earn up to 10% of their lifetime earnings — plus 5% and 2.5%
+          from their downline.
+        </p>
+      </motion.div>
 
-.statValue {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #ffffff;
-  font-variant-numeric: tabular-nums;
-}
+      <div className={styles.statsGrid}>
+        {[
+          { icon: FaUsers, label: 'Total Referrals', value: stats.total },
+          { icon: FaCoins, label: 'Total Earned', value: `${stats.earned.toLocaleString()} SPY` },
+          { icon: FaChartLine, label: 'Level 1', value: stats.l1 },
+          { icon: FaTrophy, label: 'Level 2 + 3', value: stats.l2 + stats.l3 },
+        ].map((s, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className={styles.statsCard}
+          >
+            <div className={styles.statsCardHeader}>
+              <div className={styles.statIcon}>
+                <s.icon />
+              </div>
+              <div className={styles.statText}>
+                <p className={styles.statLabel}>{s.label}</p>
+                <p className={styles.statValue}>{loading ? '—' : s.value}</p>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
 
-/* ===== LINK CARD ===== */
-.sectionTitle {
-  display: flex;
-  align-items: center;
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #ffffff;
-}
+      <div className={styles.linkCard}>
+        <h3 className={styles.sectionTitle}>
+          <FaLink style={{ marginRight: '0.5rem', color: 'var(--accent)' }} />
+          Your Referral Link
+        </h3>
 
-.linkFieldRow {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-}
+        {referralLink ? (
+          <div className={styles.linkFieldRow}>
+            <input
+              type="text"
+              value={referralLink}
+              readOnly
+              aria-label="Referral link"
+              className={styles.textInput}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <button
+              onClick={copyToClipboard}
+              className={styles.copyButton}
+              aria-label="Copy link"
+            >
+              {copied ? <FaCheck /> : <FaCopy />}
+            </button>
+          </div>
+        ) : (
+          <div className={styles.linkFieldRow}>
+            <p className={styles.historyMeta}>
+              Your referral code is being generated… refresh in a moment.
+            </p>
+          </div>
+        )}
 
-.textInput {
-  width: 100%;
-  min-width: 0;
-  padding: 0.95rem 1.1rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(96, 165, 250, 0.2);
-  background: rgba(255, 255, 255, 0.04);
-  color: #ffffff;
-  font-family: 'SFMono-Regular', ui-monospace, Menlo, monospace;
-  font-size: 0.85rem;
-  outline: none;
-  transition: border-color 0.2s ease;
-}
+        <div className={styles.tipBox}>
+          <p className={styles.tipTitle}>💡 How it works</p>
+          <ul className={styles.tipList}>
+            <li>Share your unique link with friends</li>
+            <li>
+              Earn <strong>10%</strong> of what they earn — forever
+            </li>
+            <li>
+              Level 2: <strong>5%</strong> of their referrals&apos; earnings
+            </li>
+            <li>
+              Level 3: <strong>2.5%</strong> of third-level referrals
+            </li>
+          </ul>
+        </div>
+      </div>
 
-.textInput:focus {
-  border-color: var(--accent);
-  background: rgba(96, 165, 250, 0.06);
-}
+      <div className={styles.historyCard}>
+        <h3 className={styles.sectionTitle}>Referral History</h3>
+        {loading ? (
+          <p className={styles.historyMeta}>Loading…</p>
+        ) : history.length > 0 ? (
+          <div className={styles.historyList}>
+            {history.map((ref) => (
+              <div key={ref.id} className={styles.historyItem}>
+                <div className={styles.historyContent}>
+                  <p className={styles.historyName}>
+                    {ref.referred?.username || 'Anonymous'}
+                  </p>
+                  <p className={styles.historyMeta}>
+                    Level {ref.level} • {new Date(ref.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <p className={styles.historyEarnings}>
+                  +{Number(ref.bonus_spy).toLocaleString()} SPY
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.historyMeta}>
+            No referrals yet. Share your link to start earning!
+          </p>
+        )}
+      </div>
 
-.copyButton {
-  display: grid;
-  place-items: center;
-  min-width: 3.4rem;
-  height: 3.4rem;
-  padding: 0;
-  border-radius: 1rem;
-  border: none;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #ffffff;
-  cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
-}
-
-.copyButton:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-}
-
-.copyButton:active { transform: translateY(0) scale(0.97); }
-
-.copyButton:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.tipBox {
-  margin-top: 1rem;
-  padding: 1rem 1.1rem;
-  border-radius: 1.25rem;
-  background: rgba(96, 165, 250, 0.08);
-  border: 1px solid rgba(96, 165, 250, 0.14);
-}
-
-.tipTitle {
-  color: #93c5fd;
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.tipList {
-  margin: 0.75rem 0 0;
-  padding-left: 1.1rem;
-  color: rgba(226, 232, 240, 0.78);
-  font-size: 0.88rem;
-  line-height: 1.6;
-}
-
-.tipList li { margin-bottom: 0.35rem; }
-.tipList strong { color: #ffffff; }
-
-/* ===== HISTORY ===== */
-.historyList {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.historyItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.9rem 1rem;
-  background: var(--surface-soft);
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: border-color 0.2s ease, transform 0.2s ease;
-}
-
-.historyItem:hover {
-  border-color: rgba(96, 165, 250, 0.28);
-  transform: translateX(3px);
-}
-
-.historyContent {
-  display: grid;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.historyName {
-  margin: 0;
-  font-weight: 700;
-  color: #ffffff;
-  font-size: 0.92rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.historyMeta {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.historyEarnings {
-  margin: 0;
-  color: var(--success);
-  font-weight: 800;
-  font-size: 0.95rem;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 14px rgba(74, 222, 128, 0.25);
-  white-space: nowrap;
-}
-
-/* ===== LEADERBOARD ===== */
-.leaderboardList {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.leaderboardRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.9rem 1rem;
-  background: var(--surface-soft);
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.leaderLeft {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  min-width: 0;
-}
-
-.rankTag {
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 0.85rem;
-  flex-shrink: 0;
-}
-
-.rankGold    { background: var(--gold);   color: #0f172a; box-shadow: 0 0 18px rgba(250, 204, 21, 0.4); }
-.rankSilver  { background: var(--silver); color: #0f172a; }
-.rankBronze  { background: var(--bronze); }
-.rankDefault { background: rgba(96, 165, 250, 0.18); }
-
-.leaderName {
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 0.92rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.leaderboardInfo {
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.leaderDate {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 640px) {
-  .referralsPage {
-    padding: 1rem;
-    gap: 1rem;
-  }
-
-  .heroCard,
-  .linkCard,
-  .historyCard,
-  .leaderboardCard {
-    padding: 1.15rem;
-    border-radius: 1.25rem;
-  }
-
-  .statsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .statIcon {
-    width: 2.5rem;
-    height: 2.5rem;
-    min-width: 2.5rem;
-    font-size: 1rem;
-  }
-
-  .statValue { font-size: 1.15rem; }
-
-  .linkFieldRow {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
-  }
-
-  .copyButton {
-    width: 100%;
-    height: 3rem;
-    border-radius: 0.85rem;
-  }
-
-  .textInput { font-size: 0.75rem; padding: 0.8rem 0.9rem; }
-
-  .historyItem,
-  .leaderboardRow {
-    padding: 0.8rem 0.85rem;
-  }
-
-  .historyName,
-  .leaderName { font-size: 0.85rem; }
-
-  .historyEarnings { font-size: 0.85rem; }
-}
-
-@media (max-width: 380px) {
-  .referralsPage { padding: 0.75rem; }
-  .statValue { font-size: 1rem; }
-  .statLabel { font-size: 0.7rem; }
-}
-
-/* ===== REDUCED MOTION ===== */
-@media (prefers-reduced-motion: reduce) {
-  .statsCard,
-  .copyButton,
-  .historyItem,
-  .leaderboardRow {
-    transition: none !important;
-  }
-  .statsCard:hover,
-  .copyButton:hover,
-  .historyItem:hover {
-    transform: none !important;
-  }
+      <div className={styles.leaderboardCard}>
+        <h3 className={styles.sectionTitle}>
+          <FaTrophy style={{ marginRight: '0.5rem', color: '#facc15' }} />
+          Top Referrers
+        </h3>
+        {loading ? (
+          <p className={styles.historyMeta}>Loading…</p>
+        ) : leaderboard.length > 0 ? (
+          <div className={styles.leaderboardList}>
+            {leaderboard.map((user, index) => (
+              <div key={`${user.username}-${index}`} className={styles.leaderboardRow}>
+                <div className={styles.leaderLeft}>
+                  <div
+                    className={`${styles.rankTag} ${
+                      index === 0
+                        ? styles.rankGold
+                        : index === 1
+                        ? styles.rankSilver
+                        : index === 2
+                        ? styles.rankBronze
+                        : styles.rankDefault
+                    }`}
+                  >
+                    {index + 1}
+                  </div>
+                  <span className={styles.leaderName}>
+                    {user.username || 'Anonymous'}
+                  </span>
+                </div>
+                <div className={styles.leaderboardInfo}>
+                  <p className={styles.historyEarnings}>
+                    {user.referral_count} referrals
+                  </p>
+                  <p className={styles.leaderDate}>
+                    {Number(user.referral_earnings).toLocaleString()} SPY earned
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.historyMeta}>No referrers yet.</p>
+        )}
+      </div>
+    </div>
+  )
 }
