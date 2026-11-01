@@ -51,6 +51,20 @@ const STATUS_CONFIG: Record<WithdrawalStatus, { label: string; color: string; ic
   rejected: { label: 'Rejected', color: 'red', icon: Ban },
 }
 
+// Map raw Postgres/RPC errors to friendly messages
+function friendlyError(err: any): string {
+  const msg = String(err?.message || err || '')
+  if (msg.includes('NOT_ADMIN')) return 'You do not have permission to do that.'
+  if (msg.includes('WITHDRAWAL_NOT_FOUND')) return 'This withdrawal no longer exists.'
+  if (msg.includes('INVALID_STATUS')) {
+    const s = msg.split(':')[1] || 'changed'
+    return `Status already changed to "${s}". Refresh to see the latest state.`
+  }
+  if (msg.includes('USER_NOT_FOUND')) return 'User profile not found.'
+  if (msg.includes('row-level security')) return 'Permission denied by database policy.'
+  return 'Something went wrong. Please try again.'
+}
+
 export default function AdminWithdrawalsPage() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -65,14 +79,13 @@ export default function AdminWithdrawalsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  // ===== FETCH WITHDRAWALS (FIXED with explicit FK) =====
+  // ===== FETCH WITHDRAWALS =====
   const fetchWithdrawals = useCallback(async () => {
     try {
       setIsLoading(true)
       setRefreshing(true)
       setLoadError(null)
 
-      // ✅ Explicitly specify the FK to avoid ambiguity
       const { data, error } = await supabase
         .from('withdrawals')
         .select('*, profiles!withdrawals_user_id_fkey(username, email)')
@@ -80,43 +93,37 @@ export default function AdminWithdrawalsPage() {
 
       if (error) {
         console.error('Fetch error:', error)
-
-        // Try fallback without profile join
-        const { data: fallbackData, error: fallbackError } = await supabase
+        // Batch-enrich fallback (one query, not N+1)
+        const { data: raw, error: rawErr } = await supabase
           .from('withdrawals')
           .select('*')
           .order('created_at', { ascending: false })
 
-        if (fallbackError) {
-          setLoadError(fallbackError.message)
+        if (rawErr) {
+          setLoadError(friendlyError(rawErr))
           toast.error('Failed to load withdrawals')
           setWithdrawals([])
-        } else {
-          // Manually fetch usernames
-          const enriched = await Promise.all(
-            (fallbackData || []).map(async (w: any) => {
-              try {
-                const { data: profile } = await supabase
-                  .from('profiles')
-                  .select('username, email')
-                  .eq('id', w.user_id)
-                  .single()
-                return { ...w, profiles: profile ? [profile] : [] }
-              } catch {
-                return { ...w, profiles: [] }
-              }
-            })
-          )
-          setWithdrawals(enriched)
-          console.log('✅ Loaded (fallback)', enriched.length, 'withdrawals')
+          return
         }
+
+        const userIds = [...new Set((raw || []).map(w => w.user_id))]
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, email')
+          .in('id', userIds)
+
+        const byId = new Map((profiles || []).map(p => [p.id, p]))
+        const enriched = (raw || []).map((w: any) => ({
+          ...w,
+          profiles: byId.has(w.user_id) ? [byId.get(w.user_id)] : [],
+        }))
+        setWithdrawals(enriched)
       } else {
         setWithdrawals(data || [])
-        console.log('✅ Loaded', data?.length || 0, 'withdrawals')
       }
     } catch (err: any) {
       console.error('Unexpected error:', err)
-      setLoadError(err.message || 'Unknown error')
+      setLoadError(friendlyError(err))
       toast.error('Failed to load withdrawals')
       setWithdrawals([])
     } finally {
@@ -128,7 +135,6 @@ export default function AdminWithdrawalsPage() {
   // ===== FETCH USER STATS =====
   const fetchUserStats = useCallback(async (userId: string) => {
     if (userStats[userId]) return
-
     try {
       const [profileRes, withdrawalsRes] = await Promise.all([
         supabase.from('profiles').select('is_banned, created_at').eq('id', userId).single(),
@@ -137,12 +143,10 @@ export default function AdminWithdrawalsPage() {
 
       const profile = profileRes.data
       const userWithdrawals = withdrawalsRes.data || []
-
       const completed = userWithdrawals.filter(w => w.status === 'completed' || w.status === 'processing')
       const totalWithdrawn = completed.reduce((sum, w) => sum + (w.amount_spy || 0), 0)
-
       const accountAge = profile?.created_at
-        ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86400000)
         : 0
 
       setUserStats(prev => ({
@@ -159,99 +163,40 @@ export default function AdminWithdrawalsPage() {
     }
   }, [userStats])
 
-  useEffect(() => {
-    fetchWithdrawals()
-  }, [fetchWithdrawals])
+  useEffect(() => { fetchWithdrawals() }, [fetchWithdrawals])
 
-  // ===== PROCESS WITHDRAWAL (Approve/Reject) =====
-  const processWithdrawal = async (withdrawalId: string, action: 'approved' | 'rejected') => {
-    setProcessingId(withdrawalId)
+  // ===== RPC ACTIONS (atomic, guarded server-side) =====
+  const runAction = async (
+    id: string,
+    action: 'approve' | 'reject' | 'complete'
+  ) => {
+    setProcessingId(id)
     setConfirmAction(null)
-
     try {
-      const withdrawal = withdrawals.find(w => w.id === withdrawalId)
-      if (!withdrawal) throw new Error('Withdrawal not found')
+      const rpc =
+        action === 'approve' ? 'approve_withdrawal'
+        : action === 'reject' ? 'reject_withdrawal'
+        : 'complete_withdrawal'
 
-      const { error: updateError } = await supabase
-        .from('withdrawals')
-        .update({
-          status: action === 'approved' ? 'processing' : 'rejected',
-          processed_at: new Date().toISOString(),
-        })
-        .eq('id', withdrawalId)
-
-      if (updateError) throw updateError
-
-      if (action === 'rejected') {
-        const { data: user, error: userErr } = await supabase
-          .from('profiles')
-          .select('spy_balance')
-          .eq('id', withdrawal.user_id)
-          .single()
-
-        if (userErr) throw userErr
-
-        const currentBalance = user?.spy_balance || 0
-        const newBalance = currentBalance + withdrawal.amount_spy
-
-        const { error: refundError } = await supabase
-          .from('profiles')
-          .update({ spy_balance: newBalance })
-          .eq('id', withdrawal.user_id)
-
-        if (refundError) throw refundError
-
-        await supabase.from('transactions').insert({
-          user_id: withdrawal.user_id,
-          type: 'withdrawal_refund',
-          amount_spy: withdrawal.amount_spy,
-          balance_before: currentBalance,
-          balance_after: newBalance,
-          metadata: {
-            withdrawal_id: withdrawalId,
-            reason: 'Rejected by admin',
-          },
-        })
-      }
-
-      toast.success(
-        action === 'approved'
-          ? '✅ Withdrawal approved for processing'
-          : '❌ Withdrawal rejected and refunded'
-      )
-
-      setSelectedWithdrawal(null)
-      await fetchWithdrawals()
-    } catch (err: any) {
-      console.error('Process error:', err)
-      toast.error(err.message || 'Failed to process withdrawal')
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  // ===== COMPLETE WITHDRAWAL =====
-  const completeWithdrawal = async (withdrawalId: string) => {
-    setProcessingId(withdrawalId)
-    setConfirmAction(null)
-
-    try {
-      const { error } = await supabase
-        .from('withdrawals')
-        .update({
-          status: 'completed',
-          processed_at: new Date().toISOString(),
-        })
-        .eq('id', withdrawalId)
-
+      const { error } = await supabase.rpc(rpc, { p_withdrawal_id: id })
       if (error) throw error
 
-      toast.success('✅ Withdrawal marked as completed')
+      toast.success(
+        action === 'approve' ? '✅ Approved for processing'
+        : action === 'reject' ? '❌ Rejected and refunded'
+        : '✅ Marked as completed'
+      )
       setSelectedWithdrawal(null)
+      setShowDetailModal(false)
+      // Invalidate cached stats for that user
+      const w = withdrawals.find(x => x.id === id)
+      if (w) setUserStats(prev => { const n = { ...prev }; delete n[w.user_id]; return n })
       await fetchWithdrawals()
     } catch (err: any) {
-      console.error('Complete error:', err)
-      toast.error('Failed to complete withdrawal')
+      console.error(`${action} error:`, err)
+      toast.error(friendlyError(err))
+      // Refresh so UI reflects actual server state after a race/failure
+      await fetchWithdrawals()
     } finally {
       setProcessingId(null)
     }
@@ -268,22 +213,21 @@ export default function AdminWithdrawalsPage() {
     fetchUserStats(withdrawal.user_id)
   }, [fetchUserStats])
 
-  // ===== FILTERED DATA =====
+  // ===== DERIVED DATA =====
   const filtered = useMemo(() => {
+    const q = searchTerm.toLowerCase()
     return withdrawals.filter(w => {
       const username = w.profiles?.[0]?.username?.toLowerCase() || ''
       const email = w.profiles?.[0]?.email?.toLowerCase() || ''
       const matchesSearch =
-        username.includes(searchTerm.toLowerCase()) ||
-        email.includes(searchTerm.toLowerCase()) ||
-        w.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (w.address && w.address.toLowerCase().includes(searchTerm.toLowerCase()))
+        username.includes(q) || email.includes(q) ||
+        w.id.toLowerCase().includes(q) ||
+        (w.address && w.address.toLowerCase().includes(q))
       const matchesFilter = filterStatus === 'all' || w.status === filterStatus
       return matchesSearch && matchesFilter
     })
   }, [withdrawals, searchTerm, filterStatus])
 
-  // ===== STATS =====
   const stats = useMemo(() => ({
     pending: withdrawals.filter(w => w.status === 'pending').length,
     processing: withdrawals.filter(w => w.status === 'processing').length,
@@ -308,7 +252,6 @@ export default function AdminWithdrawalsPage() {
 
   return (
     <div className="wd-page">
-      {/* ===== HEADER ===== */}
       <div className="wd-header">
         <div className="wd-header-left">
           <div className="wd-header-badge">
@@ -319,18 +262,13 @@ export default function AdminWithdrawalsPage() {
           <p className="wd-subtitle">Review, approve, and process withdrawal requests</p>
         </div>
         <div className="wd-header-right">
-          <button
-            onClick={fetchWithdrawals}
-            disabled={refreshing}
-            className="wd-btn-refresh"
-          >
+          <button onClick={fetchWithdrawals} disabled={refreshing} className="wd-btn-refresh">
             <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
             <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>
 
-      {/* ===== ERROR BANNER ===== */}
       {loadError && (
         <div className="wd-alert wd-alert-error">
           <AlertCircle size={18} />
@@ -338,19 +276,12 @@ export default function AdminWithdrawalsPage() {
             <strong>Failed to load withdrawals</strong>
             <span>{loadError}</span>
           </div>
-          <button onClick={fetchWithdrawals} className="wd-alert-retry">
-            Retry
-          </button>
+          <button onClick={fetchWithdrawals} className="wd-alert-retry">Retry</button>
         </div>
       )}
 
-      {/* ===== PENDING ALERT ===== */}
       {stats.pending > 0 && !loadError && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="wd-alert"
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="wd-alert">
           <AlertTriangle size={18} />
           <div>
             <strong>{stats.pending} withdrawal{stats.pending > 1 ? 's' : ''} pending review</strong>
@@ -359,7 +290,6 @@ export default function AdminWithdrawalsPage() {
         </motion.div>
       )}
 
-      {/* ===== STATS GRID ===== */}
       <div className="wd-stats">
         {[
           { label: 'Pending', value: stats.pending, icon: Clock, color: 'yellow' },
@@ -386,7 +316,6 @@ export default function AdminWithdrawalsPage() {
         ))}
       </div>
 
-      {/* ===== TOOLBAR ===== */}
       <div className="wd-toolbar">
         <div className="wd-search">
           <Search className="wd-search-icon" size={18} />
@@ -413,7 +342,6 @@ export default function AdminWithdrawalsPage() {
         </button>
       </div>
 
-      {/* ===== FILTER CHIPS ===== */}
       <AnimatePresence>
         {showFilters && (
           <motion.div
@@ -439,12 +367,10 @@ export default function AdminWithdrawalsPage() {
         )}
       </AnimatePresence>
 
-      {/* ===== RESULTS ===== */}
       <div className="wd-results">
         <span>{filtered.length} withdrawal{filtered.length !== 1 ? 's' : ''} found</span>
       </div>
 
-      {/* ===== TABLE ===== */}
       <div className="wd-table-wrap">
         {filtered.length === 0 ? (
           <div className="wd-empty">
@@ -472,7 +398,7 @@ export default function AdminWithdrawalsPage() {
                   const statusConfig = STATUS_CONFIG[w.status]
                   const StatusIcon = statusConfig.icon
                   const username = w.profiles?.[0]?.username || 'Unknown'
-                  const stats = userStats[w.user_id]
+                  const us = userStats[w.user_id]
 
                   return (
                     <motion.tr
@@ -480,7 +406,7 @@ export default function AdminWithdrawalsPage() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.02 }}
-                      className={`wd-row ${stats?.isBanned ? 'wd-row-banned' : ''}`}
+                      className={`wd-row ${us?.isBanned ? 'wd-row-banned' : ''}`}
                     >
                       <td>
                         <Link href={`/admin/users/${w.user_id}`} className="wd-user">
@@ -489,10 +415,8 @@ export default function AdminWithdrawalsPage() {
                           </div>
                           <div className="wd-user-info">
                             <span className="wd-user-name">{username}</span>
-                            {stats?.isBanned && (
-                              <span className="wd-user-banned">
-                                <Ban size={10} /> BANNED
-                              </span>
+                            {us?.isBanned && (
+                              <span className="wd-user-banned"><Ban size={10} /> BANNED</span>
                             )}
                           </div>
                         </Link>
@@ -504,9 +428,7 @@ export default function AdminWithdrawalsPage() {
                         </div>
                       </td>
                       <td>
-                        <span className={`wd-method wd-method-${w.method}`}>
-                          {w.method.toUpperCase()}
-                        </span>
+                        <span className={`wd-method wd-method-${w.method}`}>{w.method.toUpperCase()}</span>
                       </td>
                       <td>
                         {w.method === 'usdt' && w.address ? (
@@ -514,11 +436,7 @@ export default function AdminWithdrawalsPage() {
                             <span className="wd-dest-text">
                               {w.address.slice(0, 10)}...{w.address.slice(-6)}
                             </span>
-                            <button
-                              onClick={() => copyToClipboard(w.address!)}
-                              className="wd-copy"
-                              title="Copy address"
-                            >
+                            <button onClick={() => copyToClipboard(w.address!)} className="wd-copy" title="Copy address">
                               <Copy size={12} />
                             </button>
                           </div>
@@ -531,9 +449,7 @@ export default function AdminWithdrawalsPage() {
                           <span className="wd-dest-text">—</span>
                         )}
                       </td>
-                      <td>
-                        <span className="wd-fee">{w.fee_spy} SPY</span>
-                      </td>
+                      <td><span className="wd-fee">{w.fee_spy} SPY</span></td>
                       <td>
                         <span className={`wd-status wd-status-${statusConfig.color}`}>
                           <StatusIcon size={12} />
@@ -543,29 +459,19 @@ export default function AdminWithdrawalsPage() {
                       <td>
                         <span className="wd-date">
                           {new Date(w.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
+                            month: 'short', day: 'numeric', year: 'numeric',
                           })}
                         </span>
                       </td>
                       <td>
                         <div className="wd-actions">
-                          <button
-                            onClick={() => openDetail(w)}
-                            className="wd-action-btn wd-action-view"
-                            title="View details"
-                          >
+                          <button onClick={() => openDetail(w)} className="wd-action-btn wd-action-view" title="View details">
                             <Eye size={14} />
                           </button>
-
                           {w.status === 'pending' && (
                             <>
                               <button
-                                onClick={() => {
-                                  setSelectedWithdrawal(w)
-                                  setConfirmAction('approve')
-                                }}
+                                onClick={() => { setSelectedWithdrawal(w); setConfirmAction('approve') }}
                                 disabled={processingId === w.id}
                                 className="wd-action-btn wd-action-approve"
                                 title="Approve"
@@ -573,10 +479,7 @@ export default function AdminWithdrawalsPage() {
                                 <CheckCircle size={14} />
                               </button>
                               <button
-                                onClick={() => {
-                                  setSelectedWithdrawal(w)
-                                  setConfirmAction('reject')
-                                }}
+                                onClick={() => { setSelectedWithdrawal(w); setConfirmAction('reject') }}
                                 disabled={processingId === w.id}
                                 className="wd-action-btn wd-action-reject"
                                 title="Reject & Refund"
@@ -585,13 +488,9 @@ export default function AdminWithdrawalsPage() {
                               </button>
                             </>
                           )}
-
                           {w.status === 'processing' && (
                             <button
-                              onClick={() => {
-                                setSelectedWithdrawal(w)
-                                setConfirmAction('complete')
-                              }}
+                              onClick={() => { setSelectedWithdrawal(w); setConfirmAction('complete') }}
                               disabled={processingId === w.id}
                               className="wd-action-btn wd-action-complete"
                               title="Mark as completed"
@@ -610,33 +509,23 @@ export default function AdminWithdrawalsPage() {
         )}
       </div>
 
-      {/* ===== DETAIL MODAL ===== */}
+      {/* DETAIL MODAL */}
       <AnimatePresence>
         {showDetailModal && selectedWithdrawal && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="wd-modal-overlay"
-            onClick={() => {
-              setShowDetailModal(false)
-              setSelectedWithdrawal(null)
-            }}
+            onClick={() => { setShowDetailModal(false); setSelectedWithdrawal(null) }}
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
               className="wd-modal wd-modal-detail"
               onClick={e => e.stopPropagation()}
             >
               <div className="wd-modal-header">
                 <h3>Withdrawal Details</h3>
                 <button
-                  onClick={() => {
-                    setShowDetailModal(false)
-                    setSelectedWithdrawal(null)
-                  }}
+                  onClick={() => { setShowDetailModal(false); setSelectedWithdrawal(null) }}
                   className="wd-modal-close"
                 >
                   <X size={20} />
@@ -656,9 +545,7 @@ export default function AdminWithdrawalsPage() {
 
                 <div className="wd-detail-amount">
                   <p className="wd-detail-label">Amount</p>
-                  <p className="wd-detail-value">
-                    {selectedWithdrawal.amount_spy.toLocaleString()} SPY
-                  </p>
+                  <p className="wd-detail-value">{selectedWithdrawal.amount_spy.toLocaleString()} SPY</p>
                   <p className="wd-detail-usd">≈ ${selectedWithdrawal.amount_usd?.toFixed(2)} USD</p>
                 </div>
 
@@ -687,9 +574,7 @@ export default function AdminWithdrawalsPage() {
 
                 {userStats[selectedWithdrawal.user_id] && (
                   <div className="wd-detail-section">
-                    <h4 className="wd-detail-section-title">
-                      <Users size={14} /> User Analytics
-                    </h4>
+                    <h4 className="wd-detail-section-title"><Users size={14} /> User Analytics</h4>
                     <div className="wd-detail-grid">
                       <div className="wd-detail-item">
                         <span className="wd-detail-label-sm">Total Withdrawn</span>
@@ -724,10 +609,7 @@ export default function AdminWithdrawalsPage() {
                     <h4 className="wd-detail-section-title">Destination Address</h4>
                     <div className="wd-detail-address">
                       <code>{selectedWithdrawal.address}</code>
-                      <button
-                        onClick={() => copyToClipboard(selectedWithdrawal.address!)}
-                        className="wd-copy-btn"
-                      >
+                      <button onClick={() => copyToClipboard(selectedWithdrawal.address!)} className="wd-copy-btn">
                         <Copy size={14} /> Copy
                       </button>
                     </div>
@@ -767,44 +649,30 @@ export default function AdminWithdrawalsPage() {
 
               <div className="wd-modal-footer">
                 <button
-                  onClick={() => {
-                    setShowDetailModal(false)
-                    setSelectedWithdrawal(null)
-                  }}
+                  onClick={() => { setShowDetailModal(false); setSelectedWithdrawal(null) }}
                   className="wd-modal-btn wd-modal-btn-cancel"
                 >
                   Close
                 </button>
-
                 {selectedWithdrawal.status === 'pending' && (
                   <>
                     <button
-                      onClick={() => {
-                        setShowDetailModal(false)
-                        setConfirmAction('reject')
-                      }}
+                      onClick={() => { setShowDetailModal(false); setConfirmAction('reject') }}
                       className="wd-modal-btn wd-modal-btn-reject"
                     >
                       <XCircle size={16} /> Reject
                     </button>
                     <button
-                      onClick={() => {
-                        setShowDetailModal(false)
-                        setConfirmAction('approve')
-                      }}
+                      onClick={() => { setShowDetailModal(false); setConfirmAction('approve') }}
                       className="wd-modal-btn wd-modal-btn-approve"
                     >
                       <CheckCircle size={16} /> Approve
                     </button>
                   </>
                 )}
-
                 {selectedWithdrawal.status === 'processing' && (
                   <button
-                    onClick={() => {
-                      setShowDetailModal(false)
-                      setConfirmAction('complete')
-                    }}
+                    onClick={() => { setShowDetailModal(false); setConfirmAction('complete') }}
                     className="wd-modal-btn wd-modal-btn-approve"
                   >
                     <CheckCheck size={16} /> Complete
@@ -816,20 +684,16 @@ export default function AdminWithdrawalsPage() {
         )}
       </AnimatePresence>
 
-      {/* ===== CONFIRM MODAL ===== */}
+      {/* CONFIRM MODAL */}
       <AnimatePresence>
         {confirmAction && selectedWithdrawal && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="wd-modal-overlay"
             onClick={() => setConfirmAction(null)}
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
               className="wd-modal wd-modal-confirm"
               onClick={e => e.stopPropagation()}
             >
@@ -858,23 +722,11 @@ export default function AdminWithdrawalsPage() {
               </p>
 
               <div className="wd-confirm-actions">
-                <button
-                  onClick={() => setConfirmAction(null)}
-                  className="wd-modal-btn wd-modal-btn-cancel"
-                >
+                <button onClick={() => setConfirmAction(null)} className="wd-modal-btn wd-modal-btn-cancel">
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    if (confirmAction === 'complete') {
-                      completeWithdrawal(selectedWithdrawal.id)
-                    } else {
-                      processWithdrawal(
-                        selectedWithdrawal.id,
-                        confirmAction === 'approve' ? 'approved' : 'rejected'
-                      )
-                    }
-                  }}
+                  onClick={() => runAction(selectedWithdrawal.id, confirmAction)}
                   disabled={processingId === selectedWithdrawal.id}
                   className={`wd-modal-btn wd-modal-btn-${confirmAction === 'reject' ? 'reject' : 'approve'}`}
                 >
