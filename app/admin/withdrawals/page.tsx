@@ -134,7 +134,7 @@ export default function AdminWithdrawalsPage() {
           return
         }
 
-        const userIds = [...new Set((raw || []).map(w => w.user_id))]
+        const userIds = Array.from(new Set((raw || []).map((w: any) => w.user_id as string)))
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, username, email')
