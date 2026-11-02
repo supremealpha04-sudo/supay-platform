@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { FaUsers, FaLink, FaCopy, FaCheck, FaTrophy, FaChartLine, FaCoins } from 'react-icons/fa'
 import toast from 'react-hot-toast'
-import styles from './refer.css'
+import styles from './page.module.css'
 
 const supabase = createClient()
 
