@@ -1,0 +1,491 @@
+.referralsPage {
+  padding: 1.5rem;
+  max-width: 90rem;
+  margin: 0 auto;
+  color: #e5e7eb;
+  padding-bottom: 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .referralsPage {
+    padding: 2rem 2.5rem 6rem;
+  }
+}
+
+/* ===== HERO CARD ===== */
+.heroCard {
+  position: relative;
+  padding: 2rem;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.18),
+    rgba(139, 92, 246, 0.12) 50%,
+    rgba(236, 72, 153, 0.08)
+  );
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 1.5rem;
+  overflow: hidden;
+}
+
+.heroCard::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.4), transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+.heroTitle {
+  position: relative;
+  z-index: 1;
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .heroTitle { font-size: 2.25rem; }
+}
+
+.heroDescription {
+  position: relative;
+  z-index: 1;
+  color: #cbd5e1;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  max-width: 42rem;
+}
+
+/* ===== STATS GRID ===== */
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .statsGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .statsGrid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
+}
+
+.statsCard {
+  position: relative;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.statsCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.4);
+}
+
+.statsCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.statIcon {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #ffffff;
+  font-size: 1.125rem;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+
+.statText {
+  min-width: 0;
+}
+
+.statLabel {
+  color: #94a3b8;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
+
+.statValue {
+  color: #ffffff;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 0.25rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* ===== SECTION TITLE (shared) ===== */
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 1rem;
+}
+
+/* ===== LINK CARD ===== */
+.linkCard {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+}
+
+.linkFieldRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.textInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.875rem 1rem;
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 0.75rem;
+  color: #e5e7eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.textInput:focus {
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.copyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  min-width: 3rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 0.75rem;
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+}
+
+.copyButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.5);
+}
+
+.copyButton:active {
+  transform: translateY(0);
+}
+
+/* ===== TIP BOX ===== */
+.tipBox {
+  padding: 1rem 1.25rem;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 0.875rem;
+}
+
+.tipTitle {
+  color: #a5b4fc;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.625rem;
+}
+
+.tipList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tipList li {
+  position: relative;
+  padding-left: 1.125rem;
+  color: #cbd5e1;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.tipList li::before {
+  content: '•';
+  position: absolute;
+  left: 0.25rem;
+  color: #818cf8;
+  font-weight: 800;
+}
+
+.tipList strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* ===== HISTORY CARD ===== */
+.historyCard {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.2);
+  transition: background 0.2s ease;
+}
+
+.historyItem:last-child {
+  border-bottom: none;
+}
+
+.historyContent {
+  min-width: 0;
+}
+
+.historyName {
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historyMeta {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.historyEarnings {
+  color: #34d399;
+  font-size: 0.875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ===== LEADERBOARD CARD ===== */
+.leaderboardCard {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+}
+
+.leaderboardList {
+  display: flex;
+  flex-direction: column;
+}
+
+.leaderboardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.2);
+}
+
+.leaderboardRow:last-child {
+  border-bottom: none;
+}
+
+.leaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.leaderName {
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leaderboardInfo {
+  text-align: right;
+  min-width: 0;
+}
+
+.leaderDate {
+  color: #6b7280;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  margin-top: 0.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== RANK TAGS ===== */
+.rankTag {
+  width: 1.875rem;
+  height: 1.875rem;
+  min-width: 1.875rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankGold {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.35);
+}
+
+.rankSilver {
+  background: linear-gradient(135deg, #e5e7eb, #94a3b8);
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.3);
+}
+
+.rankBronze {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+}
+
+.rankDefault {
+  background: rgba(51, 65, 85, 0.5);
+  color: #cbd5e1;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .referralsPage {
+    padding: 1rem;
+    padding-bottom: 6rem;
+    gap: 1rem;
+  }
+
+  .heroCard { padding: 1.5rem; }
+  .heroTitle { font-size: 1.625rem; }
+  .heroDescription { font-size: 0.875rem; }
+
+  .statsCard { padding: 1rem; }
+  .statIcon { width: 2.5rem; height: 2.5rem; min-width: 2.5rem; }
+  .statValue { font-size: 1.125rem; }
+
+  .linkCard,
+  .historyCard,
+  .leaderboardCard {
+    padding: 1.125rem;
+  }
+
+  .linkFieldRow { flex-direction: column; }
+
+  .copyButton {
+    width: 100%;
+    height: 2.75rem;
+  }
+}
+
+/* ===== LIGHT MODE ===== */
+[data-theme="light"] .referralsPage {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+[data-theme="light"] .heroCard {
+  background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .heroTitle { color: #0f172a; }
+[data-theme="light"] .heroDescription { color: #475569; }
+
+[data-theme="light"] .statsCard,
+[data-theme="light"] .linkCard,
+[data-theme="light"] .historyCard,
+[data-theme="light"] .leaderboardCard {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .statValue { color: #0f172a; }
+[data-theme="light"] .statLabel { color: #64748b; }
+
+[data-theme="light"] .sectionTitle { color: #0f172a; }
+
+[data-theme="light"] .textInput {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .tipBox {
+  background: rgba(99, 102, 241, 0.05);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+[data-theme="light"] .tipTitle { color: #6366f1; }
+[data-theme="light"] .tipList li { color: #475569; }
+[data-theme="light"] .tipList strong { color: #0f172a; }
+
+[data-theme="light"] .historyName { color: #0f172a; }
+[data-theme="light"] .historyMeta { color: #94a3b8; }
+[data-theme="light"] .historyItem { border-bottom-color: #e2e8f0; }
+
+[data-theme="light"] .leaderboardRow { border-bottom-color: #e2e8f0; }
+[data-theme="light"] .leaderName { color: #0f172a; }
+[data-theme="light"] .leaderDate { color: #94a3b8; }
+
+[data-theme="light"] .rankDefault {
+  background: #e2e8f0;
+  color: #475569;
+}
