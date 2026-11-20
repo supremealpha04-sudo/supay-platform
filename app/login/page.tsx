@@ -17,10 +17,16 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isLoading) return // prevent double-submit (was a source of 429s)
     setIsLoading(true)
     try {
-      await signIn(email, password)
-      router.push('/dashboard')
+      const { mfaRequired } = await signIn(email, password)
+      if (mfaRequired) {
+        router.push('/login/verify-2fa')
+      } else {
+        router.push('/dashboard')
+        router.refresh()
+      }
     } catch (error: any) {
       toast.error(error.message || 'Login failed')
     } finally {
@@ -31,7 +37,6 @@ export default function LoginPage() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        {/* Logo Section */}
         <div className="auth-logo">
           <div className="app-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -42,7 +47,6 @@ export default function LoginPage() {
           <p>Sign in to your Supay account</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label>Email Address</label>
@@ -116,7 +120,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Footer */}
         <div className="auth-footer">
           <p>
             Don't have an account? <Link href="/register">Create account</Link>
