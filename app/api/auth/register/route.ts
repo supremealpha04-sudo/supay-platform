@@ -56,7 +56,6 @@ export async function POST(request: Request) {
   })
 
   if (authError) {
-    // Branch on code, not message — messages change, codes are stable
     const code = (authError as any).code
     const map: Record<string, string> = {
       email_exists: 'This email is already registered. Try signing in.',
