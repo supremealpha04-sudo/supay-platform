@@ -1,18 +1,20 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/security/rateLimit'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function genReferralCode(len = 8) {
   let out = ''
-  for (let i = 0; i < len; i++) {
-    out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]
-  }
+  for (let i = 0; i < len; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]
   return out
 }
 
 export async function POST(request: Request) {
-  const supabase = createServerSupabaseClient()
+  // 5 signups per 15 min per IP
+  const limited = await rateLimit(request, 'auth', 5, 900)
+  if (limited) return limited
 
+  const supabase = createServerSupabaseClient()
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
 
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
+    email: email.trim().toLowerCase(),
     password,
     options: {
       data: {
@@ -54,7 +56,20 @@ export async function POST(request: Request) {
   })
 
   if (authError) {
-    return NextResponse.json({ error: authError.message }, { status: 400 })
+    // Branch on code, not message — messages change, codes are stable
+    const code = (authError as any).code
+    const map: Record<string, string> = {
+      email_exists: 'This email is already registered. Try signing in.',
+      weak_password: 'Password is too weak. Use 8+ chars with letters and numbers.',
+      email_address_invalid: 'Please use a valid, real email address.',
+      signup_disabled: 'Signups are temporarily disabled.',
+      over_email_send_rate_limit: 'Too many emails sent. Please wait a few minutes.',
+      over_request_rate_limit: 'Too many attempts. Please wait a few minutes.',
+    }
+    return NextResponse.json(
+      { error: map[code] || authError.message },
+      { status: code === 'over_request_rate_limit' ? 429 : 400 }
+    )
   }
 
   if (!authData.user) {
