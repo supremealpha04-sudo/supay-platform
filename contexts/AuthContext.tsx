@@ -41,9 +41,12 @@ interface AuthContextType {
   profile: Profile | null
   isLoading: boolean
   signUp: (email: string, password: string, username: string, referralCode?: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<{ mfaRequired: boolean }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  enrollTOTP: () => Promise<{ factorId: string; qrCode: string; secret: string }>
+  verifyTOTP: (factorId: string, code: string) => Promise<void>
+  checkMFAStatus: () => Promise<{ currentLevel: string; nextLevel: string; needsMFA: boolean }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -70,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!data) {
-        // Profile missing — create it
         console.warn('Profile missing, creating one for user:', userId)
         const { data: userData } = await supabase.auth.getUser()
         const email = userData.user?.email || ''
@@ -146,100 +148,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchProfile])
 
-  // ===== SIGN UP =====
+  // ===== SIGN UP (via API route) =====
   const signUp = useCallback(async (
     email: string,
     password: string,
     username: string,
     referralCode?: string
   ) => {
-    const normalizedEmail = email.trim().toLowerCase()
-
-    // 1. Find referrer BEFORE signup (if referral code provided)
-    let referredById: string | null = null
-    if (referralCode?.trim()) {
-      const { data: referrer } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('referral_code', referralCode.trim().toUpperCase())
-        .maybeSingle()
-
-      if (referrer) referredById = referrer.id
-    }
-
-    // 2. Create the auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-      options: {
-        data: {
-          username,
-          referred_by: referredById,
-        },
-      },
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, username, referralCode }),
     })
 
-    if (authError) throw authError
-    if (!authData.user) throw new Error('Signup failed — no user returned')
+    const data = await res.json().catch(() => ({}))
 
-    // 3. The DB trigger (handle_new_user) creates the profile.
-    //    DO NOT insert manually — that causes duplicate key errors.
-    //    Instead, just update the referred_by if needed.
-    if (referredById) {
-      // Wait a moment for trigger to finish
-      await new Promise(r => setTimeout(r, 500))
-
-      await supabase
-        .from('profiles')
-        .update({ referred_by: referredById })
-        .eq('id', authData.user.id)
-
-      await supabase.rpc('handle_referral_bonus', {
-        referrer_id: referredById,
-        new_user_id: authData.user.id,
-      })
+    if (!res.ok) {
+      throw new Error(data.error || 'Registration failed')
     }
 
-    toast.success('Account created! Please check your email to verify.')
+    if (data.needsEmailConfirmation) {
+      toast.success('Account created! Check your email to verify.')
+    } else {
+      toast.success('Account created!')
+    }
   }, [])
 
-  // ===== SIGN IN =====
+  // ===== SIGN IN (via API route, returns mfaRequired) =====
   const signIn = useCallback(async (email: string, password: string) => {
-    const normalizedEmail = email.trim().toLowerCase()
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     })
 
-    if (error) {
-      console.error('SignIn error:', error)
+    const data = await res.json().catch(() => ({}))
 
-      if (error.message.toLowerCase().includes('invalid login')) {
-        throw new Error('Wrong email or password. Please check and try again.')
-      }
-      if (error.message.toLowerCase().includes('email not confirmed')) {
-        throw new Error('Please confirm your email before logging in.')
-      }
-      if (error.message.toLowerCase().includes('too many')) {
-        throw new Error('Too many attempts. Please wait a few minutes.')
-      }
-      throw new Error(error.message)
+    if (!res.ok) {
+      throw new Error(data.error || 'Login failed')
     }
 
-    if (!data.session || !data.user) {
+    // Refresh client-side session so AuthContext picks up the user
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session?.user) {
       throw new Error('Login failed — no session returned.')
     }
 
-    // CRITICAL: load the profile BEFORE returning so /dashboard sees it
-    const p = await fetchProfile(data.user.id)
+    const p = await fetchProfile(session.user.id)
     if (p) setProfile(p)
+    setUser(session.user)
 
-    setUser(data.user)
+    // Check whether this user has an MFA factor that hasn't been verified
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    const mfaRequired = aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2'
+
+    if (mfaRequired) {
+      toast('Enter your 2FA code to continue', { icon: '🔐' })
+      return { mfaRequired: true }
+    }
+
     toast.success('Welcome back!')
-    router.push('/dashboard')
-    router.refresh()
-  }, [fetchProfile, router])
+    return { mfaRequired: false }
+  }, [fetchProfile])
 
   // ===== SIGN OUT =====
   const signOut = useCallback(async () => {
@@ -257,6 +228,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, fetchProfile])
 
+  // ===== TOTP ENROLL =====
+  const enrollTOTP = useCallback(async () => {
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: `GoogleAuth::${Date.now()}`, // unique — duplicates throw mfa_factor_name_conflict
+    })
+
+    if (error) throw new Error(error.message)
+    if (!data) throw new Error('Enrollment failed — no data returned')
+
+    return {
+      factorId: data.id,
+      qrCode: data.totp.qr_code, // SVG string, render with <img src={...} />
+      secret: data.totp.secret,  // manual-entry fallback
+    }
+  }, [])
+
+  // ===== TOTP VERIFY =====
+  const verifyTOTP = useCallback(async (factorId: string, code: string) => {
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
+    if (challengeError) throw new Error(challengeError.message)
+
+    const { error } = await supabase.auth.mfa.verify({
+      factorId,
+      challengeId: challenge.id,
+      code: code.trim(),
+    })
+
+    if (error) {
+      if ((error as any).code === 'mfa_verification_failed') {
+        throw new Error('Incorrect code. Check your device clock and try again.')
+      }
+      throw new Error(error.message)
+    }
+
+    // Session upgraded to aal2 — refresh profile/user
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      setUser(session.user)
+      const p = await fetchProfile(session.user.id)
+      if (p) setProfile(p)
+    }
+
+    toast.success('Two-factor authentication enabled!')
+  }, [fetchProfile])
+
+  // ===== MFA STATUS =====
+  const checkMFAStatus = useCallback(async () => {
+    const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (error) throw new Error(error.message)
+    return {
+      currentLevel: data?.currentLevel || 'aal1',
+      nextLevel: data?.nextLevel || 'aal1',
+      needsMFA: data?.currentLevel === 'aal1' && data?.nextLevel === 'aal2',
+    }
+  }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -267,6 +295,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         refreshProfile,
+        enrollTOTP,
+        verifyTOTP,
+        checkMFAStatus,
       }}
     >
       {children}
