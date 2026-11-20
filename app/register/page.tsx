@@ -22,31 +22,29 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    if (isLoading) return // prevent double-submit → 429
+
     if (!agreeTerms) {
       toast.error('Please agree to the Terms of Service')
       return
     }
-    
     if (password !== confirmPassword) {
       toast.error('Passwords do not match')
       return
     }
-
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters')
+    // MATCH THE SERVER: 8 chars, not 6
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters')
       return
     }
-
-    if (username.length < 3) {
-      toast.error('Username must be at least 3 characters')
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      toast.error('Username must be 3–20 chars (letters, numbers, underscore)')
       return
     }
 
     setIsLoading(true)
     try {
       await signUp(email, password, username, referralCode || undefined)
-      toast.success('Registration successful! Please verify your email.')
       router.push('/login')
     } catch (error: any) {
       toast.error(error.message || 'Registration failed')
@@ -58,7 +56,6 @@ export default function RegisterPage() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        {/* Logo Section */}
         <div className="auth-logo">
           <div className="app-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -69,7 +66,6 @@ export default function RegisterPage() {
           <p>Join Supay and start earning</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label>Username</label>
@@ -192,7 +188,6 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {/* Footer */}
         <div className="auth-footer">
           <p>
             Already have an account? <Link href="/login">Sign in</Link>
