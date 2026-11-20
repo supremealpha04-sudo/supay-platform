@@ -1,39 +1,32 @@
 import { NextResponse } from 'next/server'
 
-// Simple in-memory rate limiting
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+const buckets = new Map<string, { count: number; resetAt: number }>()
 
 export async function rateLimit(
   request: Request,
-  identifier: string,
-  maxRequests: number = 10,
-  windowMs: number = 60000
-) {
-  const ip = request.headers.get('x-forwarded-for') || identifier
+  keyPrefix: string,
+  max: number,
+  windowSeconds: number
+): Promise<NextResponse | null> {
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  const key = `${keyPrefix}:${ip}`
   const now = Date.now()
-  const record = rateLimitMap.get(ip)
+  const bucket = buckets.get(key)
 
-  if (record) {
-    if (now > record.resetTime) {
-      // Reset window
-      rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs })
-      return null
-    }
-    
-    if (record.count >= maxRequests) {
-      return new NextResponse('Too Many Requests', {
-        status: 429,
-        headers: {
-          'Retry-After': Math.ceil((record.resetTime - now) / 1000).toString(),
-        },
-      })
-    }
-    
-    record.count++
-    rateLimitMap.set(ip, record)
-  } else {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs })
+  if (!bucket || bucket.resetAt < now) {
+    buckets.set(key, { count: 1, resetAt: now + windowSeconds * 1000 })
+    return null
   }
-
+  if (bucket.count >= max) {
+    const retryAfter = Math.ceil((bucket.resetAt - now) / 1000)
+    return NextResponse.json(
+      { error: `Too many requests. Try again in ${retryAfter}s.` },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    )
+  }
+  bucket.count += 1
   return null
 }
